@@ -98,6 +98,97 @@ export const processRecording = onCall(
   }
 );
 
+interface SummaryRequest {
+  recordingId: string;
+}
+
+/**
+ * On-demand summary generation. Called when the user taps the Summary tab
+ * for the first time. Returns the existing summary if already generated
+ * (idempotency guard) or creates one via GPT-4o-mini and persists it.
+ */
+export const generateSummary = onCall(
+  { secrets: [openaiApiKey], timeoutSeconds: 60 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "User must be signed in");
+    }
+
+    const uid = request.auth.uid;
+    const { recordingId } = request.data as SummaryRequest;
+
+    if (!recordingId) {
+      throw new HttpsError("invalid-argument", "recordingId is required");
+    }
+
+    const recordingRef = db
+      .collection("users")
+      .doc(uid)
+      .collection("recordings")
+      .doc(recordingId);
+
+    const recordingDoc = await recordingRef.get();
+    if (!recordingDoc.exists) {
+      throw new HttpsError("not-found", "Recording not found");
+    }
+
+    const recording = recordingDoc.data()!;
+
+    if (recording.summary) {
+      return { success: true, summary: recording.summary as string };
+    }
+
+    const transcription = recording.transcription as string | undefined;
+    if (!transcription) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Recording has no transcript to summarize"
+      );
+    }
+
+    const truncated = transcription.substring(0, 4000);
+    const response = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openaiApiKey.value()}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "user",
+              content: `Summarize the following transcript concisely in 3-5 sentences. Output only the summary, nothing else.\n\nTranscript:\n${truncated}`,
+            },
+          ],
+          max_tokens: 300,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new HttpsError(
+        "internal",
+        `Summary generation failed: ${response.status} ${errorText}`
+      );
+    }
+
+    const data = (await response.json()) as Record<string, any>;
+    const summary = data.choices?.[0]?.message?.content?.trim();
+
+    if (!summary) {
+      throw new HttpsError("internal", "Empty summary returned from OpenAI");
+    }
+
+    await recordingRef.update({ summary });
+
+    return { success: true, summary };
+  }
+);
+
 async function transcribeAudio(audioPath: string): Promise<string> {
   const bucket = storage.bucket();
   const file = bucket.file(audioPath);

@@ -40,4 +40,12 @@ class ActionItemRepository @Inject constructor(
     suspend fun deleteItem(itemId: String) {
         collection().document(itemId).delete().await()
     }
+
+    suspend fun getByRecordingId(recordingId: String): List<ActionItem> {
+        return collection()
+            .whereEqualTo("recordingId", recordingId)
+            .get().await()
+            .toObjects(ActionItem::class.java)
+            .sortedBy { it.createdAt }
+    }
 }

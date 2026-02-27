@@ -11,6 +11,9 @@
 - Keep components single-responsibility (Composables render, ViewModels orchestrate, repositories do data work).
 - Prefer composition over inheritance.
 - Make code testable by default (interfaces + dependency injection).
+- **DRY (Don't Repeat Yourself):** Never duplicate logic, layouts, or data transformations. If you write the same (or nearly the same) code twice, extract it into a shared function, composable, or utility. Before writing new code, search the codebase for existing implementations that solve the same problem.
+- **Reuse first, create second:** Always check `ui/components/`, repositories, and utility packages before building something new. Extend or parameterize an existing component rather than creating a near-copy.
+- **Keep it concise:** Leverage Kotlin's expressive features (scope functions, extension functions, default parameters, destructuring) to reduce boilerplate. Fewer lines of clear code is better than many lines of verbose code.
 - **Product alignment:** Feature scope, data models, and Firebase architecture come from **Android_Developer_Brief.md**. Do not invent collections, fields, or flows; use only what the brief defines.
 - **UI alignment:** Follow **Style_Guide_Compose.md**: 48dp minimum touch targets, no emoji in UI or code (use Material Icons), glass-first visuals, stacked panels with no vertical gap where applicable.
 
@@ -25,6 +28,15 @@
 - Prefer `?.let {}`, `?: return`, or `requireNotNull()` with a clear message.
 - Use `sealed class` / `sealed interface` for finite state (e.g. `RecordingState`, `UiState`).
 - Prefer `when` over `if/else` chains for exhaustive state handling.
+
+### Write concise, expressive Kotlin
+- Use scope functions (`let`, `run`, `apply`, `also`, `with`) to reduce temporary variables and flatten logic.
+- Use extension functions to add behavior to existing types instead of writing standalone utility functions with the type as the first parameter.
+- Use default parameter values instead of overloaded functions.
+- Use destructuring declarations for data classes and pairs: `val (title, duration) = recording`.
+- Use `mapNotNull`, `filterIsInstance`, `groupBy`, and other collection operators instead of manual loops with mutable accumulators.
+- Use single-expression functions (`fun foo() = ...`) when the body is a single return.
+- Avoid writing wrapper functions that add no logic — call the underlying API directly.
 
 ### Nullability
 - Prefer explicit null handling. Don't swallow nulls silently if the failure matters to the user (e.g. missing transcription should show "No transcript", not a blank screen).
@@ -60,6 +72,12 @@ sealed interface TranscriptionResult {
 - Keep Composables small. If a Composable exceeds ~200 lines, extract sub-composables.
 - Composables should be "mostly pure": derive UI from state. Side effects go in `LaunchedEffect`, `DisposableEffect`, or the ViewModel.
 - Use `private` helper Composables for view fragments.
+
+### Reuse and shared components
+- **Check `ui/components/` first.** Before building any UI element (card, button, row, dialog, bottom sheet), check if a shared composable already exists. Use it, or extend it with parameters — don't fork a copy.
+- **Parameterize, don't duplicate.** If two screens need a similar list row (e.g. recording row vs. folder row), build one generic composable with content slots or lambdas rather than two near-identical composables.
+- **Extract when a pattern repeats.** The moment you copy-paste a composable or layout block, stop and extract it into `ui/components/` with clear parameter names.
+- **Compose modifiers over wrappers.** Prefer adding `Modifier` parameters to existing composables over wrapping them in a new composable that only adds padding/styling.
 
 ### State management
 - **`remember` / `mutableStateOf`:** Simple local UI state (e.g. text field value, dialog open).
@@ -159,6 +177,12 @@ com.voicemind/
 - Mark access control intentionally: `private` for helpers, `internal` by default, `public` only for API boundaries.
 - Keep "shared" or "util" packages small and justified. A utility is valid only if used by 2+ distinct features.
 
+### Refactoring for reuse
+- **Promote on second use.** When a function, composable, or data mapping is needed by a second feature, move it out of the feature package into a shared location (`ui/components/`, `data/util/`, or a common extension file).
+- **Keep shared code general.** Shared utilities should not import feature-specific types. If they do, they belong in the feature package, not in shared.
+- **Name shared files by purpose,** not by the feature that first created them (e.g. `DateFormatting.kt` not `RecordingDateUtils.kt`).
+- **Delete dead code.** After refactoring, remove the old copy. Don't leave commented-out or orphaned implementations.
+
 ---
 
 ## 9) Logging and Debugging
@@ -201,6 +225,10 @@ Before finalizing any change:
 - Access control is sensible (`private` where possible).
 - No sensitive data in logs.
 - New UI follows **Style_Guide_Compose.md** (colors, touch targets, no emoji, glass where applicable).
+- **No duplicated logic.** If similar code exists elsewhere, refactor into a shared function or composable.
+- **Existing components reused.** Check that `ui/components/`, repositories, and utilities were searched before introducing new ones.
+- **Code is concise.** No unnecessary wrapper functions, redundant variables, or verbose patterns that Kotlin can express more cleanly.
+- **Dead code removed.** No commented-out blocks, unused imports, or orphaned functions left behind after refactoring.
 
 ---
 
@@ -223,6 +251,10 @@ When adding code, include:
 - Don't hardcode the OpenAI API key in source code. Use Cloud Functions, Remote Config, or BuildConfig (not checked into VCS).
 - Don't use emoji in UI, copy, or code; use Material Icons per **Style_Guide_Compose.md**.
 - Don't call Firestore or Storage on the main thread.
+- **Don't copy-paste code across features.** If two features need the same logic, extract it. Copy-pasting is a code smell that leads to divergent bugs.
+- **Don't create a new composable when a shared one already exists** in `ui/components/`. Search first, add parameters if needed, only then create new.
+- **Don't write verbose code when Kotlin offers a concise alternative.** Avoid manual loops where collection operators work, Java-style builders where `apply {}` works, or multiple overloads where default parameters work.
+- **Don't leave dead code.** No commented-out blocks, no "just in case" unused functions, no orphaned files after refactoring.
 
 ---
 

@@ -7,8 +7,10 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
+import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
@@ -20,6 +22,19 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
+
+sealed interface SummaryState {
+    data object Idle : SummaryState
+    data object Loading : SummaryState
+    data class Loaded(val text: String) : SummaryState
+    data class Error(val message: String) : SummaryState
+}
+
+data class TranscriptSheetState(
+    val summaryState: SummaryState = SummaryState.Idle,
+    val actionItems: List<ActionItem> = emptyList(),
+    val actionItemsLoaded: Boolean = false,
+)
 
 data class RecordingsListState(
     val recordings: List<Recording> = emptyList(),
@@ -34,10 +49,14 @@ class RecordingsViewModel @Inject constructor(
     private val recordingRepository: RecordingRepository,
     private val folderRepository: FolderRepository,
     private val storageRepository: StorageRepository,
+    private val actionItemRepository: ActionItemRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecordingsListState())
     val state: StateFlow<RecordingsListState> = _state
+
+    private val _sheetState = MutableStateFlow(TranscriptSheetState())
+    val sheetState: StateFlow<TranscriptSheetState> = _sheetState
 
     private var mediaPlayer: MediaPlayer? = null
 
@@ -149,6 +168,58 @@ class RecordingsViewModel @Inject constructor(
             putExtra(Intent.EXTRA_TEXT, transcript)
         }
         context.startActivity(Intent.createChooser(intent, "Share Transcript"))
+    }
+
+    fun openTranscriptSheet(recording: Recording) {
+        _sheetState.value = TranscriptSheetState()
+        loadActionItems(recording.id)
+        if (recording.summary != null) {
+            _sheetState.value = _sheetState.value.copy(
+                summaryState = SummaryState.Loaded(recording.summary)
+            )
+        }
+    }
+
+    fun loadActionItems(recordingId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val items = actionItemRepository.getByRecordingId(recordingId)
+                _sheetState.value = _sheetState.value.copy(
+                    actionItems = items,
+                    actionItemsLoaded = true,
+                )
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load action items")
+                _sheetState.value = _sheetState.value.copy(actionItemsLoaded = true)
+            }
+        }
+    }
+
+    fun generateSummary(recording: Recording) {
+        if (recording.summary != null) {
+            _sheetState.value = _sheetState.value.copy(
+                summaryState = SummaryState.Loaded(recording.summary)
+            )
+            return
+        }
+        if (_sheetState.value.summaryState is SummaryState.Loading) return
+
+        _sheetState.value = _sheetState.value.copy(summaryState = SummaryState.Loading)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val summary = recordingRepository.generateSummary(recording.id)
+                _sheetState.value = _sheetState.value.copy(
+                    summaryState = SummaryState.Loaded(summary)
+                )
+            } catch (e: Exception) {
+                Timber.e(e, "Summary generation failed")
+                _sheetState.value = _sheetState.value.copy(
+                    summaryState = SummaryState.Error(
+                        e.message ?: "Summary generation failed"
+                    )
+                )
+            }
+        }
     }
 
     override fun onCleared() {

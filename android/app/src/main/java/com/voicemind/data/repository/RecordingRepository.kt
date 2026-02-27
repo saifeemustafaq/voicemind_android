@@ -2,6 +2,7 @@ package com.voicemind.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.storage.FirebaseStorage
 import com.voicemind.data.model.Recording
 import kotlinx.coroutines.channels.awaitClose
@@ -16,6 +17,7 @@ import javax.inject.Singleton
 class RecordingRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage,
+    private val functions: FirebaseFunctions,
     private val authRepository: AuthRepository,
 ) {
     private fun collection() =
@@ -89,6 +91,18 @@ class RecordingRepository @Inject constructor(
             Timber.e(e, "getRecording")
             null
         }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    suspend fun generateSummary(recordingId: String): String {
+        val result = functions
+            .getHttpsCallable("generateSummary")
+            .call(hashMapOf("recordingId" to recordingId))
+            .await()
+        val data = result.getData() as? Map<*, *>
+            ?: throw Exception("Summary generation failed")
+        return data["summary"] as? String
+            ?: throw Exception("Summary generation failed")
     }
 
     suspend fun reassignFolder(fromFolderId: String, toFolderId: String) {

@@ -279,7 +279,8 @@ fun HomeScreen(
     showTranscript?.let { recording ->
         TranscriptSheet(
             recording = recording,
-            onDismiss = { showTranscript = null }
+            viewModel = recordingsViewModel,
+            onDismiss = { showTranscript = null },
         )
     }
 

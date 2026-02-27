@@ -10,5 +10,6 @@ data class Recording(
     val folderId: String = "unfiled",
     @ServerTimestamp val createdAt: Timestamp? = null,
     val transcription: String? = null,
+    val summary: String? = null,
     val audioPath: String = "",
 )
