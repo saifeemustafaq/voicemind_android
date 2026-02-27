@@ -76,6 +76,9 @@ fun AppNavHost(
                     onRecordingClick = {
                         navigateTo(Routes.Recordings)
                     },
+                    onViewAllFolders = {
+                        navigateTo(Routes.Folders)
+                    },
                     onOpenDrawer = onOpenDrawer,
                 )
             }

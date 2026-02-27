@@ -103,6 +103,13 @@ class TaskDetailViewModel @Inject constructor(
         }
     }
 
+    fun updateNotes(notes: String) {
+        val value = notes.trim().ifEmpty { null }
+        viewModelScope.launch(Dispatchers.IO) {
+            actionItemRepository.updateNotes(itemId, value)
+        }
+    }
+
     fun deleteItem() {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.value = _uiState.value.copy(isDeleted = true)

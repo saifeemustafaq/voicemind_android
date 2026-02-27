@@ -66,6 +66,10 @@ class ActionItemRepository @Inject constructor(
         collection().document(itemId).update("deadline", deadline).await()
     }
 
+    suspend fun updateNotes(itemId: String, notes: String?) {
+        collection().document(itemId).update("notes", notes).await()
+    }
+
     suspend fun getByRecordingId(recordingId: String): List<ActionItem> {
         return collection()
             .whereEqualTo("recordingId", recordingId)

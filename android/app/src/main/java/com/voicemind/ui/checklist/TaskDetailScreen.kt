@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -169,6 +170,14 @@ fun TaskDetailScreen(
                 onSetDeadline = { millis -> viewModel.setDeadline(millis) },
             )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Notes / Details
+            NotesCard(
+                notes = item.notes,
+                onNotesChanged = { viewModel.updateNotes(it) },
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
 
             // Delete button
@@ -231,6 +240,80 @@ private fun EditableTitle(
             }
         },
     )
+}
+
+// -- Notes / Details card ---------------------------------------------------------
+
+@Composable
+private fun NotesCard(
+    notes: String?,
+    onNotesChanged: (String) -> Unit,
+) {
+    var text by remember(notes) { mutableStateOf(notes ?: "") }
+    var hasFocus by remember { mutableStateOf(false) }
+
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 12.dp,
+        innerPadding = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                Icons.Default.Notes,
+                contentDescription = null,
+                tint = IosAccent,
+                modifier = Modifier
+                    .size(22.dp)
+                    .padding(top = 2.dp),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Notes",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = IosLabel,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                BasicTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    textStyle = TextStyle(
+                        fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                        color = IosLabel,
+                    ),
+                    cursorBrush = SolidColor(IosAccent),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 10.dp)
+                        .onFocusChanged { focusState ->
+                            if (hasFocus && !focusState.isFocused) {
+                                if (text.trim() != (notes ?: "")) {
+                                    onNotesChanged(text)
+                                }
+                            }
+                            hasFocus = focusState.isFocused
+                        },
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (text.isEmpty()) {
+                                Text(
+                                    "Add details about this task...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = IosSecondaryLabel,
+                                )
+                            }
+                            innerTextField()
+                        }
+                    },
+                )
+            }
+        }
+    }
 }
 
 // -- Date & Deadline card ---------------------------------------------------------

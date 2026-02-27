@@ -333,7 +333,57 @@ async function extractActionItems(
   transcript: string
 ): Promise<ExtractedActionItem[]> {
   const truncated = transcript.substring(0, 3000);
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
+
+  const systemPrompt = `You are a smart personal assistant that extracts action items from voice transcripts. Think like a human assistant who deeply understands intent.
+
+Today is ${dayOfWeek}, ${today}. Use this to resolve relative dates like "this Friday", "next Monday", "tomorrow", "end of week", etc.
+
+Respond with ONLY a JSON array of objects. No markdown, no explanation, no code fences.
+
+Each object has:
+- "title" (string, required): a short phrase describing the task.
+- "deadline" (string, optional): ISO 8601 date YYYY-MM-DD. Use when the speaker indicates a task must be COMPLETED, FINISHED, or DELIVERED by a certain date. This is the "finish by" date.
+- "dueDate" (string, optional): ISO 8601 datetime. Use when the speaker indicates they will WORK ON, ATTEND, or DO something at a specific date AND time. This is the "scheduled for" datetime.
+
+DEADLINE — the date something must be finished by. Trigger phrases:
+- "complete this by Friday" → deadline = that Friday
+- "deliver the report by March 10" → deadline = March 10
+- "needs to be done before next Monday" → deadline = next Monday
+- "submit before the 15th" → deadline = the 15th of this/next month
+- "due on Thursday" → deadline = that Thursday
+- "have it ready by end of week" → deadline = that Friday
+- "deadline is March 5" → deadline = March 5
+- "no later than Tuesday" → deadline = that Tuesday
+- "finish by tomorrow" → deadline = tomorrow's date
+- "I need to get this done by next week" → deadline = next Friday
+- Any "by [date]", "before [date]", "due [date]", "no later than [date]" pattern → deadline
+
+DUE DATE — when you will work on it or attend it (requires a specific time). Trigger phrases:
+- "I'll work on this Tuesday at 3pm" → dueDate = that Tuesday 15:00
+- "meeting at 2pm on Wednesday" → dueDate = that Wednesday 14:00
+- "let's do this Monday morning" → dueDate = that Monday 09:00
+- "schedule a call for Friday at 10" → dueDate = that Friday 10:00
+- "working on it this Saturday afternoon" → dueDate = this Saturday 14:00
+- "appointment on March 3rd at 4:30" → dueDate = March 3 16:30
+- "I have a thing at noon tomorrow" → dueDate = tomorrow 12:00
+- Any "on [date] at [time]" or "at [time] on [date]" pattern with a scheduled activity → dueDate
+
+KEY RULES:
+1. If the context is about completion/delivery and only a date is mentioned (no specific time), use "deadline" (date-only).
+2. If the context is about scheduling/attending and a specific time is mentioned, use "dueDate" (datetime).
+3. If a date is mentioned but the context is ambiguous, prefer "deadline" since most spoken tasks are about getting things done.
+4. A single task can have BOTH a deadline and a dueDate if the speaker mentions both (e.g., "work on the presentation Tuesday at 2pm, it's due by Friday").
+5. If no date or time is mentioned at all, omit both fields entirely.
+6. Do NOT invent dates that the speaker did not mention or imply.
+7. When the speaker says vague time references like "morning", "afternoon", "evening", map them to 09:00, 14:00, 21:00 respectively.
+8. "End of day" = deadline for today. "End of week" = deadline for this Friday. "End of month" = deadline for the last day of the current month.
+
+Example output:
+[{"title":"Buy groceries","deadline":"2026-03-01"},{"title":"Call dentist","dueDate":"2026-03-02T14:00:00"},{"title":"Prepare presentation for client meeting","dueDate":"2026-03-04T10:00:00","deadline":"2026-03-05"}]`;
+
   const response = await fetch(
     "https://api.openai.com/v1/chat/completions",
     {
@@ -347,7 +397,7 @@ async function extractActionItems(
         messages: [
           {
             role: "system",
-            content: `You extract action items from voice transcripts. Today's date is ${today}. Respond with ONLY a JSON array of objects. Each object has: "title" (string, required), "dueDate" (ISO 8601 datetime string if a specific date AND time is mentioned, omit otherwise), "deadline" (ISO 8601 date string YYYY-MM-DD if a date-only deadline is mentioned, omit otherwise). When the speaker says things like "by Friday" or "before March 10", that is a deadline. When they say "at 3pm on Tuesday", that is a dueDate. If no date is mentioned, omit both fields. No markdown, no explanation. Example: [{"title":"Buy groceries","deadline":"2026-03-01"},{"title":"Call dentist at 2pm","dueDate":"2026-03-02T14:00:00"}]`,
+            content: systemPrompt,
           },
           {
             role: "user",

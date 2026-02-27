@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
@@ -36,6 +38,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
@@ -68,6 +73,7 @@ import com.voicemind.util.toFullDateString
 fun HomeScreen(
     onFolderClick: (String) -> Unit,
     onRecordingClick: () -> Unit,
+    onViewAllFolders: () -> Unit = {},
     onOpenDrawer: (() -> Unit)? = null,
     homeViewModel: HomeViewModel = hiltViewModel(),
     recordingViewModel: RecordingViewModel = hiltViewModel(),
@@ -78,6 +84,7 @@ fun HomeScreen(
     val listState by recordingsViewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    var foldersExpanded by remember { mutableStateOf(true) }
     var showTranscript by remember { mutableStateOf<Recording?>(null) }
     var showRenameDialog by remember { mutableStateOf<Recording?>(null) }
     var showMoveDialog by remember { mutableStateOf<Recording?>(null) }
@@ -99,58 +106,98 @@ fun HomeScreen(
             ) {
                 if (homeState.folders.isNotEmpty()) {
                     item {
-                        Text(
-                            text = "Folders",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = IosSecondaryLabel,
-                            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { foldersExpanded = !foldersExpanded }
+                                .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "Folders",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = IosSecondaryLabel,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Icon(
+                                if (foldersExpanded) Icons.Default.KeyboardArrowUp
+                                else Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (foldersExpanded) "Collapse" else "Expand",
+                                tint = IosSecondaryLabel,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                     }
                     item {
-                        GlassCard(modifier = Modifier.fillMaxWidth(), innerPadding = 0.dp) {
-                            Column {
-                                homeState.folders.forEachIndexed { index, folder ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { onFolderClick(folder.id) }
-                                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Folder,
-                                            contentDescription = null,
-                                            tint = IosAccent,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Text(
-                                            text = folder.name,
-                                            style = MaterialTheme.typography.bodyLarge,
+                        val maxVisible = 3
+                        val visibleFolders = homeState.folders.take(maxVisible)
+                        val hasMore = homeState.folders.size > maxVisible
+
+                        AnimatedVisibility(
+                            visible = foldersExpanded,
+                            enter = expandVertically(),
+                            exit = shrinkVertically(),
+                        ) {
+                            GlassCard(modifier = Modifier.fillMaxWidth(), innerPadding = 0.dp) {
+                                Column {
+                                    visibleFolders.forEachIndexed { index, folder ->
+                                        Row(
                                             modifier = Modifier
-                                                .weight(1f)
-                                                .padding(start = 12.dp),
-                                        )
-                                        val count = homeState.folderRecordingCounts[folder.id] ?: 0
-                                        if (count > 0) {
+                                                .fillMaxWidth()
+                                                .clickable { onFolderClick(folder.id) }
+                                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Folder,
+                                                contentDescription = null,
+                                                tint = IosAccent,
+                                                modifier = Modifier.size(24.dp)
+                                            )
                                             Text(
-                                                text = "$count",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = IosSecondaryLabel,
-                                                modifier = Modifier.padding(end = 4.dp),
+                                                text = folder.name,
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .padding(start = 12.dp),
+                                            )
+                                            val count = homeState.folderRecordingCounts[folder.id] ?: 0
+                                            if (count > 0) {
+                                                Text(
+                                                    text = "$count",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = IosSecondaryLabel,
+                                                    modifier = Modifier.padding(end = 4.dp),
+                                                )
+                                            }
+                                            Icon(
+                                                Icons.Default.ChevronRight,
+                                                contentDescription = null,
+                                                tint = IosSecondaryLabel,
                                             )
                                         }
-                                        Icon(
-                                            Icons.Default.ChevronRight,
-                                            contentDescription = null,
-                                            tint = IosSecondaryLabel,
-                                        )
+                                        if (index < visibleFolders.lastIndex || hasMore) {
+                                            HorizontalDivider(
+                                                color = IosSeparator,
+                                                thickness = 0.5.dp,
+                                                modifier = Modifier.padding(start = 52.dp),
+                                            )
+                                        }
                                     }
-                                    if (index < homeState.folders.lastIndex) {
-                                        HorizontalDivider(
-                                            color = IosSeparator,
-                                            thickness = 0.5.dp,
-                                            modifier = Modifier.padding(start = 52.dp),
-                                        )
+                                    if (hasMore) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { onViewAllFolders() }
+                                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                        ) {
+                                            Text(
+                                                text = "View more",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = IosAccent,
+                                            )
+                                        }
                                     }
                                 }
                             }
