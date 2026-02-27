@@ -1,0 +1,32 @@
+# Gradle
+.gradle/
+build/
+*.iml
+
+# Local config (contains SDK path)
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+
+# Native builds
+.externalNativeBuild/
+.cxx/
+
+# Kotlin build cache
+.kotlin/
+
+# Test output
+/captures
+
+# OS
+.DS_Store
+
+# Signing
+*.jks
+*.keystore
+
+# google-services.json is excluded at root level;
+# use google-services.json.example as a template
