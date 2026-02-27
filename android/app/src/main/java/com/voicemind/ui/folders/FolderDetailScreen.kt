@@ -41,6 +41,6 @@ fun FolderDetailScreen(
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
         )
-        RecordingsScreen(folderId = folderId)
+        RecordingsScreen(folderId = folderId, onBack = onBack)
     }
 }

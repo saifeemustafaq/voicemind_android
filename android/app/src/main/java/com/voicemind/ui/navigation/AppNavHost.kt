@@ -36,10 +36,10 @@ fun AppNavHost(
     val currentRoute = navBackStackEntry?.destination?.route
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val useSidebar by navPreferenceRepository.useSidebar.collectAsState(initial = true)
+    val useSidebarOrNull by navPreferenceRepository.useSidebar.collectAsState(initial = null)
+    val useSidebar = useSidebarOrNull ?: return
 
-    val drawerRoutes = remember { Routes.drawerItems.map { it.route }.toSet() }
-    val showBottomBar = !useSidebar && (currentRoute == null || currentRoute in drawerRoutes)
+    val showBottomBar = !useSidebar
 
     val navigateTo: (Routes) -> Unit = { destination ->
         navController.navigate(destination.route) {

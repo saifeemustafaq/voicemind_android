@@ -167,6 +167,15 @@ fun HomeScreen(
                                                 .weight(1f)
                                                 .padding(start = 12.dp),
                                         )
+                                        val count = homeState.folderRecordingCounts[folder.id] ?: 0
+                                        if (count > 0) {
+                                            Text(
+                                                text = "$count",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = IosSecondaryLabel,
+                                                modifier = Modifier.padding(end = 4.dp),
+                                            )
+                                        }
                                         Icon(
                                             Icons.Default.ChevronRight,
                                             contentDescription = null,

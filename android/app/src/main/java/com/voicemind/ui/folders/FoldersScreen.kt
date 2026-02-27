@@ -99,6 +99,7 @@ fun FoldersScreen(
                 items(state.folders, key = { it.id }) { folder ->
                     FolderRow(
                         folder = folder,
+                        recordingCount = state.folderRecordingCounts[folder.id] ?: 0,
                         onClick = { onFolderClick(folder.id) },
                         onRename = { showRenameDialog = folder },
                         onDelete = { showDeleteConfirm = folder },
@@ -168,6 +169,7 @@ fun FoldersScreen(
 @Composable
 private fun FolderRow(
     folder: Folder,
+    recordingCount: Int,
     onClick: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
@@ -196,6 +198,15 @@ private fun FolderRow(
                     .weight(1f)
                     .padding(start = 12.dp),
             )
+
+            if (recordingCount > 0) {
+                Text(
+                    text = "$recordingCount",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = IosSecondaryLabel,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
 
             if (!isUnfiled) {
                 Box {

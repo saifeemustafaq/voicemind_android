@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
@@ -74,6 +75,7 @@ fun RecordingsScreen(
     recordingViewModel: RecordingViewModel = hiltViewModel(),
     folderId: String? = null,
     onOpenDrawer: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
 ) {
     val listState by recordingsViewModel.state.collectAsState()
     val recState by recordingViewModel.uiState.collectAsState()
@@ -96,28 +98,30 @@ fun RecordingsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Mic,
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp),
-                            tint = IosAccent,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Recordings", style = MaterialTheme.typography.titleSmall)
-                    }
-                },
-                navigationIcon = {
-                    if (onOpenDrawer != null) {
-                        IconButton(onClick = onOpenDrawer) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+            if (folderId == null) {
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Mic,
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp),
+                                tint = IosAccent,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Recordings", style = MaterialTheme.typography.titleSmall)
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
+                    },
+                    navigationIcon = {
+                        if (onOpenDrawer != null) {
+                            IconButton(onClick = onOpenDrawer) {
+                                Icon(Icons.Default.Menu, contentDescription = "Menu")
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                )
+            }
 
             Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
                 if (listState.recordings.isEmpty() && !listState.isLoading) {
@@ -127,14 +131,15 @@ fun RecordingsScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                Icons.Default.Mic,
+                                if (folderId != null) Icons.Default.Folder else Icons.Default.Mic,
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
                                 tint = IosSecondaryLabel
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                "No recordings yet",
+                                if (folderId != null) "No recordings in this folder"
+                                else "No recordings yet",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = IosSecondaryLabel
                             )

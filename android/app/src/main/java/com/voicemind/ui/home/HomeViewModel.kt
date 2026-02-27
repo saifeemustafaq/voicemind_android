@@ -16,6 +16,7 @@ import javax.inject.Inject
 data class HomeUiState(
     val folders: List<Folder> = emptyList(),
     val recentRecordings: List<Recording> = emptyList(),
+    val folderRecordingCounts: Map<String, Int> = emptyMap(),
     val isLoading: Boolean = true,
 )
 
@@ -39,9 +40,11 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             recordingRepository.observeRecordings().collect { recordings ->
+                val counts = recordings.groupingBy { it.folderId }.eachCount()
                 _uiState.value = _uiState.value.copy(
                     recentRecordings = recordings.take(10),
-                    isLoading = false
+                    folderRecordingCounts = counts,
+                    isLoading = false,
                 )
             }
         }

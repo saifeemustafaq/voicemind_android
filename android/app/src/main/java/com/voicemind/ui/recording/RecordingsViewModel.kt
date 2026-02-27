@@ -16,6 +16,7 @@ import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -59,6 +60,7 @@ class RecordingsViewModel @Inject constructor(
     val sheetState: StateFlow<TranscriptSheetState> = _sheetState
 
     private var mediaPlayer: MediaPlayer? = null
+    private var recordingsJob: Job? = null
 
     init {
         observeRecordings()
@@ -70,7 +72,8 @@ class RecordingsViewModel @Inject constructor(
     }
 
     private fun observeRecordings(folderId: String? = null) {
-        viewModelScope.launch {
+        recordingsJob?.cancel()
+        recordingsJob = viewModelScope.launch {
             val flow = if (folderId != null) {
                 recordingRepository.observeByFolder(folderId)
             } else {
