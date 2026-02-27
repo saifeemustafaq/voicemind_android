@@ -1,10 +1,7 @@
 package com.voicemind.ui.folders
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,10 +16,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.voicemind.ui.recording.RecordingsScreen
-import com.voicemind.ui.theme.VmTextPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +32,7 @@ fun FolderDetailScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = {
-                Text(folderName, style = MaterialTheme.typography.titleMedium, color = VmTextPrimary)
+                Text(folderName, style = MaterialTheme.typography.titleSmall)
             },
             navigationIcon = {
                 IconButton(onClick = onBack) {

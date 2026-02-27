@@ -1,9 +1,6 @@
 package com.voicemind.ui.auth
 
 import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,7 +36,6 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,7 +51,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -63,14 +58,11 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
-import com.voicemind.ui.theme.VmBlushPink
-import com.voicemind.ui.theme.VmCoolSkyBlue
-import com.voicemind.ui.theme.VmDeepViolet
-import com.voicemind.ui.theme.VmLightLavender
-import com.voicemind.ui.theme.VmPastelViolet
-import com.voicemind.ui.theme.VmSoftPeriwinkleMist
-import com.voicemind.ui.theme.VmTextPrimary
-import com.voicemind.ui.theme.VmTextSecondary
+import com.voicemind.ui.theme.IosAccent
+import com.voicemind.ui.theme.IosLabel
+import com.voicemind.ui.theme.IosOpaqueSeparator
+import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.ui.theme.IosSeparator
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -103,7 +95,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                 imageVector = Icons.Default.Mic,
                 contentDescription = "VoiceMind",
                 modifier = Modifier.size(64.dp),
-                tint = VmBlushPink
+                tint = IosAccent
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -111,14 +103,14 @@ fun SignInScreen(viewModel: AuthViewModel) {
             Text(
                 text = "VoiceMind AI",
                 style = MaterialTheme.typography.headlineLarge,
-                color = VmTextPrimary,
+                color = IosLabel,
                 fontWeight = FontWeight.Bold
             )
 
             Text(
                 text = "Capture your thoughts with voice",
                 style = MaterialTheme.typography.bodyMedium,
-                color = VmTextSecondary
+                color = IosSecondaryLabel
             )
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -131,7 +123,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                     Text(
                         text = if (uiState.isCreateAccount) "Create Account" else "Sign In",
                         style = MaterialTheme.typography.titleMedium,
-                        color = VmTextPrimary
+                        color = IosLabel
                     )
 
                     OutlinedTextField(
@@ -145,12 +137,12 @@ fun SignInScreen(viewModel: AuthViewModel) {
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
                         ),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = VmPastelViolet,
-                            unfocusedBorderColor = VmLightLavender.copy(alpha = 0.4f),
-                            focusedContainerColor = VmSoftPeriwinkleMist.copy(alpha = 0.2f),
-                            unfocusedContainerColor = VmSoftPeriwinkleMist.copy(alpha = 0.2f),
+                            focusedBorderColor = IosAccent,
+                            unfocusedBorderColor = IosOpaqueSeparator,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
                         )
                     )
 
@@ -174,12 +166,12 @@ fun SignInScreen(viewModel: AuthViewModel) {
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
                         ),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = VmPastelViolet,
-                            unfocusedBorderColor = VmLightLavender.copy(alpha = 0.4f),
-                            focusedContainerColor = VmSoftPeriwinkleMist.copy(alpha = 0.2f),
-                            unfocusedContainerColor = VmSoftPeriwinkleMist.copy(alpha = 0.2f),
+                            focusedBorderColor = IosAccent,
+                            unfocusedBorderColor = IosOpaqueSeparator,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
                         )
                     )
 
@@ -203,7 +195,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                     ) {
                         Text(
                             text = if (uiState.isCreateAccount) "Already have an account? Sign in" else "Don't have an account? Create one",
-                            color = VmDeepViolet,
+                            color = IosAccent,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -219,12 +211,12 @@ fun SignInScreen(viewModel: AuthViewModel) {
             ) {
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
-                    color = VmLightLavender.copy(alpha = 0.5f)
+                    color = IosSeparator
                 )
-                Text("or", style = MaterialTheme.typography.bodySmall, color = VmTextSecondary)
+                Text("or", style = MaterialTheme.typography.bodySmall, color = IosSecondaryLabel)
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
-                    color = VmLightLavender.copy(alpha = 0.5f)
+                    color = IosSeparator
                 )
             }
 
@@ -253,18 +245,18 @@ fun SignInScreen(viewModel: AuthViewModel) {
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(50.dp),
                 enabled = !uiState.isLoading,
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, VmLightLavender),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, IosOpaqueSeparator),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = VmTextPrimary
+                    contentColor = IosLabel
                 )
             ) {
                 Text(
                     text = "Continue with Google",
                     style = MaterialTheme.typography.titleSmall,
-                    color = VmTextPrimary
+                    color = IosLabel
                 )
             }
 
@@ -273,7 +265,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
             if (uiState.isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(32.dp),
-                    color = VmDeepViolet,
+                    color = IosAccent,
                     strokeWidth = 3.dp
                 )
             }

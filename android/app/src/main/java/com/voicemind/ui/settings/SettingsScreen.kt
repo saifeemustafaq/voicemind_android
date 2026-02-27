@@ -29,10 +29,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
-import com.voicemind.ui.theme.VmDeepViolet
-import com.voicemind.ui.theme.VmLightLavender
-import com.voicemind.ui.theme.VmTextPrimary
-import com.voicemind.ui.theme.VmTextSecondary
+import com.voicemind.ui.theme.IosLabel
+import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.ui.theme.IosSuccess
+import com.voicemind.ui.theme.IosWhite
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,7 +47,7 @@ fun SettingsScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         if (onOpenDrawer != null) {
             TopAppBar(
-                title = { Text("Settings", style = MaterialTheme.typography.titleMedium) },
+                title = { Text("Settings", style = MaterialTheme.typography.titleSmall) },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Default.Menu, contentDescription = "Menu")
@@ -62,18 +62,19 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
+            Text(
+                text = "ACCOUNT",
+                style = MaterialTheme.typography.bodySmall,
+                color = IosSecondaryLabel,
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
+            )
+
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     Text(
-                        text = "Account",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = VmTextPrimary,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
                         text = user?.email ?: user?.displayName ?: "Signed in",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = VmTextSecondary,
+                        color = IosSecondaryLabel,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     PrimaryButton(
@@ -83,16 +84,17 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "NAVIGATION",
+                style = MaterialTheme.typography.bodySmall,
+                color = IosSecondaryLabel,
+                modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+            )
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
-                    Text(
-                        text = "Navigation",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = VmTextPrimary,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -100,22 +102,22 @@ fun SettingsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Use sidebar navigation",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = VmTextPrimary,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = IosLabel,
                             )
                             Text(
                                 text = if (useSidebar) "Swipe or tap menu to open drawer"
                                        else "Tabs shown at the bottom of the screen",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = VmTextSecondary,
+                                color = IosSecondaryLabel,
                             )
                         }
                         Switch(
                             checked = useSidebar,
                             onCheckedChange = { settingsViewModel.toggleNavMode() },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = VmDeepViolet,
-                                checkedTrackColor = VmLightLavender,
+                                checkedThumbColor = IosWhite,
+                                checkedTrackColor = IosSuccess,
                             ),
                         )
                     }

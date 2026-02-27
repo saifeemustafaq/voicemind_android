@@ -23,7 +23,7 @@ import com.voicemind.ui.folders.FoldersScreen
 import com.voicemind.ui.home.HomeScreen
 import com.voicemind.ui.recording.RecordingsScreen
 import com.voicemind.ui.settings.SettingsScreen
-import com.voicemind.ui.theme.VmSoftPeriwinkleMist
+import com.voicemind.ui.theme.IosBackground
 import kotlinx.coroutines.launch
 
 @Composable
@@ -119,13 +119,13 @@ fun AppNavHost(
                 )
             },
         ) {
-            Scaffold(containerColor = VmSoftPeriwinkleMist) { innerPadding ->
+            Scaffold(containerColor = IosBackground) { innerPadding ->
                 content(Modifier.padding(innerPadding))
             }
         }
     } else {
         Scaffold(
-            containerColor = VmSoftPeriwinkleMist,
+            containerColor = IosBackground,
             bottomBar = {
                 if (showBottomBar) {
                     BottomNavBar(

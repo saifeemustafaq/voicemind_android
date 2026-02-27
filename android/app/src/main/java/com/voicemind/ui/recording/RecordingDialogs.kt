@@ -23,9 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
-import com.voicemind.ui.theme.VmPastelViolet
-import com.voicemind.ui.theme.VmTextPrimary
-import com.voicemind.ui.theme.VmTextSecondary
+import com.voicemind.ui.theme.IosLabel
+import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.ui.theme.IosWhite
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,16 +33,16 @@ fun TranscriptSheet(recording: Recording, onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = VmPastelViolet.copy(alpha = 0.95f),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = IosWhite,
+        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
-            Text(recording.title, style = MaterialTheme.typography.titleMedium)
+            Text(recording.title, style = MaterialTheme.typography.titleSmall)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = recording.transcription ?: "No transcript",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (recording.transcription != null) VmTextPrimary else VmTextSecondary,
+                color = if (recording.transcription != null) IosLabel else IosSecondaryLabel,
             )
             Spacer(modifier = Modifier.height(24.dp))
         }

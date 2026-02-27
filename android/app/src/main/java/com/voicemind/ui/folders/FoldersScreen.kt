@@ -47,10 +47,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.voicemind.data.model.Folder
 import com.voicemind.ui.components.GlassCard
-import com.voicemind.ui.theme.VmDeepViolet
-import com.voicemind.ui.theme.VmTextPrimary
-import com.voicemind.ui.theme.VmTextSecondary
-import com.voicemind.ui.theme.VmWhite
+import com.voicemind.ui.theme.IosAccent
+import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.ui.theme.IosWhite
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +67,7 @@ fun FoldersScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             if (onOpenDrawer != null) {
                 TopAppBar(
-                    title = { Text("Folders", style = MaterialTheme.typography.titleMedium) },
+                    title = { Text("Folders", style = MaterialTheme.typography.titleSmall) },
                     navigationIcon = {
                         IconButton(onClick = onOpenDrawer) {
                             Icon(Icons.Default.Menu, contentDescription = "Menu")
@@ -103,8 +102,8 @@ fun FoldersScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(24.dp),
-            containerColor = VmDeepViolet,
-            contentColor = VmWhite,
+            containerColor = IosAccent,
+            contentColor = IosWhite,
         ) {
             Icon(Icons.Default.Add, contentDescription = "Create folder")
         }
@@ -175,7 +174,7 @@ private fun FolderRow(
             Icon(
                 Icons.Default.Folder,
                 contentDescription = null,
-                tint = VmDeepViolet,
+                tint = IosAccent,
                 modifier = Modifier.size(24.dp)
             )
             Text(
@@ -208,7 +207,7 @@ private fun FolderRow(
                 Icon(
                     Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = VmTextSecondary,
+                    tint = IosSecondaryLabel,
                 )
             }
         }

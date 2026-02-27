@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -61,10 +60,9 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.voicemind.data.model.Recording
 import com.voicemind.ui.components.GlassCard
-import com.voicemind.ui.theme.VmBlushPink
-import com.voicemind.ui.theme.VmDeepViolet
-import com.voicemind.ui.theme.VmTextSecondary
-import com.voicemind.ui.theme.VmWhite
+import com.voicemind.ui.theme.IosAccent
+import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.ui.theme.IosWhite
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -99,7 +97,7 @@ fun RecordingsScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             if (onOpenDrawer != null) {
                 TopAppBar(
-                    title = { Text("Recordings", style = MaterialTheme.typography.titleMedium) },
+                    title = { Text("Recordings", style = MaterialTheme.typography.titleSmall) },
                     navigationIcon = {
                         IconButton(onClick = onOpenDrawer) {
                             Icon(Icons.Default.Menu, contentDescription = "Menu")
@@ -120,13 +118,13 @@ fun RecordingsScreen(
                                 Icons.Default.Mic,
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
-                                tint = VmBlushPink
+                                tint = IosSecondaryLabel
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 "No recordings yet",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = VmTextSecondary
+                                color = IosSecondaryLabel
                             )
                         }
                     }
@@ -181,8 +179,8 @@ fun RecordingsScreen(
                 .align(Alignment.BottomEnd)
                 .padding(24.dp)
                 .size(72.dp),
-            containerColor = VmBlushPink,
-            contentColor = VmWhite,
+            containerColor = IosAccent,
+            contentColor = IosWhite,
             shape = CircleShape,
         ) {
             Icon(Icons.Default.Mic, contentDescription = "Record", modifier = Modifier.size(32.dp))
@@ -261,7 +259,7 @@ private fun RecordingRow(
                 Icon(
                     if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = VmDeepViolet,
+                    tint = IosAccent,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -281,12 +279,14 @@ private fun RecordingRow(
                     Text(
                         text = SimpleDateFormat("MMM dd 'at' h:mm a", Locale.getDefault()).format(date),
                         style = MaterialTheme.typography.bodySmall,
+                        color = IosSecondaryLabel,
                     )
                 }
                 if (recording.transcription != null) {
                     Text(
                         text = recording.transcription.take(60) + if (recording.transcription.length > 60) "..." else "",
                         style = MaterialTheme.typography.bodySmall,
+                        color = IosSecondaryLabel,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

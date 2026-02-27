@@ -2,65 +2,81 @@ package com.voicemind.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.voicemind.R
+
+val InterFontFamily = FontFamily(
+    Font(R.font.inter_regular, FontWeight.Normal),
+    Font(R.font.inter_medium, FontWeight.Medium),
+    Font(R.font.inter_semibold, FontWeight.SemiBold),
+    Font(R.font.inter_bold, FontWeight.Bold),
+)
 
 val VmTypography = Typography(
+    // iOS Large Title
     headlineLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 34.sp,
+        lineHeight = 41.sp,
+    ),
+    // iOS Title 1
+    titleLarge = TextStyle(
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 28.sp,
-        lineHeight = 36.sp,
-        color = VmTextPrimary
+        lineHeight = 34.sp,
     ),
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
+    // iOS Title 2
+    titleMedium = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 22.sp,
         lineHeight = 28.sp,
-        color = VmTextPrimary
     ),
-    titleMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
-        color = VmTextPrimary
-    ),
+    // iOS Headline
     titleSmall = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        color = VmTextPrimary
+        fontSize = 17.sp,
+        lineHeight = 22.sp,
     ),
+    // iOS Body
     bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        lineHeight = 22.sp,
+    ),
+    // iOS Callout
+    bodyMedium = TextStyle(
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
-        lineHeight = 24.sp,
-        color = VmTextPrimary
+        lineHeight = 21.sp,
     ),
-    bodyMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        color = VmTextPrimary
-    ),
+    // iOS Footnote
     bodySmall = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+    ),
+    // iOS Caption 1
+    labelMedium = TextStyle(
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
-        color = VmTextSecondary
     ),
-    labelMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        color = VmTextSecondary
+    // iOS Caption 2
+    labelSmall = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 11.sp,
+        lineHeight = 13.sp,
     ),
 )

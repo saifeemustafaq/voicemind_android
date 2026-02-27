@@ -67,13 +67,12 @@ import com.voicemind.ui.recording.RecordingViewModel
 import com.voicemind.ui.recording.RecordingsViewModel
 import com.voicemind.ui.recording.RenameRecordingDialog
 import com.voicemind.ui.recording.TranscriptSheet
-import com.voicemind.ui.theme.VmBlushPink
-import com.voicemind.ui.theme.VmDeepViolet
-import com.voicemind.ui.theme.VmError
-import com.voicemind.ui.theme.VmLightLavender
-import com.voicemind.ui.theme.VmTextPrimary
-import com.voicemind.ui.theme.VmTextSecondary
-import com.voicemind.ui.theme.VmWhite
+import com.voicemind.ui.theme.IosAccent
+import com.voicemind.ui.theme.IosDestructive
+import com.voicemind.ui.theme.IosLabel
+import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.ui.theme.IosSeparator
+import com.voicemind.ui.theme.IosWhite
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -107,7 +106,7 @@ fun HomeScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             if (onOpenDrawer != null) {
                 TopAppBar(
-                    title = { Text("VoiceMind AI", style = MaterialTheme.typography.titleMedium) },
+                    title = { Text("VoiceMind AI", style = MaterialTheme.typography.titleSmall) },
                     navigationIcon = {
                         IconButton(onClick = onOpenDrawer) {
                             Icon(Icons.Default.Menu, contentDescription = "Menu")
@@ -127,8 +126,9 @@ fun HomeScreen(
                     item {
                         Text(
                             text = "Folders",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = VmTextPrimary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = IosSecondaryLabel,
+                            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
                         )
                     }
                     item {
@@ -145,7 +145,7 @@ fun HomeScreen(
                                         Icon(
                                             Icons.Default.Folder,
                                             contentDescription = null,
-                                            tint = VmDeepViolet,
+                                            tint = IosAccent,
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Text(
@@ -158,14 +158,14 @@ fun HomeScreen(
                                         Icon(
                                             Icons.Default.ChevronRight,
                                             contentDescription = null,
-                                            tint = VmTextSecondary,
+                                            tint = IosSecondaryLabel,
                                         )
                                     }
                                     if (index < homeState.folders.lastIndex) {
                                         HorizontalDivider(
-                                            color = VmLightLavender.copy(alpha = 0.3f),
+                                            color = IosSeparator,
                                             thickness = 0.5.dp,
-                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                            modifier = Modifier.padding(start = 52.dp),
                                         )
                                     }
                                 }
@@ -179,8 +179,9 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Recent Files",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = VmTextPrimary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = IosSecondaryLabel,
+                            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
                         )
                     }
                     item {
@@ -205,9 +206,9 @@ fun HomeScreen(
                                     )
                                     if (index < homeState.recentRecordings.lastIndex) {
                                         HorizontalDivider(
-                                            color = VmLightLavender.copy(alpha = 0.3f),
+                                            color = IosSeparator,
                                             thickness = 0.5.dp,
-                                            modifier = Modifier.padding(horizontal = 14.dp),
+                                            modifier = Modifier.padding(start = 16.dp),
                                         )
                                     }
                                 }
@@ -227,13 +228,13 @@ fun HomeScreen(
                                     Icons.Default.Mic,
                                     contentDescription = null,
                                     modifier = Modifier.size(48.dp),
-                                    tint = VmBlushPink
+                                    tint = IosSecondaryLabel
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
                                     text = "Tap the record button to capture your first thought",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = VmTextSecondary,
+                                    color = IosSecondaryLabel,
                                 )
                             }
                         }
@@ -256,8 +257,8 @@ fun HomeScreen(
                 .align(Alignment.BottomEnd)
                 .padding(24.dp)
                 .size(72.dp),
-            containerColor = VmBlushPink,
-            contentColor = VmWhite,
+            containerColor = IosAccent,
+            contentColor = IosWhite,
             shape = CircleShape,
         ) {
             Icon(
@@ -355,7 +356,7 @@ private fun HomeRecordingRow(
                                 Locale.getDefault()
                             ).format(date),
                             style = MaterialTheme.typography.bodySmall,
-                            color = VmTextSecondary,
+                            color = IosSecondaryLabel,
                         )
                     }
                 }
@@ -370,7 +371,7 @@ private fun HomeRecordingRow(
                         Icon(
                             if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
                             contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = VmDeepViolet,
+                            tint = IosAccent,
                             modifier = Modifier.size(26.dp),
                         )
                     }
@@ -382,7 +383,7 @@ private fun HomeRecordingRow(
                         Icon(
                             Icons.Default.Description,
                             contentDescription = "View transcript",
-                            tint = VmDeepViolet,
+                            tint = IosAccent,
                             modifier = Modifier.size(22.dp),
                         )
                     }
@@ -394,7 +395,7 @@ private fun HomeRecordingRow(
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = "Delete",
-                            tint = VmError,
+                            tint = IosDestructive,
                             modifier = Modifier.size(22.dp),
                         )
                     }

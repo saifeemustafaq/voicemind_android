@@ -1,211 +1,200 @@
 # VoiceMind AI — Style Guide (Kotlin / Jetpack Compose)
 
-This guide translates the VoiceMind AI design system (see project root `Style_Guide.md`) into Kotlin and Jetpack Compose. Use it for the Android app so the experience matches the web app: **glassomorphism-first**, calm, trustworthy, mobile-first.
+This guide documents the VoiceMind AI design system for Android, following Apple's Human Interface Guidelines (HIG) to achieve a clean, minimalistic iOS-inspired look and feel using Jetpack Compose and Material 3.
 
 ---
 
 ## 1. Design philosophy
 
-- **Calm & focused** -- Minimal UI; recording and review without distraction.
-- **Trustworthy & private** -- Soft colors; clear recording and processing states.
-- **Modern & premium** -- Frosted glass surfaces, depth, subtle motion.
-- **Inclusive** -- Readable contrast, 48dp minimum touch targets (Android guideline), support for TalkBack and font scaling.
-
-**Glassomorphism** is the primary treatment: translucent surfaces, blur, soft gradients, rounded corners. Use `Modifier.blur()`, `Modifier.alpha()`, and custom `Brush` gradients to achieve the glass effect in Compose.
+- **Clarity** -- Clean whitespace, content-first. UI elements are legible and purposeful.
+- **Deference** -- The UI recedes; content takes center stage. Neutral backgrounds, no visual noise.
+- **Depth** -- Subtle layering via white cards on a grouped gray background. No glassmorphism.
+- **Restraint** -- Color is used sparingly and meaningfully. A single accent color (iOS blue) for interactive elements, red for destructive actions, green for success/completion.
 
 ---
 
 ## 2. Color palette
 
-Define these in your theme as `Color` values. Use the same hex values as the web app.
+Defined in `Color.kt`. All colors mirror iOS system colors for a native feel.
 
-| Name | Hex | Compose use |
-|------|-----|-------------|
-| **Soft Periwinkle Mist** | `#E5E9FF` | Background tint, empty states, light glass base |
-| **Light Lavender** | `#DCBFFE` | List rows, cards, secondary glass |
-| **Pastel Violet** | `#E1C2FE` | Accent glass, highlights, selected |
-| **Blush Pink** | `#EEA5C4` | Recording state, primary CTA, alerts |
-| **Cool Sky Blue** | `#A9D8FF` | Links, secondary actions, info |
-| **Deep Violet** | `#917BE5` | Primary buttons, focus, hierarchy |
+### Backgrounds
 
-**Text colors:**
-- Primary: `#1A1825` or `#2D2A3A`.
-- Secondary: same with ~0.7 alpha.
-- Links / interactive: Cool Sky Blue or Deep Violet.
-- "From recording" link: `#1E5A9E` (darker blue).
+| Name | Hex | Usage |
+|------|-----|-------|
+| **IosBackground** | `#F2F2F7` | App background (grouped table style) |
+| **IosSecondaryBackground** | `#FFFFFF` | Card/surface white |
+| **IosTertiaryBackground** | `#F2F2F7` | Secondary grouped background |
 
-**Accessibility:** 4.5:1 contrast for body text, 3:1 for large text and controls. Test with TalkBack and font scaling.
+### Accent and Semantic
 
-### Example: Color definitions
+| Name | Hex | Usage |
+|------|-----|-------|
+| **IosAccent** | `#007AFF` | Primary actions, links, interactive elements |
+| **IosDestructive** | `#FF3B30` | Delete, stop recording, destructive actions |
+| **IosSuccess** | `#34C759` | Completion, toggle on state |
+| **IosWarning** | `#FF9500` | Warning states |
 
-```kotlin
-package com.voicemind.ui.theme
+### Text
 
-import androidx.compose.ui.graphics.Color
+| Name | Value | Usage |
+|------|-------|-------|
+| **IosLabel** | `#000000` | Primary text |
+| **IosSecondaryLabel** | `#3C3C43` @ 60% | Secondary/metadata text |
+| **IosTertiaryLabel** | `#3C3C43` @ 30% | Placeholder/disabled text |
 
-val VmSoftPeriwinkleMist = Color(0xFFE5E9FF)
-val VmLightLavender = Color(0xFFDCBFFE)
-val VmPastelViolet = Color(0xFFE1C2FE)
-val VmBlushPink = Color(0xFFEEA5C4)
-val VmCoolSkyBlue = Color(0xFFA9D8FF)
-val VmDeepViolet = Color(0xFF917BE5)
-val VmTextPrimary = Color(0xFF1A1825)
-val VmTextSecondary = Color(0xFF2D2A3A).copy(alpha = 0.7f)
-val VmLinkBlue = Color(0xFF1E5A9E)
-```
+### Separators and Fills
 
-Wire these into your `MaterialTheme` color scheme. Use `VmDeepViolet` as `primary`, `VmBlushPink` as a custom accent/recording color, etc.
+| Name | Value | Usage |
+|------|-------|-------|
+| **IosSeparator** | `#3C3C43` @ 12% | Thin dividers between items |
+| **IosOpaqueSeparator** | `#C6C6C8` | Opaque borders (text fields, outlines) |
+| **IosTertiaryFill** | `#787880` @ 12% | Subtle fills |
 
 ---
 
-## 3. Glass and materials
+## 3. Typography
 
-Compose does not have a built-in `Material` glass like iOS. Achieve glassomorphism with:
+Uses the **Inter** font family (free, open-source alternative to Apple San Francisco). Font files are in `res/font/`.
 
-- **Blur:** `Modifier.blur(radiusX = 12.dp, radiusY = 12.dp)` (API 31+; on lower APIs, use a semi-opaque overlay). For broad support, prefer the semi-opaque approach as the default and layer blur on top where available.
-- **Translucency:** Overlay palette colors at **0.15--0.45** alpha on a light background. Example: `VmSoftPeriwinkleMist.copy(alpha = 0.35f)`.
-- **Border:** Subtle edge: `BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))` or `VmLightLavender.copy(alpha = 0.4f)`.
-- **Corners:** 12--20dp for cards and buttons; 20--24dp for sheets/modals. Use `RoundedCornerShape(...)`.
-- **Shadow:** `Modifier.shadow(elevation = 4.dp, shape = RoundedCornerShape(16.dp), ambientColor = VmDeepViolet.copy(alpha = 0.08f))`.
+Defined in `Type.kt` with `InterFontFamily`.
 
-**Stacked panels:** When stacking two glass panels vertically (e.g. To-do and Done on Checklist), use **no vertical spacing** so the app background does not show between them. Use `Column` with no `Arrangement.spacedBy()` or `Spacer` between the panels; panels should touch.
+| Material Slot | iOS Equivalent | Size | Weight |
+|---------------|----------------|------|--------|
+| `headlineLarge` | Large Title | 34sp | Bold |
+| `titleLarge` | Title 1 | 28sp | Bold |
+| `titleMedium` | Title 2 | 22sp | SemiBold |
+| `titleSmall` | Headline | 17sp | SemiBold |
+| `bodyLarge` | Body | 17sp | Regular |
+| `bodyMedium` | Callout | 16sp | Regular |
+| `bodySmall` | Footnote | 13sp | Regular |
+| `labelMedium` | Caption 1 | 12sp | Regular |
+| `labelSmall` | Caption 2 | 11sp | Regular |
 
-### Example: GlassCard composable
+Text color is not baked into typography styles -- apply via the `color` parameter using `IosLabel`, `IosSecondaryLabel`, etc.
+
+---
+
+## 4. Shapes
+
+Defined in `Theme.kt` via `IosShapes`:
+
+| Shape | Radius | Usage |
+|-------|--------|-------|
+| `extraSmall` | 4dp | Small badges |
+| `small` | 8dp | Buttons, chips |
+| `medium` | 10dp | Cards, list containers |
+| `large` | 12dp | Primary buttons, larger cards |
+| `extraLarge` | 22dp | Bottom sheets, modals |
+
+---
+
+## 5. Components
+
+### GlassCard (now iOS Card)
+
+Opaque white surface with 10dp corner radius, no border, no shadow.
 
 ```kotlin
-@Composable
-fun GlassCard(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = VmLightLavender.copy(alpha = 0.25f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
-        shadowElevation = 4.dp,
-    ) {
-        content()
-    }
+GlassCard(modifier = Modifier.fillMaxWidth()) {
+    // content
 }
 ```
 
----
+### PrimaryButton
 
-## 4. Typography
+iOS-accent blue, 12dp radius, 50dp height, white text.
 
-- **Font:** Use the system default (Roboto) or a friendly sans-serif. No emoji in UI strings; use Material Icons for status and actions.
-- **Hierarchy (Material 3 type scale):**
-  - Large title / H1: `headlineLarge` or `titleLarge` bold.
-  - Section headers: `titleMedium` or `titleSmall` semibold (e.g. "To-do", "Done").
-  - Body: `bodyLarge` or `bodyMedium`.
-  - Secondary / metadata: `bodySmall` or `labelMedium` with secondary color.
-- **Colors:** Primary text `VmTextPrimary`; secondary `VmTextSecondary`. Links: `VmCoolSkyBlue` or `VmDeepViolet`. "From recording" links: `VmLinkBlue`.
-- **Recording / timers:** Monospaced or tabular font for elapsed time; semibold for "Recording" label.
+```kotlin
+PrimaryButton(text = "Sign In", onClick = { ... })
+```
 
-Support **font scaling** -- use `sp` units and test at large text sizes.
+### GlassSurface (now iOS Surface)
+
+Opaque white, 10dp corner radius, no decoration.
 
 ---
 
-## 5. Spacing and layout
+## 6. Spacing and layout
 
-- **Grid:** 4dp or 8dp base. Use 8, 16, 24, 32dp for padding and spacing.
-- **Touch targets:** Minimum **48dp** height and width for tappable controls (Android Material guideline). Record, Stop, folder rows, checklist checkbox, list actions must all meet this.
-- **Screen margins:** 16--24dp horizontal; 16--24dp vertical between sections.
-- **Sheets / modals:** 20--24dp padding inside; drag handle (small rounded pill, gray or Soft Periwinkle) at top.
-- **Phone-first:** Design for phone first; tablet can reuse the same layout or add side-by-side panes.
-
----
-
-## 6. Components (Compose)
-
-### Record button (FAB)
-- Size: 72--80dp circle.
-- Background: Blush Pink gradient (optional blend with Pastel Violet); soft shadow.
-- Icon: Material Icon `Mic` in white.
-- Recording state: Same style with a subtle pulse or glow (e.g. repeated `animateFloatAsState` on alpha or scale). No emoji.
-
-### Buttons
-- **Primary:** Deep Violet background, white text, 12--16dp corner radius. Min height 48dp; padding 12--16dp vertical, 20--24dp horizontal.
-- **Secondary:** Cool Sky Blue or Light Lavender glass (low alpha), Deep Violet or dark text.
-- **Destructive:** Red with glass treatment; use sparingly (e.g. Delete confirmation).
-
-### Cards (folders, checklist sections, list containers)
-- Background: Light Lavender or Pastel Violet at ~0.25--0.35 alpha; 12--16dp corner radius; 1dp light border; soft shadow.
-- Padding: 16--20dp inside.
-
-### Bottom sheets (recording UI, modals)
-- Background: Pastel Violet / Light Lavender glass, 20--24dp corner radius (top), stronger alpha.
-- Drag handle: small pill (e.g. 12x4dp) in gray or Soft Periwinkle.
-- Title and primary actions in Deep Violet or Blush Pink.
-
-### List rows (recordings, checklist items, folders)
-- Row background: Light Lavender at ~0.2--0.25 alpha; 12dp corner radius if needed; subtle divider (Light Lavender at 0.2).
-- Selected/highlighted: Pastel Violet tint.
-- Min height 48dp.
-
-### Text fields (title, folder name)
-- Background: Soft Periwinkle Mist or Light Lavender at ~0.2--0.3 alpha, 12dp corner radius.
-- Border: 1dp Light Lavender or Pastel Violet at ~0.4. Focused: Pastel Violet or Cool Sky Blue accent.
-- Use `OutlinedTextField` or `TextField` with custom colors from palette.
-
-### Chips / tags
-- Pill shape: Light Lavender or Cool Sky Blue at ~0.3 alpha, full corner radius (pill). Selected: Pastel Violet or Deep Violet, slightly higher alpha.
+- **Grid:** 4dp base. Use 8, 16, 24, 32dp for padding and spacing.
+- **Touch targets:** 48dp minimum for tappable controls.
+- **Screen margins:** 16dp horizontal.
+- **Section headers:** Use `bodySmall` in `IosSecondaryLabel`, uppercase, with 16dp start padding -- matches iOS grouped table section headers.
 
 ---
 
-## 7. Icons
+## 7. Navigation
 
-- **No emoji** in UI or copy. Use **Material Icons** (filled or outlined, pick one style and stay consistent).
-- **Key icons:** `Mic` (record), `PlayArrow` / `Pause` (playback), `Stop` (stop recording), `Delete` (trash), `Folder` (folder), `CheckCircle` / `CheckCircleOutline` (checklist), `MoreVert` (overflow menu), `Edit` (rename), `Share` (share), `ContentCopy` (copy), `List` (checklist nav).
-- **Colors:** Deep Violet or VmTextPrimary for primary; Cool Sky Blue for secondary; Blush Pink for record and alerts.
-- **Recording:** Mic icon; optional subtle pulse when recording.
+### Bottom tab bar
 
----
+- White background with 0.5dp top separator (`IosSeparator`)
+- Selected icon/label: `IosAccent`
+- Unselected: `IosSecondaryLabel`
+- No indicator highlight (transparent)
 
-## 8. Motion and feedback
+### Top app bar
 
-- **Transitions:** 200--300ms ease-out for sheet present/dismiss, modal appear, list item changes. Use `AnimatedVisibility`, `animateContentSize`, Compose animation APIs.
-- **Recording:** Subtle pulse or glow (Blush Pink) when recording; avoid distracting animation.
-- **Loading:** Prefer `CircularProgressIndicator` (themed to Deep Violet or Blush Pink) or skeleton/shimmer (Soft Periwinkle / Light Lavender).
-- **Success:** Brief highlight or checkmark; keep minimal.
+- Transparent background, no elevation
+- Title: `titleSmall` weight
 
----
+### Sidebar drawer
 
-## 9. States
-
-- **Default:** Glass and colors as above.
-- **Pressed / ripple:** Use Material ripple; default is fine. Optional slight scale (0.98) on press for FAB.
-- **Disabled:** Alpha ~0.5; no emphasis.
-- **Error:** Red tint with glass; avoid flat red blocks. Snackbar with error message.
-- **Recording:** Blush Pink emphasis and optional pulse.
+- White background
+- Selected item: `IosAccent` text/icon with 8% accent background
+- Unselected: `IosLabel` text, `IosSecondaryLabel` icon
 
 ---
 
-## 10. Code conventions
+## 8. Semantic color usage
 
-- **Naming:** Use clear, consistent names. Composables: PascalCase nouns (e.g. `RecordingRow`, `ChecklistSection`). State: camelCase with `by remember` or ViewModel `StateFlow`.
-- **No emoji** in source code, strings, or comments. Use Material Icon names in comments if needed.
-- **Reuse:** Extract repeated glass backgrounds and button styles into shared composables (e.g. `GlassCard`, `PrimaryButton`, `GlassSurface`) to keep consistency and DRY.
-- **Accessibility:** Add `contentDescription` for icons and buttons; support TalkBack and font scaling.
-- **Theme:** Wire palette colors into `MaterialTheme.colorScheme`; reference via `MaterialTheme.colorScheme.primary`, etc., or use named `Vm*` colors directly for custom treatments outside the standard Material slots.
+| Context | Color |
+|---------|-------|
+| Interactive elements (buttons, links, play) | `IosAccent` (blue) |
+| Stop recording, delete, destructive | `IosDestructive` (red) |
+| Completed/toggle on | `IosSuccess` (green) |
+| Warning | `IosWarning` (orange) |
+| Folder/item icons | `IosAccent` |
+| Section headers, secondary text | `IosSecondaryLabel` |
+| Dividers | `IosSeparator` |
 
 ---
 
-## 11. Quick reference (Compose)
+## 9. Recording UI
+
+- **FAB:** `IosAccent` blue when idle
+- **Recording status label:** `IosDestructive` red with pulse animation
+- **Timer:** `IosLabel` black, monospace
+- **Stop button:** `IosDestructive` red circle
+- **Pause/Resume:** `IosAccent` blue circle
+- **Discard:** `IosDestructive` red icon on light red background
+
+---
+
+## 10. Icons
+
+Use **Material Icons** (filled style). No emoji.
+
+Key icons: `Mic` (record), `PlayCircle`/`PauseCircle` (playback), `Stop` (stop), `Delete` (trash), `Folder` (folder), `CheckCircle`/`RadioButtonUnchecked` (checklist), `MoreVert` (overflow), `Edit` (rename), `Share` (share), `ChevronRight` (disclosure).
+
+Icon colors: `IosAccent` for interactive, `IosDestructive` for destructive, `IosSecondaryLabel` for passive/disclosure.
+
+---
+
+## 11. Quick reference
 
 | Element | Treatment |
 |---------|-----------|
-| App background | Soft Periwinkle Mist tint over light gray/white |
-| Cards, list rows | Light Lavender / Pastel Violet glass, optional blur, 12--16dp radius |
-| Sheets / modals | Pastel Violet / Light Lavender glass, 20--24dp radius |
-| Record button | Blush Pink glass, glow when recording; Material Icon Mic |
-| Primary actions | Deep Violet, white text, 48dp min height |
-| Secondary actions | Cool Sky Blue / Light Lavender glass |
-| Links, "from recording" | VmLinkBlue (darker blue), tappable |
-| Text fields | Soft Periwinkle / Light Lavender glass, Pastel Violet focus |
-| Stacked sections | No vertical gap between panels |
+| App background | `IosBackground` (#F2F2F7) |
+| Cards | White, 10dp radius, no border/shadow |
+| Section headers | Uppercase, `bodySmall`, `IosSecondaryLabel` |
+| Primary buttons | `IosAccent` blue, 12dp radius, 50dp height |
+| FAB | `IosAccent` blue circle |
+| Destructive actions | `IosDestructive` red |
+| Switch on state | `IosSuccess` green track, white thumb |
+| Separators | `IosSeparator` @ 0.5dp |
+| Text fields | 10dp radius, `IosAccent` focus border, `IosOpaqueSeparator` unfocused |
+| Bottom sheets | White, 22dp top radius |
 
 ---
 
-*This style guide keeps the Android app aligned with the VoiceMind AI web app and product vision: frictionless capture, workflow-friendly outputs, calm and trustworthy glass-first UI.*
+*This style guide keeps the Android app aligned with iOS Human Interface Guidelines: clean, minimalistic, content-first, with purposeful use of color.*
