@@ -12,4 +12,5 @@ data class ActionItem(
     @ServerTimestamp val createdAt: Timestamp? = null,
     val dueDate: Timestamp? = null,
     val deadline: Timestamp? = null,
+    val calendarEventId: String? = null,
 )

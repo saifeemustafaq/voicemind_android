@@ -112,6 +112,7 @@ dependencies {
     implementation(libs.credentials)
     implementation(libs.credentials.play.services)
     implementation(libs.google.id.identity)
+    implementation(libs.play.services.auth)
 
     // Networking
     implementation(libs.retrofit)
