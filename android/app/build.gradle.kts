@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.firebase.appdistribution)
 }
 
 android {
@@ -38,6 +39,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            firebaseAppDistribution {
+                releaseNotes = "Latest build of VoiceMind"
+                testers = "saifeesaifuddinq@gmail.com"
+            }
         }
     }
     compileOptions {
