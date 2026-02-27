@@ -23,3 +23,7 @@ sealed class Routes(val route: String, val label: String, val icon: ImageVector)
 const val FOLDER_DETAIL_ROUTE = "folder_detail/{folderId}"
 
 fun folderDetailRoute(folderId: String) = "folder_detail/$folderId"
+
+const val TASK_DETAIL_ROUTE = "task_detail/{itemId}"
+
+fun taskDetailRoute(itemId: String) = "task_detail/$itemId"

@@ -17,6 +17,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.ui.checklist.ChecklistScreen
+import com.voicemind.ui.checklist.TaskDetailScreen
 import com.voicemind.ui.folders.FolderDetailScreen
 import com.voicemind.ui.folders.FoldersScreen
 import com.voicemind.ui.home.HomeScreen
@@ -82,7 +83,17 @@ fun AppNavHost(
                 RecordingsScreen(onOpenDrawer = onOpenDrawer)
             }
             composable(Routes.Checklist.route) {
-                ChecklistScreen(onOpenDrawer = onOpenDrawer)
+                ChecklistScreen(
+                    onOpenDrawer = onOpenDrawer,
+                    onTaskClick = { itemId ->
+                        navController.navigate(taskDetailRoute(itemId))
+                    },
+                )
+            }
+            composable(TASK_DETAIL_ROUTE) {
+                TaskDetailScreen(
+                    onBack = { navController.popBackStack() },
+                )
             }
             composable(Routes.Folders.route) {
                 FoldersScreen(

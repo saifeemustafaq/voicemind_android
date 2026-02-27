@@ -42,6 +42,22 @@ class ActionItemRepository @Inject constructor(
         collection().document(itemId).delete().await()
     }
 
+    fun observeActionItem(itemId: String): Flow<ActionItem?> = callbackFlow {
+        val registration = collection().document(itemId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "observeActionItem")
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObject(ActionItem::class.java))
+            }
+        awaitClose { registration.remove() }
+    }
+
+    suspend fun updateTitle(itemId: String, title: String) {
+        collection().document(itemId).update("title", title).await()
+    }
+
     suspend fun updateDueDate(itemId: String, dueDate: Timestamp?) {
         collection().document(itemId).update("dueDate", dueDate).await()
     }
