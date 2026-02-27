@@ -10,4 +10,6 @@ data class ActionItem(
     val completed: Boolean = false,
     val recordingId: String? = null,
     @ServerTimestamp val createdAt: Timestamp? = null,
+    val dueDate: Timestamp? = null,
+    val deadline: Timestamp? = null,
 )

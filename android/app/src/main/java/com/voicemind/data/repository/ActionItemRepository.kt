@@ -1,5 +1,6 @@
 package com.voicemind.data.repository
 
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.voicemind.data.model.ActionItem
@@ -39,6 +40,14 @@ class ActionItemRepository @Inject constructor(
 
     suspend fun deleteItem(itemId: String) {
         collection().document(itemId).delete().await()
+    }
+
+    suspend fun updateDueDate(itemId: String, dueDate: Timestamp?) {
+        collection().document(itemId).update("dueDate", dueDate).await()
+    }
+
+    suspend fun updateDeadline(itemId: String, deadline: Timestamp?) {
+        collection().document(itemId).update("deadline", deadline).await()
     }
 
     suspend fun getByRecordingId(recordingId: String): List<ActionItem> {
