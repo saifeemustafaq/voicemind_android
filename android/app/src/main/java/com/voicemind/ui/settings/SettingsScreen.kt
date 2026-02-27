@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +32,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
+import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosLabel
 import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSuccess
@@ -45,17 +49,28 @@ fun SettingsScreen(
     val useSidebar by settingsViewModel.useSidebar.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        if (onOpenDrawer != null) {
-            TopAppBar(
-                title = { Text("Settings", style = MaterialTheme.typography.titleSmall) },
-                navigationIcon = {
+        TopAppBar(
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                        tint = IosAccent,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Settings", style = MaterialTheme.typography.titleSmall)
+                }
+            },
+            navigationIcon = {
+                if (onOpenDrawer != null) {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
-        }
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+        )
 
         Column(
             modifier = Modifier

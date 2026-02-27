@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -50,17 +52,28 @@ fun ChecklistScreen(
     val state by viewModel.uiState.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        if (onOpenDrawer != null) {
-            TopAppBar(
-                title = { Text("Checklist", style = MaterialTheme.typography.titleSmall) },
-                navigationIcon = {
+        TopAppBar(
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Checklist,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                        tint = IosAccent,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Checklist", style = MaterialTheme.typography.titleSmall)
+                }
+            },
+            navigationIcon = {
+                if (onOpenDrawer != null) {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
-        }
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+        )
 
         Column(
             modifier = Modifier

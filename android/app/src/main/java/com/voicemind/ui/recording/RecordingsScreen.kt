@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -95,17 +96,28 @@ fun RecordingsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            if (onOpenDrawer != null) {
-                TopAppBar(
-                    title = { Text("Recordings", style = MaterialTheme.typography.titleSmall) },
-                    navigationIcon = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Mic,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                            tint = IosAccent,
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Recordings", style = MaterialTheme.typography.titleSmall)
+                    }
+                },
+                navigationIcon = {
+                    if (onOpenDrawer != null) {
                         IconButton(onClick = onOpenDrawer) {
                             Icon(Icons.Default.Menu, contentDescription = "Menu")
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-                )
-            }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
 
             Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
                 if (listState.recordings.isEmpty() && !listState.isLoading) {

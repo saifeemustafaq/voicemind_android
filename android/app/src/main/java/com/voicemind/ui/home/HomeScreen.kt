@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PauseCircle
@@ -104,17 +105,28 @@ fun HomeScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            if (onOpenDrawer != null) {
-                TopAppBar(
-                    title = { Text("VoiceMind AI", style = MaterialTheme.typography.titleSmall) },
-                    navigationIcon = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Home,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                            tint = IosAccent,
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("VoiceMind AI", style = MaterialTheme.typography.titleSmall)
+                    }
+                },
+                navigationIcon = {
+                    if (onOpenDrawer != null) {
                         IconButton(onClick = onOpenDrawer) {
                             Icon(Icons.Default.Menu, contentDescription = "Menu")
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-                )
-            }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
 
             LazyColumn(
                 modifier = Modifier
