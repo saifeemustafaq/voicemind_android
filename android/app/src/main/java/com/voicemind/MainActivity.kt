@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.voicemind.data.repository.NavPreferenceRepository
@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             VoiceMindAITheme {
                 val authViewModel: AuthViewModel = hiltViewModel()
-                val isSignedIn by authViewModel.isSignedIn.collectAsState()
+                val isSignedIn by authViewModel.isSignedIn.collectAsStateWithLifecycle()
 
                 if (isSignedIn) {
                     AppNavHost(

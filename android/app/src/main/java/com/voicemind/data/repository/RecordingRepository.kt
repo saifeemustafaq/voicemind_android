@@ -21,7 +21,7 @@ class RecordingRepository @Inject constructor(
     private val authRepository: AuthRepository,
 ) {
     private fun collection() =
-        firestore.collection("users/${authRepository.currentUser!!.uid}/recordings")
+        firestore.collection("users/${requireNotNull(authRepository.currentUser) { "User must be signed in" }.uid}/recordings")
 
     fun observeRecordings(): Flow<List<Recording>> = callbackFlow {
         val registration = collection()
@@ -79,7 +79,7 @@ class RecordingRepository @Inject constructor(
         try {
             storage.reference.child(recording.audioPath).delete().await()
         } catch (e: Exception) {
-            Timber.e(e, "Failed to delete audio file: ${recording.audioPath}")
+            Timber.e("Failed to delete audio file: %s", e.message)
         }
     }
 
@@ -108,9 +108,7 @@ class RecordingRepository @Inject constructor(
     suspend fun reassignFolder(fromFolderId: String, toFolderId: String) {
         val batch = firestore.batch()
         val docs = collection().whereEqualTo("folderId", fromFolderId).get().await()
-        for (doc in docs) {
-            batch.update(doc.reference, "folderId", toFolderId)
-        }
+        docs.forEach { batch.update(it.reference, "folderId", toFolderId) }
         batch.commit().await()
     }
 }

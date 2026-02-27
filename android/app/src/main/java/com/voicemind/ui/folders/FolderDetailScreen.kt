@@ -3,20 +3,14 @@ package com.voicemind.ui.folders
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.recording.RecordingsScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,20 +20,14 @@ fun FolderDetailScreen(
     onBack: () -> Unit,
     viewModel: FoldersViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val folderName = state.folders.find { it.id == folderId }?.name ?: "Folder"
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                Text(folderName, style = MaterialTheme.typography.titleSmall)
-            },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+        VoiceMindTopAppBar(
+            title = folderName,
+            icon = Icons.Default.Folder,
+            onBack = onBack,
         )
         RecordingsScreen(folderId = folderId, onBack = onBack)
     }

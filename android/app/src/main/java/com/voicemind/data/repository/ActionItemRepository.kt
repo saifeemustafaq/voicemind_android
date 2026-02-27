@@ -17,7 +17,7 @@ class ActionItemRepository @Inject constructor(
     private val authRepository: AuthRepository,
 ) {
     private fun collection() =
-        firestore.collection("users/${authRepository.currentUser!!.uid}/actionItems")
+        firestore.collection("users/${requireNotNull(authRepository.currentUser) { "User must be signed in" }.uid}/actionItems")
 
     fun observeActionItems(): Flow<List<ActionItem>> = callbackFlow {
         val registration = collection()

@@ -1,14 +1,9 @@
 package com.voicemind.ui.recording
 
-import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.pm.PackageManager
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,14 +17,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PauseCircle
@@ -39,39 +32,33 @@ import androidx.compose.material.icons.filled.TextSnippet
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.voicemind.data.model.Recording
+import com.voicemind.ui.components.EmptyStateCard
 import com.voicemind.ui.components.GlassCard
+import com.voicemind.ui.components.RecordFab
+import com.voicemind.ui.components.RecordingDialogsHost
+import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosBackground
 import com.voicemind.ui.theme.IosSecondaryLabel
-import com.voicemind.ui.theme.IosWhite
-import java.text.SimpleDateFormat
-import java.util.Locale
+import com.voicemind.util.toShortDateString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,15 +69,9 @@ fun RecordingsScreen(
     onOpenDrawer: (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
 ) {
-    val listState by recordingsViewModel.state.collectAsState()
-    val recState by recordingViewModel.uiState.collectAsState()
+    val listState by recordingsViewModel.state.collectAsStateWithLifecycle()
+    val recState by recordingViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) recordingViewModel.startRecording()
-    }
 
     LaunchedEffect(folderId) {
         recordingsViewModel.filterByFolder(folderId)
@@ -104,27 +85,10 @@ fun RecordingsScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             if (folderId == null) {
-                TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Mic,
-                                contentDescription = null,
-                                modifier = Modifier.size(22.dp),
-                                tint = IosAccent,
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Recordings", style = MaterialTheme.typography.titleSmall)
-                        }
-                    },
-                    navigationIcon = {
-                        if (onOpenDrawer != null) {
-                            IconButton(onClick = onOpenDrawer) {
-                                Icon(Icons.Default.Menu, contentDescription = "Menu")
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                VoiceMindTopAppBar(
+                    title = "Recordings",
+                    icon = Icons.Default.Mic,
+                    onOpenDrawer = onOpenDrawer,
                 )
             }
 
@@ -134,27 +98,18 @@ fun RecordingsScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                if (folderId != null) Icons.Default.Folder else Icons.Default.Mic,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = IosSecondaryLabel
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                if (folderId != null) "No recordings in this folder"
-                                else "No recordings yet",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = IosSecondaryLabel,
-                            )
-                            if (folderId != null && onBack != null) {
-                                Spacer(modifier = Modifier.height(20.dp))
-                                TextButton(onClick = onBack) {
-                                    Text("Back to Folders", color = IosAccent)
+                        EmptyStateCard(
+                            icon = if (folderId != null) Icons.Default.Folder else Icons.Default.Mic,
+                            message = if (folderId != null) "No recordings in this folder" else "No recordings yet",
+                            extraContent = if (folderId != null && onBack != null) {
+                                {
+                                    Spacer(modifier = Modifier.height(20.dp))
+                                    TextButton(onClick = onBack) {
+                                        Text("Back to Folders", color = IosAccent)
+                                    }
                                 }
-                            }
-                        }
+                            } else null,
+                        )
                     }
                 }
 
@@ -195,39 +150,10 @@ fun RecordingsScreen(
             }
         }
 
-        val fabDensity = LocalDensity.current
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .size(160.dp)
-                .background(
-                    brush = Brush.radialGradient(
-                        colorStops = arrayOf(
-                            0.0f to IosBackground,
-                            0.45f to IosBackground,
-                            1.0f to Color.Transparent,
-                        ),
-                        radius = with(fabDensity) { 80.dp.toPx() },
-                    )
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            FloatingActionButton(
-                onClick = {
-                    val hasPerm = ContextCompat.checkSelfPermission(
-                        context, Manifest.permission.RECORD_AUDIO
-                    ) == PackageManager.PERMISSION_GRANTED
-                    if (hasPerm) recordingViewModel.startRecording()
-                    else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                },
-                modifier = Modifier.size(72.dp),
-                containerColor = IosAccent,
-                contentColor = IosWhite,
-                shape = CircleShape,
-            ) {
-                Icon(Icons.Default.Mic, contentDescription = "Record", modifier = Modifier.size(32.dp))
-            }
-        }
+        RecordFab(
+            onStartRecording = { recordingViewModel.startRecording() },
+            modifier = Modifier.align(Alignment.BottomEnd),
+        )
 
         if (recState.showSheet) {
             RecordingBottomSheet(
@@ -237,46 +163,18 @@ fun RecordingsScreen(
         }
     }
 
-    showTranscript?.let { recording ->
-        TranscriptSheet(
-            recording = recording,
-            viewModel = recordingsViewModel,
-            onDismiss = { showTranscript = null },
-        )
-    }
-
-    showRenameDialog?.let { recording ->
-        RenameRecordingDialog(
-            currentTitle = recording.title,
-            onConfirm = { newTitle ->
-                recordingsViewModel.renameRecording(recording.id, newTitle)
-                showRenameDialog = null
-            },
-            onDismiss = { showRenameDialog = null }
-        )
-    }
-
-    showMoveDialog?.let { recording ->
-        MoveToFolderDialog(
-            folders = listState.folders,
-            onConfirm = { targetFolderId ->
-                recordingsViewModel.moveToFolder(recording.id, targetFolderId)
-                showMoveDialog = null
-            },
-            onDismiss = { showMoveDialog = null }
-        )
-    }
-
-    showDeleteConfirm?.let { recording ->
-        DeleteRecordingDialog(
-            recordingTitle = recording.title,
-            onConfirm = {
-                recordingsViewModel.deleteRecording(recording)
-                showDeleteConfirm = null
-            },
-            onDismiss = { showDeleteConfirm = null }
-        )
-    }
+    RecordingDialogsHost(
+        showTranscript = showTranscript,
+        showRenameDialog = showRenameDialog,
+        showMoveDialog = showMoveDialog,
+        showDeleteConfirm = showDeleteConfirm,
+        folders = listState.folders,
+        viewModel = recordingsViewModel,
+        onDismissTranscript = { showTranscript = null },
+        onDismissRename = { showRenameDialog = null },
+        onDismissMove = { showMoveDialog = null },
+        onDismissDelete = { showDeleteConfirm = null },
+    )
 }
 
 @Composable
@@ -321,7 +219,7 @@ private fun RecordingRow(
                 )
                 recording.createdAt?.toDate()?.let { date ->
                     Text(
-                        text = SimpleDateFormat("MMM dd 'at' h:mm a", Locale.getDefault()).format(date),
+                        text = date.toShortDateString(),
                         style = MaterialTheme.typography.bodySmall,
                         color = IosSecondaryLabel,
                     )

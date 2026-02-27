@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import com.voicemind.util.countByFolder
 import javax.inject.Inject
 
 data class FoldersUiState(
@@ -35,8 +36,7 @@ class FoldersViewModel @Inject constructor(
         }
         viewModelScope.launch {
             recordingRepository.observeRecordings().collect { recordings ->
-                val counts = recordings.groupingBy { it.folderId }.eachCount()
-                _uiState.value = _uiState.value.copy(folderRecordingCounts = counts)
+                _uiState.value = _uiState.value.copy(folderRecordingCounts = recordings.countByFolder())
             }
         }
     }

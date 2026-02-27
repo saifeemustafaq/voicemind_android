@@ -17,9 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
-import java.text.SimpleDateFormat
+import com.voicemind.util.toDefaultTitle
 import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 
 data class RecordingUiState(
@@ -46,7 +45,7 @@ class RecordingViewModel @Inject constructor(
     private var audioFile: File? = null
 
     fun startRecording() {
-        val defaultTitle = SimpleDateFormat("MMM dd - h:mm a", Locale.getDefault()).format(Date())
+        val defaultTitle = Date().toDefaultTitle()
         audioFile = audioRecorder.start()
         _uiState.value = RecordingUiState(
             isRecording = true,
@@ -104,7 +103,7 @@ class RecordingViewModel @Inject constructor(
                 file.delete()
                 Timber.d("Recording saved: $recordingId")
             } catch (e: Exception) {
-                Timber.e(e, "Failed to save recording")
+                Timber.e("Failed to save recording: %s", e.message)
             } finally {
                 _uiState.value = RecordingUiState()
             }

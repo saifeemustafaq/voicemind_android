@@ -37,9 +37,10 @@ class ChecklistViewModel @Inject constructor(
                 recordingRepository.observeRecordings()
             ) { items, recordings ->
                 val titleMap = recordings.associate { it.id to it.title }
+                val (todoItems, doneItems) = items.partition { !it.completed }
                 ChecklistUiState(
-                    todoItems = items.filter { !it.completed },
-                    doneItems = items.filter { it.completed },
+                    todoItems = todoItems,
+                    doneItems = doneItems,
                     recordingTitles = titleMap,
                     isLoading = false,
                 )

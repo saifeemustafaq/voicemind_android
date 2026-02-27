@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -36,13 +37,7 @@ class AuthViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(error = "Email and password are required")
             return
         }
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = authRepository.signInWithEmail(email, password)) {
-                is AuthResult.Success -> _uiState.value = _uiState.value.copy(isLoading = false)
-                is AuthResult.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
-            }
-        }
+        launchAuth { authRepository.signInWithEmail(email, password) }
     }
 
     fun signUpWithEmail(email: String, password: String) {
@@ -54,19 +49,17 @@ class AuthViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(error = "Password must be at least 6 characters")
             return
         }
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = authRepository.signUpWithEmail(email, password)) {
-                is AuthResult.Success -> _uiState.value = _uiState.value.copy(isLoading = false)
-                is AuthResult.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
-            }
-        }
+        launchAuth { authRepository.signUpWithEmail(email, password) }
     }
 
     fun signInWithGoogle(idToken: String) {
-        viewModelScope.launch {
+        launchAuth { authRepository.signInWithGoogleCredential(idToken) }
+    }
+
+    private fun launchAuth(block: suspend () -> AuthResult) {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = authRepository.signInWithGoogleCredential(idToken)) {
+            when (val result = block()) {
                 is AuthResult.Success -> _uiState.value = _uiState.value.copy(isLoading = false)
                 is AuthResult.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
             }

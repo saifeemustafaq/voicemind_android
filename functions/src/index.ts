@@ -79,7 +79,7 @@ export const processRecording = onCall(
           .doc(uid)
           .collection("actionItems");
 
-        for (const item of items.slice(0, 5)) {
+        for (const item of items) {
           const docRef = actionItemsRef.doc();
           batch.set(docRef, {
             title: item.substring(0, 200),
@@ -265,10 +265,10 @@ async function extractActionItems(transcript: string): Promise<string[]> {
         messages: [
           {
             role: "user",
-            content: `Extract only explicit action items from this transcript: reminders, commitments, deadlines, or phrases like 'I need to', 'I should', 'don't forget', 'remind me to'. One short phrase per item. Skip vague or purely conversational content. Return a JSON array of strings only; if none, return []. No other text. Transcript:\n\n${truncated}`,
+            content: `You are a smart assistant that extracts actionable tasks from voice transcripts. Read the transcript and identify anything the speaker intends to do, needs to do, or wants to remember to do. Use your best judgement — if something sounds like a task, action item, reminder, or to-do, include it even if it isn't phrased with exact keywords. Look for intent, not just specific phrases. One short phrase per item. Return a JSON array of strings only; if there are genuinely no tasks, return []. No other text.\n\nTranscript:\n\n${truncated}`,
           },
         ],
-        max_tokens: 150,
+        max_tokens: 1024,
       }),
     }
   );

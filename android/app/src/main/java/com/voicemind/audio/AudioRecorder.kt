@@ -46,7 +46,7 @@ class AudioRecorder @Inject constructor(
         }
 
         state = RecorderState.Recording
-        Timber.d("Recording started: ${file.absolutePath}")
+        Timber.d("Recording started")
         return file
     }
 

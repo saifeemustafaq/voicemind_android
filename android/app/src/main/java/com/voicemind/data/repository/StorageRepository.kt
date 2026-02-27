@@ -13,13 +13,13 @@ class StorageRepository @Inject constructor(
     private val storage: FirebaseStorage,
     private val authRepository: AuthRepository,
 ) {
-    private val uid: String get() = authRepository.currentUser!!.uid
+    private val uid: String get() = requireNotNull(authRepository.currentUser) { "User must be signed in" }.uid
 
     suspend fun uploadAudio(recordingId: String, file: File): String {
         val path = "users/$uid/audio/$recordingId.m4a"
         val ref = storage.reference.child(path)
         ref.putFile(Uri.fromFile(file)).await()
-        Timber.d("Audio uploaded: $path")
+        Timber.d("Audio uploaded successfully")
         return path
     }
 

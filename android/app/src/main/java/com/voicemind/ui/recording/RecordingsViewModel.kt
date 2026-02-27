@@ -107,7 +107,7 @@ class RecordingsViewModel @Inject constructor(
                     prepareAsync()
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Playback failed")
+                Timber.e("Playback failed: %s", e.message)
             }
         }
     }
@@ -160,7 +160,7 @@ class RecordingsViewModel @Inject constructor(
                 }
                 context.startActivity(Intent.createChooser(intent, "Share Audio"))
             } catch (e: Exception) {
-                Timber.e(e, "Share failed")
+                Timber.e("Share failed: %s", e.message)
             }
         }
     }
@@ -192,7 +192,7 @@ class RecordingsViewModel @Inject constructor(
                     actionItemsLoaded = true,
                 )
             } catch (e: Exception) {
-                Timber.e(e, "Failed to load action items")
+                Timber.e("Failed to load action items: %s", e.message)
                 _sheetState.value = _sheetState.value.copy(actionItemsLoaded = true)
             }
         }
@@ -215,10 +215,10 @@ class RecordingsViewModel @Inject constructor(
                     summaryState = SummaryState.Loaded(summary)
                 )
             } catch (e: Exception) {
-                Timber.e(e, "Summary generation failed")
+                Timber.e("Summary generation failed: %s", e.message)
                 _sheetState.value = _sheetState.value.copy(
                     summaryState = SummaryState.Error(
-                        e.message ?: "Summary generation failed"
+                        "Unable to generate summary. Please try again."
                     )
                 )
             }

@@ -17,7 +17,7 @@ class FolderRepository @Inject constructor(
     private val authRepository: AuthRepository,
 ) {
     private fun collection() =
-        firestore.collection("users/${authRepository.currentUser!!.uid}/folders")
+        firestore.collection("users/${requireNotNull(authRepository.currentUser) { "User must be signed in" }.uid}/folders")
 
     fun observeFolders(): Flow<List<Folder>> = callbackFlow {
         val registration = collection()
@@ -37,12 +37,14 @@ class FolderRepository @Inject constructor(
         val existing = collection().get().await()
         if (existing.isEmpty) {
             val batch = firestore.batch()
-            for (folder in Folder.DEFAULTS) {
-                val docRef = collection().document(folder.id)
-                batch.set(docRef, mapOf(
-                    "name" to folder.name,
-                    "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
-                ))
+            Folder.DEFAULTS.forEach { folder ->
+                batch.set(
+                    collection().document(folder.id),
+                    mapOf(
+                        "name" to folder.name,
+                        "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                    )
+                )
             }
             batch.commit().await()
             Timber.d("Seeded default folders")

@@ -34,7 +34,7 @@ class AuthRepository @Inject constructor(
             val user = result.user ?: return AuthResult.Error("Sign in failed")
             AuthResult.Success(user)
         } catch (e: Exception) {
-            AuthResult.Error(e.localizedMessage ?: "Sign in failed")
+            AuthResult.Error("Unable to sign in. Please check your credentials and try again.")
         }
     }
 
@@ -44,7 +44,7 @@ class AuthRepository @Inject constructor(
             val user = result.user ?: return AuthResult.Error("Account creation failed")
             AuthResult.Success(user)
         } catch (e: Exception) {
-            AuthResult.Error(e.localizedMessage ?: "Account creation failed")
+            AuthResult.Error("Unable to create account. Please try again.")
         }
     }
 
@@ -55,7 +55,7 @@ class AuthRepository @Inject constructor(
             val user = result.user ?: return AuthResult.Error("Google sign in failed")
             AuthResult.Success(user)
         } catch (e: Exception) {
-            AuthResult.Error(e.localizedMessage ?: "Google sign in failed")
+            AuthResult.Error("Unable to sign in with Google. Please try again.")
         }
     }
 

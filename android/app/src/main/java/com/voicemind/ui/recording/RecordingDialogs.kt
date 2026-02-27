@@ -31,7 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -62,7 +62,7 @@ fun TranscriptSheet(
     viewModel: RecordingsViewModel,
     onDismiss: () -> Unit,
 ) {
-    val sheetState by viewModel.sheetState.collectAsState()
+    val sheetState by viewModel.sheetState.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(recording.id) {
@@ -70,11 +70,8 @@ fun TranscriptSheet(
     }
 
     val hasTasks = sheetState.actionItemsLoaded && sheetState.actionItems.isNotEmpty()
-    val tabs = buildList {
-        add(TranscriptTab.Transcript)
-        add(TranscriptTab.Summary)
-        if (hasTasks) add(TranscriptTab.Tasks)
-    }
+    val tabs = listOf(TranscriptTab.Transcript, TranscriptTab.Summary) +
+        if (hasTasks) listOf(TranscriptTab.Tasks) else emptyList()
     if (selectedTab >= tabs.size) selectedTab = 0
 
     ModalBottomSheet(

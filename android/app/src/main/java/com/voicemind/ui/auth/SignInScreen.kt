@@ -31,12 +31,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,11 +57,13 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
+import com.voicemind.ui.components.voiceMindTextFieldColors
 import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosLabel
 import com.voicemind.ui.theme.IosOpaqueSeparator
 import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSeparator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -70,7 +71,7 @@ private const val WEB_CLIENT_ID = "685270102033-tupn4a0mm03k7pdrnd1lhlv53gbq605t
 
 @Composable
 fun SignInScreen(viewModel: AuthViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -138,12 +139,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                             imeAction = ImeAction.Next
                         ),
                         shape = RoundedCornerShape(10.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = IosAccent,
-                            unfocusedBorderColor = IosOpaqueSeparator,
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                        )
+                        colors = voiceMindTextFieldColors()
                     )
 
                     OutlinedTextField(
@@ -167,12 +163,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                             imeAction = ImeAction.Done
                         ),
                         shape = RoundedCornerShape(10.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = IosAccent,
-                            unfocusedBorderColor = IosOpaqueSeparator,
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                        )
+                        colors = voiceMindTextFieldColors()
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -224,7 +215,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
 
             OutlinedButton(
                 onClick = {
-                    scope.launch {
+                    scope.launch(Dispatchers.IO) {
                         try {
                             val credentialManager = CredentialManager.create(context)
                             val googleIdOption = GetGoogleIdOption.Builder()
