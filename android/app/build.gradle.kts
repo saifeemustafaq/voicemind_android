@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,6 +10,9 @@ plugins {
     alias(libs.plugins.firebase.appdistribution)
 }
 
+val versionPropsFile = rootProject.file("version.properties")
+val versionProps = Properties().apply { load(versionPropsFile.inputStream()) }
+
 android {
     namespace = "com.voicemind"
     compileSdk = 35
@@ -16,8 +21,8 @@ android {
         applicationId = "com.voicemind"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = versionProps["VERSION_CODE"].toString().toInt()
+        versionName = versionProps["VERSION_NAME"].toString()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -41,7 +46,7 @@ android {
             )
             firebaseAppDistribution {
                 releaseNotes = "Latest build of VoiceMind"
-                testers = "saifeesaifuddinq@gmail.com"
+                testers = "saifeesaifuddinq@gmail.com, saifeestudy@gmail.com"
             }
         }
     }
@@ -55,6 +60,22 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+tasks.register("bumpVersionCode") {
+    doLast {
+        val props = Properties().apply { load(versionPropsFile.inputStream()) }
+        val code = props["VERSION_CODE"].toString().toInt() + 1
+        props["VERSION_CODE"] = code.toString()
+        versionPropsFile.outputStream().use { props.store(it, null) }
+        println("Version code bumped to $code")
+    }
+}
+
+tasks.configureEach {
+    if (name == "assembleRelease") {
+        dependsOn("bumpVersionCode")
     }
 }
 

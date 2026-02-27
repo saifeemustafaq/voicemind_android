@@ -19,8 +19,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.voicemind.BuildConfig
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.VoiceMindTopAppBar
@@ -112,6 +114,18 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Text(
+                text = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                style = MaterialTheme.typography.bodySmall,
+                color = IosSecondaryLabel,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+            )
         }
     }
 }
