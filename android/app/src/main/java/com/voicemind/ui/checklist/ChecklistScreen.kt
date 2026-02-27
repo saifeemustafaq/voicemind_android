@@ -2,6 +2,7 @@ package com.voicemind.ui.checklist
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,7 +38,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicemind.data.model.ActionItem
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
-import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosDestructive
 import com.voicemind.ui.theme.IosLabel
 import com.voicemind.ui.theme.IosSecondaryLabel
@@ -92,7 +93,6 @@ fun ChecklistScreen(
                     state.todoItems.forEach { item ->
                         ActionItemRow(
                             item = item,
-                            recordingTitle = item.recordingId?.let { state.recordingTitles[it] },
                             onToggle = { viewModel.toggleCompleted(item) },
                             onClick = { onTaskClick(item.id) },
                         )
@@ -127,7 +127,6 @@ fun ChecklistScreen(
                     state.doneItems.forEach { item ->
                         ActionItemRow(
                             item = item,
-                            recordingTitle = item.recordingId?.let { state.recordingTitles[it] },
                             onToggle = { viewModel.toggleCompleted(item) },
                             onClick = { onTaskClick(item.id) },
                         )
@@ -143,13 +142,13 @@ fun ChecklistScreen(
 @Composable
 private fun ActionItemRow(
     item: ActionItem,
-    recordingTitle: String?,
     onToggle: () -> Unit,
     onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -172,13 +171,6 @@ private fun ActionItemRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (recordingTitle != null) {
-                Text(
-                    text = "From $recordingTitle",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = IosAccent,
-                )
-            }
             DateLabels(item)
         }
     }
