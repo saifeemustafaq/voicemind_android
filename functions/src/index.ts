@@ -250,6 +250,47 @@ async function generateTitle(transcript: string): Promise<string | null> {
   return title ? title.substring(0, 25) : null;
 }
 
+function parseJsonArray(raw: string): string[] {
+  let text = raw.trim();
+
+  // Strip markdown code fences: ```json ... ``` or ``` ... ```
+  text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+  text = text.trim();
+
+  // If the cleaned text starts with '[', try parsing directly
+  if (text.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (item: unknown) => typeof item === "string" && item.length > 0
+        );
+      }
+    } catch {
+      // fall through to bracket extraction
+    }
+  }
+
+  // Extract the first JSON array from anywhere in the text
+  const start = text.indexOf("[");
+  const end = text.lastIndexOf("]");
+  if (start !== -1 && end > start) {
+    try {
+      const parsed = JSON.parse(text.substring(start, end + 1));
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (item: unknown) => typeof item === "string" && item.length > 0
+        );
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  console.error("Failed to parse action items JSON:", raw);
+  return [];
+}
+
 async function extractActionItems(transcript: string): Promise<string[]> {
   const truncated = transcript.substring(0, 3000);
   const response = await fetch(
@@ -264,8 +305,13 @@ async function extractActionItems(transcript: string): Promise<string[]> {
         model: "gpt-4o-mini",
         messages: [
           {
+            role: "system",
+            content:
+              "You extract action items from voice transcripts. You must respond with ONLY a JSON array of strings. No markdown, no explanation, no code fences. Example: [\"Buy groceries\", \"Call dentist\"]",
+          },
+          {
             role: "user",
-            content: `You are a smart assistant that extracts actionable tasks from voice transcripts. Read the transcript and identify anything the speaker intends to do, needs to do, or wants to remember to do. Use your best judgement — if something sounds like a task, action item, reminder, or to-do, include it even if it isn't phrased with exact keywords. Look for intent, not just specific phrases. One short phrase per item. Return a JSON array of strings only; if there are genuinely no tasks, return []. No other text.\n\nTranscript:\n\n${truncated}`,
+            content: `Identify anything the speaker intends to do, needs to do, or wants to remember to do. Use your best judgement — if something sounds like a task, action item, reminder, or to-do, include it even if it is not phrased with exact keywords. Look for intent, not just specific phrases. One short phrase per item. If there are genuinely no tasks, return [].\n\nTranscript:\n\n${truncated}`,
           },
         ],
         max_tokens: 1024,
@@ -273,20 +319,18 @@ async function extractActionItems(transcript: string): Promise<string[]> {
     }
   );
 
-  if (!response.ok) return [];
+  if (!response.ok) {
+    console.error(
+      "OpenAI action-item request failed:",
+      response.status,
+      await response.text()
+    );
+    return [];
+  }
 
   const data = (await response.json()) as Record<string, any>;
   const content = data.choices?.[0]?.message?.content?.trim();
   if (!content) return [];
 
-  try {
-    const parsed = JSON.parse(content);
-    if (Array.isArray(parsed)) {
-      return parsed.filter((item: unknown) => typeof item === "string" && item.length > 0);
-    }
-  } catch {
-    console.error("Failed to parse action items JSON:", content);
-  }
-
-  return [];
+  return parseJsonArray(content);
 }
