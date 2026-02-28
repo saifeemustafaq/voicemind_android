@@ -75,6 +75,7 @@ fun RecordingsScreen(
 
     LaunchedEffect(folderId) {
         recordingsViewModel.filterByFolder(folderId)
+        recordingViewModel.setCurrentFolder(folderId)
     }
 
     var showTranscript by remember { mutableStateOf<Recording?>(null) }

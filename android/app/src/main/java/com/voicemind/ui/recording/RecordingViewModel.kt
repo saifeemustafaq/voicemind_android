@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.functions.FirebaseFunctions
 import com.voicemind.audio.AudioRecorder
 import com.voicemind.audio.RecorderState
+import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
@@ -43,6 +44,11 @@ class RecordingViewModel @Inject constructor(
 
     private var timerJob: Job? = null
     private var audioFile: File? = null
+    private var currentFolderId: String = Folder.UNFILED_ID
+
+    fun setCurrentFolder(folderId: String?) {
+        currentFolderId = folderId ?: Folder.UNFILED_ID
+    }
 
     fun startRecording() {
         val defaultTitle = Date().toDefaultTitle()
@@ -90,7 +96,7 @@ class RecordingViewModel @Inject constructor(
                     Recording(
                         id = recordingId,
                         title = title,
-                        folderId = "unfiled",
+                        folderId = currentFolderId,
                         audioPath = audioPath,
                     )
                 )
