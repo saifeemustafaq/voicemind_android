@@ -210,7 +210,9 @@ private fun DateLabels(item: ActionItem) {
         val date = ts.toDate()
         val overdue = isOverdue && date.before(now)
         val formatted = remember(ts) {
-            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(date)
+            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(date)
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,

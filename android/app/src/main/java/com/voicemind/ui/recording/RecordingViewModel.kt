@@ -98,7 +98,10 @@ class RecordingViewModel @Inject constructor(
                 // Trigger server-side processing (transcription, title, action items)
                 functions
                     .getHttpsCallable("processRecording")
-                    .call(hashMapOf("recordingId" to recordingId))
+                    .call(hashMapOf(
+                        "recordingId" to recordingId,
+                        "timezone" to java.util.TimeZone.getDefault().id,
+                    ))
 
                 file.delete()
                 Timber.d("Recording saved: $recordingId")

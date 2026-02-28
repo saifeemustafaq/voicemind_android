@@ -264,7 +264,7 @@ private fun NotesCard(
             verticalAlignment = Alignment.Top,
         ) {
             Icon(
-                Icons.Default.Notes,
+                Icons.Filled.Notes,
                 contentDescription = null,
                 tint = IosAccent,
                 modifier = Modifier
@@ -420,8 +420,9 @@ private fun DateDeadlineCard(
                         val date = item.deadline.toDate()
                         val overdue = !item.completed && date.before(now)
                         val formatted = remember(item.deadline) {
-                            SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-                                .format(date)
+                            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).apply {
+                                timeZone = java.util.TimeZone.getTimeZone("UTC")
+                            }.format(date)
                         }
                         Text(
                             text = formatted,

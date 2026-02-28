@@ -287,8 +287,9 @@ private fun TaskDateLabels(item: ActionItem) {
         val date = ts.toDate()
         val overdue = isOverdue && date.before(now)
         val formatted = remember(ts) {
-            java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
-                .format(date)
+            java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault()).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(date)
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,

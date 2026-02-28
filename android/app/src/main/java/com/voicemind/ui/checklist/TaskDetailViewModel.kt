@@ -90,9 +90,9 @@ class TaskDetailViewModel @Inject constructor(
     fun setDeadline(dateMillis: Long?) {
         viewModelScope.launch(Dispatchers.IO) {
             val ts = if (dateMillis != null) {
-                val cal = Calendar.getInstance().apply {
+                val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
                     timeInMillis = dateMillis
-                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.HOUR_OF_DAY, 12)
                     set(Calendar.MINUTE, 0)
                     set(Calendar.SECOND, 0)
                     set(Calendar.MILLISECOND, 0)

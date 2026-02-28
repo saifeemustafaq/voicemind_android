@@ -20,6 +20,7 @@ const WEB_CLIENT_ID =
 
 interface TranscribeRequest {
   recordingId: string;
+  timezone?: string;
 }
 
 /**
@@ -35,7 +36,8 @@ export const processRecording = onCall(
     }
 
     const uid = request.auth.uid;
-    const { recordingId } = request.data as TranscribeRequest;
+    const { recordingId, timezone } = request.data as TranscribeRequest;
+    const tz = timezone || "America/Los_Angeles";
 
     if (!recordingId) {
       throw new HttpsError("invalid-argument", "recordingId is required");
@@ -77,7 +79,7 @@ export const processRecording = onCall(
 
     // Step 3: Extract action items (with optional date/deadline)
     try {
-      const items = await extractActionItems(transcription);
+      const items = await extractActionItems(transcription, tz);
       if (items.length > 0) {
         const batch = db.batch();
         const actionItemsRef = db
@@ -100,8 +102,8 @@ export const processRecording = onCall(
             }
           }
           if (item.deadline) {
-            const d = new Date(item.deadline);
-            if (!isNaN(d.getTime())) {
+            const d = parseDateAsNoonUtc(item.deadline);
+            if (d && !isNaN(d.getTime())) {
               doc.deadline = admin.firestore.Timestamp.fromDate(d);
             }
           }
@@ -329,24 +331,55 @@ function parseActionItems(raw: string): ExtractedActionItem[] {
   return [];
 }
 
+function getUtcOffset(timezone: string): string {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    timeZoneName: "shortOffset",
+  }).formatToParts(now);
+  const offsetPart = parts.find((p) => p.type === "timeZoneName");
+  if (!offsetPart) return "-08:00";
+  const raw = offsetPart.value; // e.g. "GMT-8", "GMT+5:30"
+  const match = raw.match(/GMT([+-]?)(\d{1,2})(?::(\d{2}))?/);
+  if (!match) return "-08:00";
+  const sign = match[1] || "+";
+  const hours = match[2].padStart(2, "0");
+  const minutes = match[3] || "00";
+  return `${sign}${hours}:${minutes}`;
+}
+
+/**
+ * Parses a date-only string (YYYY-MM-DD) as noon UTC so the date
+ * is always correct regardless of which timezone displays it.
+ */
+function parseDateAsNoonUtc(dateStr: string): Date | null {
+  const d = new Date(`${dateStr}T12:00:00Z`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 async function extractActionItems(
-  transcript: string
+  transcript: string,
+  timezone: string
 ): Promise<ExtractedActionItem[]> {
   const truncated = transcript.substring(0, 3000);
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
-  const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
+  const today = now.toLocaleDateString("en-CA", { timeZone: timezone });
+  const dayOfWeek = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: timezone,
+  });
 
+  const utcOffset = getUtcOffset(timezone);
   const systemPrompt = `You are a smart personal assistant that extracts action items from voice transcripts. Think like a human assistant who deeply understands intent.
 
-Today is ${dayOfWeek}, ${today}. Use this to resolve relative dates like "this Friday", "next Monday", "tomorrow", "end of week", etc.
+Today is ${dayOfWeek}, ${today}. The user's timezone is ${timezone} (UTC${utcOffset}). Use this to resolve relative dates like "this Friday", "next Monday", "tomorrow", "end of week", etc.
 
 Respond with ONLY a JSON array of objects. No markdown, no explanation, no code fences.
 
 Each object has:
 - "title" (string, required): a short phrase describing the task.
 - "deadline" (string, optional): ISO 8601 date YYYY-MM-DD. Use when the speaker indicates a task must be COMPLETED, FINISHED, or DELIVERED by a certain date. This is the "finish by" date.
-- "dueDate" (string, optional): ISO 8601 datetime. Use when the speaker indicates they will WORK ON, ATTEND, or DO something at a specific date AND time. This is the "scheduled for" datetime.
+- "dueDate" (string, optional): ISO 8601 datetime WITH timezone offset (e.g. "2026-02-27T17:00:00${utcOffset}"). Use when the speaker indicates they will WORK ON, ATTEND, or DO something at a specific date AND time. This is the "scheduled for" datetime. ALWAYS include the timezone offset "${utcOffset}" at the end.
 
 DEADLINE — the date something must be finished by. Trigger phrases:
 - "complete this by Friday" → deadline = that Friday
@@ -382,7 +415,7 @@ KEY RULES:
 8. "End of day" = deadline for today. "End of week" = deadline for this Friday. "End of month" = deadline for the last day of the current month.
 
 Example output:
-[{"title":"Buy groceries","deadline":"2026-03-01"},{"title":"Call dentist","dueDate":"2026-03-02T14:00:00"},{"title":"Prepare presentation for client meeting","dueDate":"2026-03-04T10:00:00","deadline":"2026-03-05"}]`;
+[{"title":"Buy groceries","deadline":"2026-03-01"},{"title":"Call dentist","dueDate":"2026-03-02T14:00:00${utcOffset}"},{"title":"Prepare presentation for client meeting","dueDate":"2026-03-04T10:00:00${utcOffset}","deadline":"2026-03-05"}]`;
 
   const response = await fetch(
     "https://api.openai.com/v1/chat/completions",

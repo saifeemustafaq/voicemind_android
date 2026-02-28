@@ -30,3 +30,5 @@ local.properties
 
 # google-services.json is excluded at root level;
 # use google-services.json.example as a template
+
+.secrets

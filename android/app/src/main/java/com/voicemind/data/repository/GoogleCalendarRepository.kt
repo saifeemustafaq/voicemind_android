@@ -88,7 +88,7 @@ class GoogleCalendarRepository @Inject constructor(
                 .getHttpsCallable("exchangeCalendarAuthCode")
                 .call(hashMapOf("authCode" to authCode))
                 .await()
-            val data = result.data as? Map<*, *>
+            val data = result.getData() as? Map<*, *>
             if (data?.get("success") == true) {
                 CalendarConnectResult.Success
             } else {
@@ -106,7 +106,7 @@ class GoogleCalendarRepository @Inject constructor(
                 .getHttpsCallable("disconnectCalendar")
                 .call(null)
                 .await()
-            val data = result.data as? Map<*, *>
+            val data = result.getData() as? Map<*, *>
             data?.get("success") == true
         } catch (e: Exception) {
             Timber.e(e, "Calendar disconnect failed")
