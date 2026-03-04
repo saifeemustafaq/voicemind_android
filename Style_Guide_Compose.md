@@ -49,6 +49,8 @@ Defined in `Color.kt`. All colors mirror iOS system colors for a native feel.
 | **IosSeparator** | `#3C3C43` @ 12% | Thin dividers between items |
 | **IosOpaqueSeparator** | `#C6C6C8` | Opaque borders (text fields, outlines) |
 | **IosTertiaryFill** | `#787880` @ 12% | Subtle fills |
+| **IosQuaternaryFill** | `#747480` @ 8% | Lightest fills (selected container tints) |
+| **IosWhite** | `#FFFFFF` | Card surfaces, navigation bars |
 
 ---
 
@@ -90,9 +92,9 @@ Defined in `Theme.kt` via `IosShapes`:
 
 ## 5. Components
 
-### GlassCard (now iOS Card)
+### GlassCard
 
-Opaque white surface with 10dp corner radius, no border, no shadow.
+Opaque white surface with 10dp corner radius, no border, no shadow. Default 16dp inner padding.
 
 ```kotlin
 GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -102,15 +104,43 @@ GlassCard(modifier = Modifier.fillMaxWidth()) {
 
 ### PrimaryButton
 
-iOS-accent blue, 12dp radius, 50dp height, white text.
+iOS-accent blue, 12dp radius, 50dp height, white text. Disabled state uses 40% accent / 60% white.
 
 ```kotlin
 PrimaryButton(text = "Sign In", onClick = { ... })
 ```
 
-### GlassSurface (now iOS Surface)
+### VoiceMindTopAppBar
 
-Opaque white, 10dp corner radius, no decoration.
+Transparent background, no elevation. Shows an icon (tinted `IosAccent`, 22dp) beside the title (`titleSmall`). Supports optional drawer menu or back arrow via `onOpenDrawer` / `onBack`.
+
+```kotlin
+VoiceMindTopAppBar(title = "Recordings", icon = Icons.Default.Mic, onOpenDrawer = { ... })
+```
+
+### EmptyStateCard
+
+A `GlassCard` with a centered 48dp icon (`IosSecondaryLabel`), a message (`bodyMedium`, `IosSecondaryLabel`), and optional extra content slot.
+
+```kotlin
+EmptyStateCard(icon = Icons.Default.Mic, message = "No recordings yet")
+```
+
+### VoiceMindTextFieldColors
+
+Shared `OutlinedTextField` color configuration: `IosAccent` focused border, `IosOpaqueSeparator` unfocused border, transparent container.
+
+```kotlin
+OutlinedTextField(colors = voiceMindTextFieldColors(), ...)
+```
+
+### RecordFab
+
+72dp circular FAB (`IosAccent` container, white mic icon at 32dp) inside a 160dp box with a radial gradient background (`IosBackground` → transparent) to ensure visibility over content.
+
+```kotlin
+RecordFab(onStartRecording = { ... })
+```
 
 ---
 
@@ -132,10 +162,11 @@ Opaque white, 10dp corner radius, no decoration.
 - Unselected: `IosSecondaryLabel`
 - No indicator highlight (transparent)
 
-### Top app bar
+### Top app bar (`VoiceMindTopAppBar`)
 
 - Transparent background, no elevation
-- Title: `titleSmall` weight
+- Title: `titleSmall` weight, preceded by a 22dp `IosAccent` icon
+- Navigation icon: drawer menu (`Icons.Default.Menu`) or back arrow, depending on context
 
 ### Sidebar drawer
 
@@ -161,7 +192,7 @@ Opaque white, 10dp corner radius, no decoration.
 
 ## 9. Recording UI
 
-- **FAB:** `IosAccent` blue when idle
+- **FAB:** 72dp `IosAccent` circle with 32dp white mic icon, wrapped in a 160dp container with a radial gradient (`IosBackground` → transparent) for contrast over content
 - **Recording status label:** `IosDestructive` red with pulse animation
 - **Timer:** `IosLabel` black, monospace
 - **Stop button:** `IosDestructive` red circle
@@ -188,7 +219,7 @@ Icon colors: `IosAccent` for interactive, `IosDestructive` for destructive, `Ios
 | Cards | White, 10dp radius, no border/shadow |
 | Section headers | Uppercase, `bodySmall`, `IosSecondaryLabel` |
 | Primary buttons | `IosAccent` blue, 12dp radius, 50dp height |
-| FAB | `IosAccent` blue circle |
+| FAB | 72dp `IosAccent` circle, 160dp gradient container |
 | Destructive actions | `IosDestructive` red |
 | Switch on state | `IosSuccess` green track, white thumb |
 | Separators | `IosSeparator` @ 0.5dp |

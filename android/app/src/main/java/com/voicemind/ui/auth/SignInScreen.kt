@@ -55,6 +55,8 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.voiceMindTextFieldColors
@@ -63,7 +65,6 @@ import com.voicemind.ui.theme.IosLabel
 import com.voicemind.ui.theme.IosOpaqueSeparator
 import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSeparator
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -215,7 +216,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
 
             OutlinedButton(
                 onClick = {
-                    scope.launch(Dispatchers.IO) {
+                    scope.launch {
                         try {
                             val credentialManager = CredentialManager.create(context)
                             val googleIdOption = GetGoogleIdOption.Builder()
@@ -228,9 +229,14 @@ fun SignInScreen(viewModel: AuthViewModel) {
                             val result = credentialManager.getCredential(context as Activity, request)
                             val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
                             viewModel.signInWithGoogle(googleIdTokenCredential.idToken)
+                        } catch (e: GetCredentialCancellationException) {
+                            Timber.d("Google Sign-In cancelled by user")
+                        } catch (e: NoCredentialException) {
+                            Timber.e(e, "Google Sign-In: no credentials available")
+                            viewModel.setError("No Google accounts found. Please add a Google account to your device and try again.")
                         } catch (e: Exception) {
-                            Timber.e(e, "Google Sign-In failed")
-                            viewModel.clearError()
+                            Timber.e(e, "Google Sign-In failed: ${e.message}")
+                            viewModel.setError("Google Sign-In failed: ${e.message}")
                         }
                     }
                 },

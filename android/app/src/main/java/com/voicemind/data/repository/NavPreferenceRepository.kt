@@ -21,7 +21,7 @@ class NavPreferenceRepository @Inject constructor(
     private val useSidebarKey = booleanPreferencesKey("use_sidebar_nav")
 
     val useSidebar: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[useSidebarKey] ?: true
+        prefs[useSidebarKey] ?: false
     }
 
     suspend fun setUseSidebar(value: Boolean) {

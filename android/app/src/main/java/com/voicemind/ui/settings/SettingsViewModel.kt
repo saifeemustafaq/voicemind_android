@@ -30,7 +30,7 @@ class SettingsViewModel @Inject constructor(
             ?: "Signed in"
 
     val useSidebar: StateFlow<Boolean> = navPreferenceRepository.useSidebar
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val calendarConnected: StateFlow<Boolean> = googleCalendarRepository.observeCalendarConnected()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)

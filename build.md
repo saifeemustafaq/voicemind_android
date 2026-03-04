@@ -12,3 +12,12 @@ In app/build.gradle.kts, replace the empty testers string with your friend's ema
 testers = "yourfriend@gmail.com"
 
 You can add multiple emails as a comma-separated string: "friend1@gmail.com, friend2@gmail.com".
+
+
+Github issues command: 
+
+```
+gh issue create --title "Issue title" --body "Issue description"
+
+gh issue create --title "" --body ""
+```
