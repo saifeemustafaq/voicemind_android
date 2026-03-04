@@ -1,7 +1,6 @@
 package com.voicemind.widget
 
 import android.content.Context
-import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -12,19 +11,16 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.action.ActionParameters
-import androidx.glance.action.actionParametersOf
+import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.action.ActionCallback
-import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartService
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
@@ -41,7 +37,6 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import com.voicemind.R
 import com.voicemind.service.RecordingService
-import timber.log.Timber
 
 class RecordingWidget : GlanceAppWidget() {
 
@@ -80,6 +75,7 @@ private fun WidgetRoot(isRecording: Boolean, isPaused: Boolean, elapsedSeconds: 
 
 @Composable
 private fun IdleContent() {
+    val context = LocalContext.current
     Text(
         text = "VoiceMind",
         style = TextStyle(
@@ -95,8 +91,9 @@ private fun IdleContent() {
         modifier = GlanceModifier
             .size(56.dp)
             .clickable(
-                actionRunCallback<RecordingActionCallback>(
-                    actionParametersOf(ActionKey to RecordingService.ACTION_START)
+                actionStartService(
+                    RecordingService.buildIntent(context, RecordingService.ACTION_START),
+                    isForegroundService = true,
                 )
             ),
     )
@@ -104,6 +101,7 @@ private fun IdleContent() {
 
 @Composable
 private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long) {
+    val context = LocalContext.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = GlanceModifier.fillMaxWidth(),
@@ -156,8 +154,9 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long) {
             modifier = GlanceModifier
                 .size(44.dp)
                 .clickable(
-                    actionRunCallback<RecordingActionCallback>(
-                        actionParametersOf(ActionKey to RecordingService.ACTION_DISCARD)
+                    actionStartService(
+                        RecordingService.buildIntent(context, RecordingService.ACTION_DISCARD),
+                        isForegroundService = true,
                     )
                 ),
         )
@@ -173,11 +172,13 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long) {
             modifier = GlanceModifier
                 .size(44.dp)
                 .clickable(
-                    actionRunCallback<RecordingActionCallback>(
-                        actionParametersOf(
-                            ActionKey to if (isPaused) RecordingService.ACTION_RESUME
-                            else RecordingService.ACTION_PAUSE
-                        )
+                    actionStartService(
+                        RecordingService.buildIntent(
+                            context,
+                            if (isPaused) RecordingService.ACTION_RESUME
+                            else RecordingService.ACTION_PAUSE,
+                        ),
+                        isForegroundService = true,
                     )
                 ),
         )
@@ -191,8 +192,9 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long) {
             modifier = GlanceModifier
                 .size(48.dp)
                 .clickable(
-                    actionRunCallback<RecordingActionCallback>(
-                        actionParametersOf(ActionKey to RecordingService.ACTION_STOP_SAVE)
+                    actionStartService(
+                        RecordingService.buildIntent(context, RecordingService.ACTION_STOP_SAVE),
+                        isForegroundService = true,
                     )
                 ),
         )
@@ -203,26 +205,6 @@ private fun formatTime(seconds: Long): String {
     val mins = seconds / 60
     val secs = seconds % 60
     return "%d:%02d".format(mins, secs)
-}
-
-private val ActionKey = ActionParameters.Key<String>("recording_action")
-
-class RecordingActionCallback : ActionCallback {
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters,
-    ) {
-        val action = parameters[ActionKey] ?: return
-        Timber.d("Widget action: $action")
-
-        val intent = RecordingService.buildIntent(context, action)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
-    }
 }
 
 class RecordingWidgetReceiver : GlanceAppWidgetReceiver() {
