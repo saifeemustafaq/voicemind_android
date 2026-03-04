@@ -58,33 +58,49 @@ class RecordingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Immediately promote to foreground to prevent
+        // ForegroundServiceDidNotStartInTimeException if anything below throws.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID, buildNotification(),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        }
+
         when (intent?.action) {
             ACTION_START -> handleStart()
             ACTION_PAUSE -> handlePause()
             ACTION_RESUME -> handleResume()
             ACTION_STOP_SAVE -> handleStopSave()
             ACTION_DISCARD -> handleDiscard()
+            else -> {
+                // Unknown or null action -- stop immediately.
+                resetAndStop()
+            }
         }
         return START_NOT_STICKY
     }
 
     private fun handleStart() {
-        audioFile = audioRecorder.start()
-        isRecording = true
-        isPaused = false
-        elapsedSeconds = 0
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-        } else {
-            startForeground(NOTIFICATION_ID, buildNotification())
+        try {
+            audioFile = audioRecorder.start()
+            isRecording = true
+            isPaused = false
+            elapsedSeconds = 0
+            updateNotification()
+            startTimer()
+            scope.launch { pushWidgetState() }
+            Timber.d("Widget recording started")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to start recording from widget")
+            resetAndStop()
         }
-        startTimer()
-        scope.launch { pushWidgetState() }
-        Timber.d("Widget recording started")
     }
 
     private fun handlePause() {
+        if (!isRecording) return
         audioRecorder.pause()
         isRecording = false
         isPaused = true
@@ -95,6 +111,7 @@ class RecordingService : Service() {
     }
 
     private fun handleResume() {
+        if (!isPaused) return
         audioRecorder.resume()
         isRecording = true
         isPaused = false
@@ -105,6 +122,10 @@ class RecordingService : Service() {
     }
 
     private fun handleStopSave() {
+        if (!isRecording && !isPaused) {
+            resetAndStop()
+            return
+        }
         timerJob?.cancel()
         val file = audioRecorder.stop() ?: run {
             resetAndStop()
@@ -150,6 +171,10 @@ class RecordingService : Service() {
     }
 
     private fun handleDiscard() {
+        if (!isRecording && !isPaused) {
+            resetAndStop()
+            return
+        }
         timerJob?.cancel()
         audioRecorder.discardAndRelease()
         audioFile = null
@@ -159,10 +184,6 @@ class RecordingService : Service() {
         resetAndStop()
     }
 
-    /**
-     * Pushes the idle state to the widget, waits for the update to complete,
-     * then stops the foreground service.
-     */
     private fun resetAndStop() {
         isRecording = false
         isPaused = false
@@ -186,11 +207,6 @@ class RecordingService : Service() {
         }
     }
 
-    /**
-     * Suspend function that synchronously updates every widget instance.
-     * Must be awaited before stopping the service so the coroutine scope
-     * stays alive long enough for the update to land.
-     */
     private suspend fun pushWidgetState() {
         try {
             val manager = GlanceAppWidgetManager(this@RecordingService)

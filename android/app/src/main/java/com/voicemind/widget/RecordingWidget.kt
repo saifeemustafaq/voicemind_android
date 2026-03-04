@@ -1,14 +1,10 @@
 package com.voicemind.widget
 
-import android.Manifest
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.Preferences
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
@@ -43,8 +39,6 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
-import com.google.firebase.auth.FirebaseAuth
-import com.voicemind.MainActivity
 import com.voicemind.R
 import com.voicemind.service.RecordingService
 import timber.log.Timber
@@ -220,26 +214,7 @@ class RecordingActionCallback : ActionCallback {
         parameters: ActionParameters,
     ) {
         val action = parameters[ActionKey] ?: return
-
         Timber.d("Widget action: $action")
-
-        if (action == RecordingService.ACTION_START) {
-            val hasPermission = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.RECORD_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED
-
-            val isSignedIn = FirebaseAuth.getInstance().currentUser != null
-
-            Timber.d("Widget start check: permission=$hasPermission, signedIn=$isSignedIn")
-
-            if (!hasPermission || !isSignedIn) {
-                val intent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                context.startActivity(intent)
-                return
-            }
-        }
 
         val intent = RecordingService.buildIntent(context, action)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
