@@ -96,8 +96,10 @@ export const processRecording = onCall(
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           };
           if (item.dueDate) {
-            const d = new Date(item.dueDate);
-            if (!isNaN(d.getTime())) {
+            // Use DST-aware parsing: interpret the local clock time in the user's
+            // actual timezone at the event date, not the current offset.
+            const d = parseLocalDateTimeInTimezone(item.dueDate, tz);
+            if (d) {
               doc.dueDate = admin.firestore.Timestamp.fromDate(d);
             }
           }
@@ -331,21 +333,53 @@ function parseActionItems(raw: string): ExtractedActionItem[] {
   return [];
 }
 
-function getUtcOffset(timezone: string): string {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", {
+/**
+ * Converts a local datetime string (YYYY-MM-DDTHH:MM:SS, no offset) to a UTC Date
+ * using the given IANA timezone, correctly accounting for DST at the event date.
+ *
+ * Why: If we bake the current UTC offset into the datetime string (e.g. -05:00)
+ * but the event falls after a DST boundary (e.g. March 8 spring-forward), the
+ * stored UTC timestamp ends up 1 hour wrong and the calendar event appears shifted.
+ */
+function parseLocalDateTimeInTimezone(localStr: string, timezone: string): Date | null {
+  if (!localStr) return null;
+
+  // Strip any trailing offset that GPT might still include (e.g. "+05:00", "-08:00", "Z")
+  const stripped = localStr.replace(/([+-]\d{2}:\d{2}|Z)$/, "").trim();
+  if (!stripped.includes("T")) return null;
+
+  const [datePart, timePart] = stripped.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const timeSplit = (timePart || "00:00:00").split(":");
+  const hour = parseInt(timeSplit[0] ?? "0", 10);
+  const minute = parseInt(timeSplit[1] ?? "0", 10);
+
+  if ([year, month, day, hour].some(isNaN)) return null;
+
+  // Step 1: treat local components as UTC (will be off by the timezone offset)
+  const approxUtc = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+
+  // Step 2: find what local time the target timezone shows at approxUtc
+  const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
-    timeZoneName: "shortOffset",
-  }).formatToParts(now);
-  const offsetPart = parts.find((p) => p.type === "timeZoneName");
-  if (!offsetPart) return "-08:00";
-  const raw = offsetPart.value; // e.g. "GMT-8", "GMT+5:30"
-  const match = raw.match(/GMT([+-]?)(\d{1,2})(?::(\d{2}))?/);
-  if (!match) return "-08:00";
-  const sign = match[1] || "+";
-  const hours = match[2].padStart(2, "0");
-  const minutes = match[3] || "00";
-  return `${sign}${hours}:${minutes}`;
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(approxUtc);
+  const get = (type: string) =>
+    parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
+
+  const tzHour = get("hour") % 24; // "24" can appear for midnight in some locales
+  const actualLocalMs = Date.UTC(get("year"), get("month") - 1, get("day"), tzHour, get("minute"), 0);
+  const desiredLocalMs = Date.UTC(year, month - 1, day, hour, minute, 0);
+
+  // Step 3: shift approxUtc by the delta so the result, when viewed in `timezone`, shows the desired local time
+  const result = new Date(approxUtc.getTime() + (desiredLocalMs - actualLocalMs));
+  return isNaN(result.getTime()) ? null : result;
 }
 
 /**
@@ -369,17 +403,16 @@ async function extractActionItems(
     timeZone: timezone,
   });
 
-  const utcOffset = getUtcOffset(timezone);
   const systemPrompt = `You are a smart personal assistant that extracts action items from voice transcripts. Think like a human assistant who deeply understands intent.
 
-Today is ${dayOfWeek}, ${today}. The user's timezone is ${timezone} (UTC${utcOffset}). Use this to resolve relative dates like "this Friday", "next Monday", "tomorrow", "end of week", etc.
+Today is ${dayOfWeek}, ${today}. The user's timezone is ${timezone}. Use this to resolve relative dates like "this Friday", "next Monday", "tomorrow", "end of week", etc.
 
 Respond with ONLY a JSON array of objects. No markdown, no explanation, no code fences.
 
 Each object has:
 - "title" (string, required): a short phrase describing the task.
 - "deadline" (string, optional): ISO 8601 date YYYY-MM-DD. Use when the speaker indicates a task must be COMPLETED, FINISHED, or DELIVERED by a certain date. This is the "finish by" date.
-- "dueDate" (string, optional): ISO 8601 datetime WITH timezone offset (e.g. "2026-02-27T17:00:00${utcOffset}"). Use when the speaker indicates they will WORK ON, ATTEND, or DO something at a specific date AND time. This is the "scheduled for" datetime. ALWAYS include the timezone offset "${utcOffset}" at the end.
+- "dueDate" (string, optional): Local datetime in format "YYYY-MM-DDTHH:MM:SS" with NO timezone offset (e.g. "2026-02-27T17:00:00"). Use when the speaker indicates they will WORK ON, ATTEND, or DO something at a specific date AND time. Output the clock time the user stated, exactly as a local time — do NOT convert to UTC or append any offset.
 
 DEADLINE — the date something must be finished by. Trigger phrases:
 - "complete this by Friday" → deadline = that Friday
@@ -415,7 +448,7 @@ KEY RULES:
 8. "End of day" = deadline for today. "End of week" = deadline for this Friday. "End of month" = deadline for the last day of the current month.
 
 Example output:
-[{"title":"Buy groceries","deadline":"2026-03-01"},{"title":"Call dentist","dueDate":"2026-03-02T14:00:00${utcOffset}"},{"title":"Prepare presentation for client meeting","dueDate":"2026-03-04T10:00:00${utcOffset}","deadline":"2026-03-05"}]`;
+[{"title":"Buy groceries","deadline":"2026-03-01"},{"title":"Call dentist","dueDate":"2026-03-02T14:00:00"},{"title":"Prepare presentation for client meeting","dueDate":"2026-03-04T10:00:00","deadline":"2026-03-05"}]`;
 
   const response = await fetch(
     "https://api.openai.com/v1/chat/completions",

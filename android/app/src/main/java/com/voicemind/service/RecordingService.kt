@@ -1,5 +1,6 @@
 package com.voicemind.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,12 +8,16 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.functions.FirebaseFunctions
 import com.voicemind.MainActivity
 import com.voicemind.R
@@ -21,6 +26,7 @@ import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
+import com.voicemind.util.formatRecordingTime
 import com.voicemind.util.toDefaultTitle
 import com.voicemind.widget.RecordingWidget
 import com.voicemind.widget.RecordingWidgetStateKeys
@@ -32,6 +38,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.util.Date
@@ -47,10 +54,17 @@ class RecordingService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var timerJob: Job? = null
+
+    // Elapsed time — derived from wall-clock to prevent drift
     private var elapsedSeconds = 0L
+    private var recordingStartedAt = 0L   // SystemClock.elapsedRealtime() at start/resume
+    private var elapsedBeforePause = 0L   // accumulated seconds before the current session
+
     private var audioFile: File? = null
     private var isRecording = false
     private var isPaused = false
+
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -58,8 +72,7 @@ class RecordingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Immediately promote to foreground to prevent
-        // ForegroundServiceDidNotStartInTimeException if anything below throws.
+        // Promote to foreground immediately to avoid ForegroundServiceDidNotStartInTimeException.
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -81,20 +94,29 @@ class RecordingService : Service() {
             ACTION_RESUME -> handleResume()
             ACTION_STOP_SAVE -> handleStopSave()
             ACTION_DISCARD -> handleDiscard()
-            else -> {
-                // Unknown or null action -- stop immediately.
-                resetAndStop()
-            }
+            else -> resetAndStop()
         }
         return START_NOT_STICKY
     }
 
     private fun handleStart() {
+        // Guard: mic permission must be granted before starting the recorder.
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Timber.w("RECORD_AUDIO permission not granted — cannot start recording from widget")
+            scope.launch {
+                pushWidgetState(needsMicPermission = true)
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+            return
+        }
         try {
             audioFile = audioRecorder.start()
             isRecording = true
             isPaused = false
             elapsedSeconds = 0
+            elapsedBeforePause = 0
+            acquireWakeLock()
             updateNotification()
             startTimer()
             scope.launch { pushWidgetState() }
@@ -108,9 +130,11 @@ class RecordingService : Service() {
     private fun handlePause() {
         if (!isRecording) return
         audioRecorder.pause()
+        timerJob?.cancel()
+        elapsedBeforePause = elapsedSeconds  // snapshot time at pause
         isRecording = false
         isPaused = true
-        timerJob?.cancel()
+        releaseWakeLock()
         updateNotification()
         scope.launch { pushWidgetState() }
         Timber.d("Widget recording paused")
@@ -121,6 +145,7 @@ class RecordingService : Service() {
         audioRecorder.resume()
         isRecording = true
         isPaused = false
+        acquireWakeLock()
         startTimer()
         updateNotification()
         scope.launch { pushWidgetState() }
@@ -140,6 +165,7 @@ class RecordingService : Service() {
 
         isRecording = false
         isPaused = false
+        releaseWakeLock()
 
         scope.launch(Dispatchers.IO) {
             try {
@@ -166,12 +192,15 @@ class RecordingService : Service() {
                     ))
 
                 file.delete()
+                audioFile = null
                 Timber.d("Widget recording saved: $recordingId")
             } catch (e: Exception) {
                 Timber.e("Failed to save widget recording: %s", e.message)
             } finally {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+                withContext(Dispatchers.Main) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
             }
         }
     }
@@ -184,8 +213,7 @@ class RecordingService : Service() {
         timerJob?.cancel()
         audioRecorder.discardAndRelease()
         audioFile = null
-        isRecording = false
-        isPaused = false
+        releaseWakeLock()
         Timber.d("Widget recording discarded")
         resetAndStop()
     }
@@ -194,6 +222,7 @@ class RecordingService : Service() {
         isRecording = false
         isPaused = false
         elapsedSeconds = 0
+        elapsedBeforePause = 0
         scope.launch {
             pushWidgetState()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -202,23 +231,32 @@ class RecordingService : Service() {
     }
 
     private fun startTimer() {
+        recordingStartedAt = SystemClock.elapsedRealtime()
         timerJob?.cancel()
         timerJob = scope.launch {
             while (true) {
-                delay(1000)
-                elapsedSeconds++
+                delay(500)
+                val sessionSeconds = (SystemClock.elapsedRealtime() - recordingStartedAt) / 1000
+                elapsedSeconds = elapsedBeforePause + sessionSeconds
                 updateNotification()
                 pushWidgetState()
             }
         }
     }
 
-    private suspend fun pushWidgetState() {
+    private suspend fun pushWidgetState(needsMicPermission: Boolean = false) {
         try {
+            val isSignedIn = FirebaseAuth.getInstance().currentUser != null
+            val hasMicPerm = checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
             val manager = GlanceAppWidgetManager(this@RecordingService)
             val glanceIds = manager.getGlanceIds(RecordingWidget::class.java)
             glanceIds.forEach { glanceId ->
                 updateAppWidgetState(this@RecordingService, glanceId) { prefs ->
+                    prefs[RecordingWidgetStateKeys.IS_SIGNED_IN] = isSignedIn
+                    // needsMicPermission arg takes precedence; otherwise derive from live state
+                    prefs[RecordingWidgetStateKeys.NEEDS_MIC_PERMISSION] =
+                        needsMicPermission || !hasMicPerm
                     prefs[RecordingWidgetStateKeys.IS_RECORDING] = isRecording
                     prefs[RecordingWidgetStateKeys.IS_PAUSED] = isPaused
                     prefs[RecordingWidgetStateKeys.ELAPSED_SECONDS] = elapsedSeconds
@@ -228,6 +266,19 @@ class RecordingService : Service() {
         } catch (e: Exception) {
             Timber.e(e, "Failed to update widget state")
         }
+    }
+
+    private fun acquireWakeLock() {
+        val pm = getSystemService(PowerManager::class.java)
+        wakeLock = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "VoiceMind:RecordingWakeLock",
+        ).apply { acquire(4 * 60 * 60 * 1000L) } // safety cap: 4 hours
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
     }
 
     private fun createNotificationChannel() {
@@ -252,8 +303,8 @@ class RecordingService : Service() {
         )
 
         val statusText = when {
-            isPaused -> "Paused - ${formatTime(elapsedSeconds)}"
-            isRecording -> "Recording - ${formatTime(elapsedSeconds)}"
+            isPaused -> "Paused - ${formatRecordingTime(elapsedSeconds)}"
+            isRecording -> "Recording - ${formatRecordingTime(elapsedSeconds)}"
             else -> "VoiceMind"
         }
 
@@ -277,6 +328,7 @@ class RecordingService : Service() {
     override fun onDestroy() {
         timerJob?.cancel()
         scope.cancel()
+        releaseWakeLock()
         super.onDestroy()
     }
 
@@ -292,11 +344,5 @@ class RecordingService : Service() {
 
         fun buildIntent(context: Context, action: String): Intent =
             Intent(context, RecordingService::class.java).apply { this.action = action }
-
-        private fun formatTime(seconds: Long): String {
-            val mins = seconds / 60
-            val secs = seconds % 60
-            return "%d:%02d".format(mins, secs)
-        }
     }
 }

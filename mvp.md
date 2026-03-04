@@ -190,6 +190,14 @@ Everything the app can do today.
 - Paginated action items on the Checklist screen.
 - Paginated folder detail recordings.
 
+### Notification Recording Controls
+
+- Persistent foreground notification while recording is active with media-style controls (pause/resume, stop, delete).
+- Real-time recording duration displayed in the notification.
+- Lock screen playback-style controls for recording management.
+- Tapping the notification body navigates to the active recording screen.
+- Notification non-dismissible during active recording; dismissible once stopped.
+
 ### Other
 
 - Smart Save sheet with suggested destination folder and output toggles.
