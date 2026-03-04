@@ -131,8 +131,60 @@ Everything the app can do today.
 
 ## MVP 1 — Planned
 
-- Offline capture queue and background upload (WorkManager).
-- Search (keyword + basic semantic across transcripts).
+### Admin Portal
+
+- Web-based admin dashboard (Next.js + Firebase Admin SDK) for managing users, content, and feature access.
+- User management: list, search, disable/enable, delete (cascading), view-as-user mode.
+- Content inspection: browse all recordings, transcripts, summaries, and action items across users.
+- Global feature flags (`config/features`): toggle transcription, summaries, calendar sync, action item extraction, maintenance mode, min app version.
+- Per-user feature overrides and usage limits (max recordings, max storage).
+- Admin roles: Super Admin, Admin, Viewer with permission matrix.
+- Analytics: user growth, recording activity, task completion rates, feature adoption.
+- System monitoring: Cloud Function health, storage trends, cost estimation proxies.
+- Audit log for all administrative actions.
+
+### Offline Support
+
+- Offline capture queue: record without network, audio saved locally.
+- Background upload via WorkManager when connectivity is restored.
+- Firestore offline persistence already provides cached reads; extend to handle queued writes gracefully.
+
+### Widgets
+
+- Home screen widget: one-tap record button (starts recording directly from the widget).
+- Recent recordings widget: shows last 3-5 recordings with tap-to-play.
+- Quick-capture widget: minimal footprint, always visible on home screen.
+
+### Quick Actions (Swipe / Slider Gestures)
+
+- Swipe actions on recording rows: swipe-to-delete, swipe-to-move-to-folder, swipe-to-share.
+- Swipe actions on folder rows: swipe-to-rename, swipe-to-delete.
+- Swipe actions on checklist items: swipe-to-complete, swipe-to-delete.
+- Long-press drag to reorder folders.
+
+### Sharing Between Users
+
+- Share a recording (audio + transcript + summary) with another VoiceMind user via invite link or email.
+- Shared recordings appear in the recipient's Recordings list with a "Shared by" label.
+- Shared folders: invite collaborators to a folder; all recordings in the folder are visible to invited users.
+- Permission levels for shared content: view-only vs edit (can rename, move, add recordings).
+- Shared content stored under a top-level `shared` collection or via access-control lists on existing documents.
+
+### Calendar & Sign-In Improvements
+
+- Calendar sync improvements: two-way sync (changes in Google Calendar reflect back in the app), recurring event support, multiple calendar selection.
+- Calendar event preview in task detail screen (show event title, time, link to Google Calendar).
+- Sign-in improvements: "Remember me" / biometric unlock (fingerprint / face), sign-in with Apple (future iOS parity), account linking (merge email + Google accounts).
+- Token refresh handling: proactive refresh before expiration, clearer error messages on auth failures.
+
+### Search
+
+- Keyword search across recording titles, transcripts, and summaries.
+- Basic semantic search (find recordings by meaning, not just exact words).
+- Search results with highlighted matches and tap-to-navigate.
+
+### Other
+
 - Smart Save sheet with suggested destination folder and output toggles.
 - Journaling mode (guided prompts + private folder).
 - Push notifications for upcoming deadlines / due dates.
