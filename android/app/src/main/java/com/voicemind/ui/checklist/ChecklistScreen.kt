@@ -1,7 +1,9 @@
 package com.voicemind.ui.checklist
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,18 +17,26 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,10 +48,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicemind.data.model.ActionItem
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
+import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosDestructive
 import com.voicemind.ui.theme.IosLabel
 import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSuccess
+import com.voicemind.ui.theme.IosWhite
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -54,88 +66,113 @@ fun ChecklistScreen(
     onTaskClick: (String) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showAddDialog by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        VoiceMindTopAppBar(
-            title = "Checklist",
-            icon = Icons.Default.Checklist,
-            onOpenDrawer = onOpenDrawer,
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Text(
-                text = "TO-DO",
-                style = MaterialTheme.typography.bodySmall,
-                color = IosSecondaryLabel,
-                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            VoiceMindTopAppBar(
+                title = "Checklist",
+                icon = Icons.Default.Checklist,
+                onOpenDrawer = onOpenDrawer,
             )
 
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                cornerRadius = 10.dp,
-                innerPadding = 0.dp
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    if (state.todoItems.isEmpty()) {
-                        Text(
-                            text = "No pending items",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = IosSecondaryLabel,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
+                Text(
+                    text = "TO-DO",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IosSecondaryLabel,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
+                )
 
-                    state.todoItems.forEach { item ->
-                        ActionItemRow(
-                            item = item,
-                            onToggle = { viewModel.toggleCompleted(item) },
-                            onClick = { onTaskClick(item.id) },
-                        )
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    cornerRadius = 10.dp,
+                    innerPadding = 0.dp
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        if (state.todoItems.isEmpty()) {
+                            Text(
+                                text = "No pending items",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = IosSecondaryLabel,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+
+                        state.todoItems.forEach { item ->
+                            ActionItemRow(
+                                item = item,
+                                onToggle = { viewModel.toggleCompleted(item) },
+                                onClick = { onTaskClick(item.id) },
+                            )
+                        }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "DONE",
-                style = MaterialTheme.typography.bodySmall,
-                color = IosSecondaryLabel,
-                modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
-            )
+                Text(
+                    text = "DONE",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IosSecondaryLabel,
+                    modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+                )
 
-            GlassCard(
-                modifier = Modifier.fillMaxWidth(),
-                cornerRadius = 10.dp,
-                innerPadding = 0.dp,
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    if (state.doneItems.isEmpty()) {
-                        Text(
-                            text = "Completed items appear here",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = IosSecondaryLabel,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    cornerRadius = 10.dp,
+                    innerPadding = 0.dp,
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        if (state.doneItems.isEmpty()) {
+                            Text(
+                                text = "Completed items appear here",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = IosSecondaryLabel,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
 
-                    state.doneItems.forEach { item ->
-                        ActionItemRow(
-                            item = item,
-                            onToggle = { viewModel.toggleCompleted(item) },
-                            onClick = { onTaskClick(item.id) },
-                        )
+                        state.doneItems.forEach { item ->
+                            ActionItemRow(
+                                item = item,
+                                onToggle = { viewModel.toggleCompleted(item) },
+                                onClick = { onTaskClick(item.id) },
+                            )
+                        }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(80.dp))
+            }
         }
+
+        FloatingActionButton(
+            onClick = { showAddDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp),
+            containerColor = IosAccent,
+            contentColor = IosWhite,
+            shape = CircleShape,
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add task")
+        }
+    }
+
+    if (showAddDialog) {
+        AddTaskDialog(
+            onConfirm = { title ->
+                viewModel.addItem(title)
+                showAddDialog = false
+            },
+            onDismiss = { showAddDialog = false },
+        )
     }
 }
 
@@ -174,6 +211,35 @@ private fun ActionItemRow(
             DateLabels(item)
         }
     }
+}
+
+@Composable
+private fun AddTaskDialog(
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var title by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Task") },
+        text = {
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                singleLine = true,
+                label = { Text("Task name") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(title) }, enabled = title.isNotBlank()) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
 }
 
 @Composable

@@ -58,6 +58,7 @@ import com.voicemind.ui.components.RecordingDialogsHost
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.util.toDateSectionKey
 import com.voicemind.util.toShortDateString
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,37 +115,57 @@ fun RecordingsScreen(
                     }
                 }
 
+                val grouped = remember(listState.recordings) {
+                    listState.recordings.groupBy { recording ->
+                        recording.createdAt?.toDate()?.toDateSectionKey() ?: "Unknown"
+                    }
+                }
+
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(listState.recordings, key = { it.id }) { recording ->
-                        RecordingRow(
-                            recording = recording,
-                            isPlaying = listState.playingRecordingId == recording.id,
-                            onPlayPause = {
-                                if (listState.playingRecordingId == recording.id) {
-                                    recordingsViewModel.stopPlayback()
-                                } else {
-                                    recordingsViewModel.playAudio(recording)
+                    grouped.forEach { (dateLabel, recordings) ->
+                        item(key = "header_$dateLabel") {
+                            Text(
+                                text = dateLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = IosSecondaryLabel,
+                                modifier = Modifier.padding(
+                                    start = 4.dp,
+                                    top = 12.dp,
+                                    bottom = 2.dp,
+                                ),
+                            )
+                        }
+                        items(recordings, key = { it.id }) { recording ->
+                            RecordingRow(
+                                recording = recording,
+                                isPlaying = listState.playingRecordingId == recording.id,
+                                onPlayPause = {
+                                    if (listState.playingRecordingId == recording.id) {
+                                        recordingsViewModel.stopPlayback()
+                                    } else {
+                                        recordingsViewModel.playAudio(recording)
+                                    }
+                                },
+                                onTranscript = { showTranscript = recording },
+                                onRename = { showRenameDialog = recording },
+                                onMove = { showMoveDialog = recording },
+                                onDelete = { showDeleteConfirm = recording },
+                                onShareAudio = { recordingsViewModel.shareAudio(context, recording) },
+                                onCopyTranscript = {
+                                    recording.transcription?.let { text ->
+                                        val clip = ClipData.newPlainText("Transcript", text)
+                                        (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                            .setPrimaryClip(clip)
+                                        Toast.makeText(context, "Transcript copied", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                onShareTranscript = {
+                                    recording.transcription?.let { text ->
+                                        recordingsViewModel.shareTranscript(context, text)
+                                    }
                                 }
-                            },
-                            onTranscript = { showTranscript = recording },
-                            onRename = { showRenameDialog = recording },
-                            onMove = { showMoveDialog = recording },
-                            onDelete = { showDeleteConfirm = recording },
-                            onShareAudio = { recordingsViewModel.shareAudio(context, recording) },
-                            onCopyTranscript = {
-                                recording.transcription?.let { text ->
-                                    val clip = ClipData.newPlainText("Transcript", text)
-                                    (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                                        .setPrimaryClip(clip)
-                                    Toast.makeText(context, "Transcript copied", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onShareTranscript = {
-                                recording.transcription?.let { text ->
-                                    recordingsViewModel.shareTranscript(context, text)
-                                }
-                            }
-                        )
+                            )
+                        }
                     }
                     item { Spacer(modifier = Modifier.height(80.dp)) }
                 }

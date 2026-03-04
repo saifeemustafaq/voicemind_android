@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">VoiceMind AI</string>
+    <string name="widget_name">VoiceMind Recording</string>
+    <string name="widget_description">Start, pause, and stop recordings from your home screen</string>
 </resources>

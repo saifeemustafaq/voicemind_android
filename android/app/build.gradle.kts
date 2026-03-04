@@ -124,6 +124,10 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
 
+    // Glance (App Widgets)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
+
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 

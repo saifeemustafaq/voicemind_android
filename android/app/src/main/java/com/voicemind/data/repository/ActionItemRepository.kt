@@ -70,6 +70,15 @@ class ActionItemRepository @Inject constructor(
         collection().document(itemId).update("notes", notes).await()
     }
 
+    suspend fun createItem(title: String) {
+        val data = hashMapOf(
+            "title" to title,
+            "completed" to false,
+            "createdAt" to Timestamp.now(),
+        )
+        collection().add(data).await()
+    }
+
     suspend fun getByRecordingId(recordingId: String): List<ActionItem> {
         return collection()
             .whereEqualTo("recordingId", recordingId)

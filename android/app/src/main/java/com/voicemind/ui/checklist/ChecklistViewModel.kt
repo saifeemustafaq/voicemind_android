@@ -52,4 +52,12 @@ class ChecklistViewModel @Inject constructor(
             actionItemRepository.toggleCompleted(item.id, !item.completed)
         }
     }
+
+    fun addItem(title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            actionItemRepository.createItem(trimmed)
+        }
+    }
 }

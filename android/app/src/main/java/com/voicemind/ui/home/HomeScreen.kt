@@ -235,13 +235,24 @@ fun HomeScreen(
                                         onShareAudio = { recordingsViewModel.shareAudio(context, recording) },
                                         onMoveToFolder = { showMoveDialog = recording },
                                     )
-                                    if (index < homeState.recentRecordings.lastIndex) {
-                                        HorizontalDivider(
-                                            color = IosSeparator,
-                                            thickness = 0.5.dp,
-                                            modifier = Modifier.padding(start = 16.dp),
-                                        )
-                                    }
+                                    HorizontalDivider(
+                                        color = IosSeparator,
+                                        thickness = 0.5.dp,
+                                        modifier = Modifier.padding(start = 16.dp),
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onRecordingClick() }
+                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                ) {
+                                    Text(
+                                        text = "View more",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = IosAccent,
+                                    )
                                 }
                             }
                         }

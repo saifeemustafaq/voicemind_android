@@ -41,15 +41,15 @@ fun RecordFab(
 
     Box(
         modifier = modifier
-            .size(160.dp)
+            .size(120.dp)
             .background(
                 brush = Brush.radialGradient(
                     colorStops = arrayOf(
                         0.0f to IosBackground,
-                        0.45f to IosBackground,
+                        0.5f to IosBackground,
                         1.0f to Color.Transparent,
                     ),
-                    radius = with(density) { 80.dp.toPx() },
+                    radius = with(density) { 60.dp.toPx() },
                 )
             ),
         contentAlignment = Alignment.Center,

@@ -183,6 +183,13 @@ Everything the app can do today.
 - Basic semantic search (find recordings by meaning, not just exact words).
 - Search results with highlighted matches and tap-to-navigate.
 
+### Pagination
+
+- Paginated recent recordings on Home screen (load more on scroll instead of showing all at once).
+- Paginated recordings list on the Recordings screen (Firestore cursor-based pagination).
+- Paginated action items on the Checklist screen.
+- Paginated folder detail recordings.
+
 ### Other
 
 - Smart Save sheet with suggested destination folder and output toggles.

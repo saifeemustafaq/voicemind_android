@@ -1,6 +1,10 @@
 cd android
 ./gradlew assembleRelease appDistributionUploadRelease
 
+ANd use this for build check:
+
+./gradlew compileDebugKotlin 2>&1
+
 The build number (versionCode) auto-increments every time you run assembleRelease.
 The current version is stored in android/version.properties.
 
