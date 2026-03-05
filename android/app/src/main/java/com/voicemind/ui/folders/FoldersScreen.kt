@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -69,6 +71,22 @@ fun FoldersScreen(
                 icon = Icons.Default.Folder,
                 onOpenDrawer = onOpenDrawer,
                 onSettings = onSettings,
+                extraActions = {
+                    IconButton(onClick = { viewModel.setSortOrder(FolderSort.Recency) }) {
+                        Icon(
+                            Icons.Default.AccessTime,
+                            contentDescription = "Sort by recency",
+                            tint = if (state.sort == FolderSort.Recency) IosAccent else IosSecondaryLabel,
+                        )
+                    }
+                    IconButton(onClick = { viewModel.setSortOrder(FolderSort.Count) }) {
+                        Icon(
+                            Icons.Default.FormatListNumbered,
+                            contentDescription = "Sort by count",
+                            tint = if (state.sort == FolderSort.Count) IosAccent else IosSecondaryLabel,
+                        )
+                    }
+                },
             )
 
             Column(
@@ -210,11 +228,13 @@ private fun FolderRow(
                     }
                 }
             } else {
-                Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = IosSecondaryLabel,
-                )
+                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = IosSecondaryLabel,
+                    )
+                }
             }
         }
     }

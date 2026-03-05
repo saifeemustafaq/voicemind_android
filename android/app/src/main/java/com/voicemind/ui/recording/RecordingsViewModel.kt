@@ -14,6 +14,7 @@ import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.CollectiveSummaryRepository
 import com.voicemind.data.repository.FolderRepository
+import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
 import com.google.firebase.functions.FirebaseFunctionsException
@@ -22,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
@@ -53,6 +55,7 @@ data class RecordingsListState(
     val isCollectiveSummarizing: Boolean = false,
     val collectiveSummarizeError: String? = null,
     val collectiveSummarizeResult: CollectiveSummary? = null,
+    val showMultiSelectHint: Boolean = false,
 )
 
 @HiltViewModel
@@ -62,6 +65,7 @@ class RecordingsViewModel @Inject constructor(
     private val storageRepository: StorageRepository,
     private val actionItemRepository: ActionItemRepository,
     private val collectiveSummaryRepository: CollectiveSummaryRepository,
+    private val navPreferenceRepository: NavPreferenceRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecordingsListState())
@@ -78,6 +82,12 @@ class RecordingsViewModel @Inject constructor(
         viewModelScope.launch {
             folderRepository.observeFolders().collect { folders ->
                 _state.value = _state.value.copy(folders = folders)
+            }
+        }
+        viewModelScope.launch {
+            val alreadyShown = navPreferenceRepository.multiSelectHintShown.first()
+            if (!alreadyShown) {
+                _state.value = _state.value.copy(showMultiSelectHint = true)
             }
         }
     }
@@ -238,11 +248,22 @@ class RecordingsViewModel @Inject constructor(
 
     // Multi-select
 
+    fun dismissMultiSelectHint() {
+        _state.value = _state.value.copy(showMultiSelectHint = false)
+        viewModelScope.launch {
+            navPreferenceRepository.setMultiSelectHintShown(true)
+        }
+    }
+
     fun enterMultiSelect(recordingId: String) {
         _state.value = _state.value.copy(
             isMultiSelectActive = true,
             selectedRecordingIds = setOf(recordingId),
+            showMultiSelectHint = false,
         )
+        viewModelScope.launch {
+            navPreferenceRepository.setMultiSelectHintShown(true)
+        }
     }
 
     fun toggleSelection(recordingId: String) {

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +22,8 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -42,6 +45,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.halilibo.richtext.markdown.Markdown
+import com.halilibo.richtext.ui.material3.RichText
 import com.voicemind.data.model.CollectiveSummary
 import com.voicemind.ui.components.EmptyStateCard
 import com.voicemind.ui.components.GlassCard
@@ -66,6 +71,7 @@ fun SummariesScreen(
             icon = Icons.Default.AutoAwesome,
             onOpenDrawer = onOpenDrawer,
             onSettings = onSettings,
+            onInfoClick = { viewModel.showInfoSheet() },
         )
 
         Box(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
@@ -112,6 +118,10 @@ fun SummariesScreen(
             onDelete = { viewModel.deleteSummary(summary.id) },
         )
     }
+
+    if (state.showInfoSheet) {
+        SummariesInfoSheet(onDismiss = { viewModel.dismissInfoSheet() })
+    }
 }
 
 @Composable
@@ -122,7 +132,7 @@ private fun SummaryRow(
     GlassCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }, innerPadding = 12.dp) {
         Column {
             Text(
-                text = summary.summary,
+                text = summary.summary.stripMarkdown(),
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -194,10 +204,9 @@ private fun SummaryDetailSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text(
-                    text = summary.summary,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                RichText {
+                    Markdown(content = summary.summary)
+                }
 
                 if (summary.recordingTitles.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -251,3 +260,78 @@ private fun SummaryDetailSheet(
         )
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SummariesInfoSheet(onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = IosAccent,
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text("How Summaries Work", style = MaterialTheme.typography.titleMedium)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val steps = listOf(
+                "Go to the Recordings screen.",
+                "Long-press a recording to enter multi-select mode.",
+                "Select one or more recordings.",
+                "Tap the \u2728 Summarize button in the toolbar.",
+                "Your summary will appear here!",
+            )
+            steps.forEachIndexed { index, step ->
+                Text(
+                    text = "${index + 1}.  $step",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 3.dp),
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Summaries are generated from the transcripts of your selected recordings.",
+                style = MaterialTheme.typography.bodySmall,
+                color = IosSecondaryLabel,
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = IosAccent),
+            ) {
+                Text("Got it")
+            }
+        }
+    }
+}
+
+private fun String.stripMarkdown(): String = this
+    .replace(Regex("#{1,6}\\s+"), "")
+    .replace(Regex("\\*\\*(.+?)\\*\\*"), "$1")
+    .replace(Regex("\\*(.+?)\\*"), "$1")
+    .replace(Regex("__(.+?)__"), "$1")
+    .replace(Regex("_(.+?)_"), "$1")
+    .replace(Regex("^[-*+]\\s+", RegexOption.MULTILINE), "")
+    .replace(Regex("^\\d+\\.\\s+", RegexOption.MULTILINE), "")
+    .replace(Regex("`(.+?)`"), "$1")
+    .trim()

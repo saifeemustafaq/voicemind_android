@@ -8,10 +8,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voicemind.data.model.CollectiveSummary
 import com.voicemind.data.repository.CollectiveSummaryRepository
+import com.voicemind.data.repository.NavPreferenceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -21,11 +23,13 @@ data class SummariesUiState(
     val isLoading: Boolean = true,
     val selectedSummary: CollectiveSummary? = null,
     val isDeleting: Boolean = false,
+    val showInfoSheet: Boolean = false,
 )
 
 @HiltViewModel
 class SummariesViewModel @Inject constructor(
     private val collectiveSummaryRepository: CollectiveSummaryRepository,
+    private val navPreferenceRepository: NavPreferenceRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SummariesUiState())
@@ -36,6 +40,23 @@ class SummariesViewModel @Inject constructor(
             collectiveSummaryRepository.observeSummaries().collect { summaries ->
                 _state.value = _state.value.copy(summaries = summaries, isLoading = false)
             }
+        }
+        viewModelScope.launch {
+            val alreadyShown = navPreferenceRepository.summariesInfoShown.first()
+            if (!alreadyShown) {
+                _state.value = _state.value.copy(showInfoSheet = true)
+            }
+        }
+    }
+
+    fun showInfoSheet() {
+        _state.value = _state.value.copy(showInfoSheet = true)
+    }
+
+    fun dismissInfoSheet() {
+        _state.value = _state.value.copy(showInfoSheet = false)
+        viewModelScope.launch {
+            navPreferenceRepository.setSummariesInfoShown(true)
         }
     }
 

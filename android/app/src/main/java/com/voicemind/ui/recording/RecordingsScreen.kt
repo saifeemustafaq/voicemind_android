@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TextSnippet
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -111,6 +112,11 @@ fun RecordingsScreen(
     var showDeleteConfirm by remember { mutableStateOf<Recording?>(null) }
     var showBulkDeleteConfirm by remember { mutableStateOf(false) }
     var showBulkMoveDialog by remember { mutableStateOf(false) }
+    var summarizingGroup by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(listState.isCollectiveSummarizing) {
+        if (!listState.isCollectiveSummarizing) summarizingGroup = null
+    }
 
     // Back press exits multi-select mode
     BackHandler(enabled = listState.isMultiSelectActive) {
@@ -153,6 +159,16 @@ fun RecordingsScreen(
             }
 
             Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
+                if (folderId == null
+                    && listState.showMultiSelectHint
+                    && !listState.isMultiSelectActive
+                    && listState.recordings.size >= 2
+                ) {
+                    MultiSelectHintBanner(
+                        onDismiss = { recordingsViewModel.dismissMultiSelectHint() },
+                    )
+                }
+
                 if (listState.recordings.isEmpty() && !listState.isLoading) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -182,16 +198,45 @@ fun RecordingsScreen(
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     grouped.forEach { (dateLabel, recordings) ->
                         item(key = "header_$dateLabel") {
-                            Text(
-                                text = dateLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = IosSecondaryLabel,
-                                modifier = Modifier.padding(
-                                    start = 4.dp,
-                                    top = 12.dp,
-                                    bottom = 2.dp,
-                                ),
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 4.dp, top = 12.dp, bottom = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = dateLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = IosSecondaryLabel,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (recordings.size > 1 && !listState.isMultiSelectActive) {
+                                    if (summarizingGroup == dateLabel && listState.isCollectiveSummarizing) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .padding(end = 4.dp),
+                                            color = IosAccent,
+                                            strokeWidth = 2.dp,
+                                        )
+                                    } else {
+                                        IconButton(
+                                            onClick = {
+                                                summarizingGroup = dateLabel
+                                                recordingsViewModel.collectiveSummarize(recordings.map { it.id })
+                                            },
+                                            modifier = Modifier.size(28.dp),
+                                        ) {
+                                            Icon(
+                                                Icons.Default.AutoAwesome,
+                                                contentDescription = "Summarize $dateLabel recordings",
+                                                tint = IosAccent,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                         items(recordings, key = { it.id }) { recording ->
                             val isSelected = recording.id in listState.selectedRecordingIds
@@ -405,6 +450,43 @@ private fun BulkMoveToFolderDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
+}
+
+@Composable
+private fun MultiSelectHintBanner(onDismiss: () -> Unit) {
+    GlassCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp),
+        innerPadding = 12.dp,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(
+                Icons.Default.TouchApp,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = IosAccent,
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Tip: Long-press a recording to select multiple",
+                style = MaterialTheme.typography.bodySmall,
+                color = IosSecondaryLabel,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Dismiss",
+                    modifier = Modifier.size(16.dp),
+                    tint = IosSecondaryLabel,
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
