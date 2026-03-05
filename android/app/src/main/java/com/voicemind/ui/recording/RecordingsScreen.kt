@@ -5,7 +5,20 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +33,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckBox
@@ -38,6 +52,8 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TextSnippet
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -57,7 +73,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,6 +99,7 @@ import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.util.toDateSectionKey
 import com.voicemind.util.toShortDateString
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,14 +121,6 @@ fun RecordingsScreen(
         recordingViewModel.setCurrentFolder(folderId)
     }
 
-    // Navigate to Summaries when a collective summary is generated
-    LaunchedEffect(listState.collectiveSummarizeResult) {
-        if (listState.collectiveSummarizeResult != null) {
-            navController?.navigate(Routes.Summaries.route)
-            recordingsViewModel.clearCollectiveSummarizeResult()
-        }
-    }
-
     var showTranscript by remember { mutableStateOf<Recording?>(null) }
     var showRenameDialog by remember { mutableStateOf<Recording?>(null) }
     var showMoveDialog by remember { mutableStateOf<Recording?>(null) }
@@ -113,9 +128,34 @@ fun RecordingsScreen(
     var showBulkDeleteConfirm by remember { mutableStateOf(false) }
     var showBulkMoveDialog by remember { mutableStateOf(false) }
     var summarizingGroup by remember { mutableStateOf<String?>(null) }
+    var showSummarizationPopup by remember { mutableStateOf(false) }
+    var showCompletionToast by remember { mutableStateOf(false) }
+    var wasSummarizing by remember { mutableStateOf(false) }
 
+    // Show popup when summarization starts; show toast on completion.
+    // We use wasSummarizing to reliably detect success vs initial state,
+    // since collectiveSummarizeResult gets cleared by exitMultiSelect() and
+    // may not be visible in a separate composition pass.
     LaunchedEffect(listState.isCollectiveSummarizing) {
-        if (!listState.isCollectiveSummarizing) summarizingGroup = null
+        if (listState.isCollectiveSummarizing) {
+            wasSummarizing = true
+            showSummarizationPopup = true
+        } else if (wasSummarizing) {
+            showSummarizationPopup = false
+            summarizingGroup = null
+            if (listState.collectiveSummarizeError == null) {
+                showCompletionToast = true
+            }
+            wasSummarizing = false
+        }
+    }
+
+    // Auto-dismiss completion toast after 4 seconds
+    LaunchedEffect(showCompletionToast) {
+        if (showCompletionToast) {
+            delay(4000L)
+            showCompletionToast = false
+        }
     }
 
     // Back press exits multi-select mode
@@ -280,14 +320,49 @@ fun RecordingsScreen(
             }
         }
 
-        // Loading overlay during bulk operations or collective summarization
-        if (listState.isBulkDeleting || listState.isBulkMoving || listState.isCollectiveSummarizing) {
+        // Bulk delete / move overlay (full-screen, blocking — intentional for destructive ops)
+        if (listState.isBulkDeleting || listState.isBulkMoving) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(color = IosAccent)
             }
+        }
+
+        // Completion toast — slides in from the top, tappable to navigate
+        AnimatedVisibility(
+            visible = showCompletionToast,
+            enter = slideInVertically { -it } + fadeIn(),
+            exit = slideOutVertically { -it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(
+                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp,
+                    start = 16.dp,
+                    end = 16.dp,
+                ),
+        ) {
+            CompletionToast(
+                onClick = {
+                    showCompletionToast = false
+                    navController?.navigate(Routes.Summaries.route)
+                },
+            )
+        }
+
+        // Summarization popup — non-blocking floating card at center-bottom
+        AnimatedVisibility(
+            visible = showSummarizationPopup && listState.isCollectiveSummarizing,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier
+                .align(BiasAlignment(horizontalBias = 0f, verticalBias = 0.3f))
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+        ) {
+            SummarizationPopup(onHide = { showSummarizationPopup = false })
         }
 
         RecordFab(
@@ -365,6 +440,94 @@ fun RecordingsScreen(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun SummarizationPopup(onHide: () -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+    val animatedOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "shimmerOffset",
+    )
+    val shimmerBrush = Brush.linearGradient(
+        colors = listOf(
+            Color(0xFF5E9EFF), // blue
+            Color(0xFFFFD700), // gold
+            Color(0xFFB47FFF), // purple
+            Color(0xFF5E9EFF), // back to blue
+        ),
+        start = Offset(animatedOffset * 800f - 400f, 0f),
+        end = Offset(animatedOffset * 800f + 400f, 0f),
+    )
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+        border = BorderStroke(width = 1.dp, color = Color(0x33888888)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.AutoAwesome,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = IosAccent,
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "Generating Summary…",
+                style = MaterialTheme.typography.bodyMedium.copy(brush = shimmerBrush),
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onHide) {
+                Text("Hide", color = IosSecondaryLabel)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompletionToast(onClick: () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = IosAccent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "Summary ready. Tap to view",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 

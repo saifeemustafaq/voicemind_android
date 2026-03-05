@@ -236,6 +236,7 @@ Everything the app can do today.
 - No visual partition — just seamless reordering.
 - Bug fix: Unfiled folder row height too short (bare `Icon` instead of `IconButton` for trailing element).
 - Bug fix: Unfiled recording count misaligned to the right vs. other folders (same root cause — inconsistent trailing element width).
+- Smooth scroll-to-top animation when sort mode changes so the user sees the new order from the beginning ([#22](https://github.com/saifeemustafaq/voicemind_android/issues/22)).
 
 ### Other
 

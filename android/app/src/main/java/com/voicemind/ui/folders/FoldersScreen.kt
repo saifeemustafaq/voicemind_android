@@ -13,6 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
@@ -95,7 +100,11 @@ fun FoldersScreen(
                     .padding(horizontal = 16.dp)
             ) {
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val listState = rememberLazyListState()
+            LaunchedEffect(state.sort) {
+                listState.animateScrollToItem(0)
+            }
+            LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(state.folders, key = { it.id }) { folder ->
                     FolderRow(
                         folder = folder,
@@ -103,6 +112,14 @@ fun FoldersScreen(
                         onClick = { onFolderClick(folder.id) },
                         onRename = { showRenameDialog = folder },
                         onDelete = { showDeleteConfirm = folder },
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = tween(300),
+                            placementSpec = spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessLow,
+                            ),
+                            fadeOutSpec = tween(300),
+                        ),
                     )
                 }
                 item { Spacer(modifier = Modifier.height(80.dp)) }
@@ -174,11 +191,12 @@ private fun FolderRow(
     onClick: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val isUnfiled = folder.id == Folder.UNFILED_ID
     var menuExpanded by remember { mutableStateOf(false) }
 
-    GlassCard(modifier = Modifier.fillMaxWidth(), innerPadding = 0.dp) {
+    GlassCard(modifier = modifier.fillMaxWidth(), innerPadding = 0.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
