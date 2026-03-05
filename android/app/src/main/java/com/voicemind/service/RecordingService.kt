@@ -220,6 +220,7 @@ class RecordingService : Service() {
                         title = title.take(25),
                         folderId = folderId,
                         audioPath = audioPath,
+                        durationSeconds = elapsedSeconds,
                     )
                 )
 

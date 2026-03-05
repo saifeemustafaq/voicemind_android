@@ -100,6 +100,7 @@ import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.navigation.Routes
 import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.util.formatRecordingTime
 import com.voicemind.util.toDateSectionKey
 import com.voicemind.util.toShortDateString
 import kotlinx.coroutines.delay
@@ -742,19 +743,11 @@ private fun RecordingRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 recording.createdAt?.toDate()?.let { date ->
+                    val durationStr = if (recording.durationSeconds > 0) " · ${formatRecordingTime(recording.durationSeconds)}" else ""
                     Text(
-                        text = date.toShortDateString(),
+                        text = date.toShortDateString() + durationStr,
                         style = MaterialTheme.typography.bodySmall,
                         color = IosSecondaryLabel,
-                    )
-                }
-                if (recording.transcription != null) {
-                    Text(
-                        text = recording.transcription.take(60) + if (recording.transcription.length > 60) "..." else "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = IosSecondaryLabel,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

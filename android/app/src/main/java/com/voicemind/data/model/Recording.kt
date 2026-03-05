@@ -12,4 +12,5 @@ data class Recording(
     val transcription: String? = null,
     val summary: String? = null,
     val audioPath: String = "",
+    val durationSeconds: Long = 0,
 )
