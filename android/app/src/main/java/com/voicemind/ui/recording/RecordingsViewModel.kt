@@ -25,8 +25,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.update
 import timber.log.Timber
 import java.io.File
+import java.util.TimeZone
 import javax.inject.Inject
 
 sealed interface SummaryState {
@@ -40,6 +42,8 @@ data class TranscriptSheetState(
     val summaryState: SummaryState = SummaryState.Idle,
     val actionItems: List<ActionItem> = emptyList(),
     val actionItemsLoaded: Boolean = false,
+    val isGeneratingTasks: Boolean = false,
+    val generateTasksFailed: Boolean = false,
 )
 
 data class RecordingsListState(
@@ -215,6 +219,23 @@ class RecordingsViewModel @Inject constructor(
             } catch (e: Exception) {
                 Timber.e("Failed to load action items: %s", e.message)
                 _sheetState.value = _sheetState.value.copy(actionItemsLoaded = true)
+            }
+        }
+    }
+
+    fun generateTasks(recording: Recording) {
+        if (_sheetState.value.isGeneratingTasks) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _sheetState.update { it.copy(isGeneratingTasks = true, generateTasksFailed = false) }
+            try {
+                val tz = TimeZone.getDefault().id
+                actionItemRepository.retryExtractActionItems(recording.id, tz)
+                loadActionItems(recording.id)
+            } catch (e: Exception) {
+                Timber.e("generateTasks failed: %s", e.message)
+                _sheetState.update { it.copy(generateTasksFailed = true) }
+            } finally {
+                _sheetState.update { it.copy(isGeneratingTasks = false) }
             }
         }
     }

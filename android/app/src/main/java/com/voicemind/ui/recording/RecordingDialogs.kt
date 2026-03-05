@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.outlined.Circle
@@ -78,6 +79,10 @@ fun TranscriptSheet(
         if (hasTasks) listOf(TranscriptTab.Tasks) else emptyList()
     if (selectedTab >= tabs.size) selectedTab = 0
 
+    LaunchedEffect(hasTasks) {
+        if (hasTasks) selectedTab = tabs.indexOf(TranscriptTab.Tasks)
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -121,6 +126,71 @@ fun TranscriptSheet(
                         border = null,
                     )
                 }
+
+                if (!hasTasks && recording.transcription != null && sheetState.actionItemsLoaded) {
+                    if (sheetState.isGeneratingTasks) {
+                        FilterChip(
+                            selected = false,
+                            onClick = {},
+                            enabled = false,
+                            label = {
+                                Text(
+                                    "Generating...",
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            },
+                            leadingIcon = {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                    color = IosAccent,
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = IosTertiaryFill,
+                                labelColor = IosLabel,
+                                disabledContainerColor = IosTertiaryFill,
+                                disabledLabelColor = IosSecondaryLabel,
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            border = null,
+                        )
+                    } else {
+                        FilterChip(
+                            selected = false,
+                            onClick = { viewModel.generateTasks(recording) },
+                            label = {
+                                Text(
+                                    "Generate Tasks",
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = IosAccent,
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = IosTertiaryFill,
+                                labelColor = IosLabel,
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            border = null,
+                        )
+                    }
+                }
+            }
+
+            if (sheetState.generateTasksFailed && !sheetState.isGeneratingTasks) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "No tasks could be identified from this transcript.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IosSecondaryLabel,
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

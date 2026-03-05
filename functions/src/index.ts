@@ -95,6 +95,9 @@ export const processRecording = onCall(
             recordingId: recordingId,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           };
+          if (item.notes) {
+            doc.notes = item.notes.substring(0, 500);
+          }
           if (item.dueDate) {
             // Use DST-aware parsing: interpret the local clock time in the user's
             // actual timezone at the event date, not the current offset.
@@ -374,10 +377,10 @@ async function generateTitle(transcript: string): Promise<string | null> {
         messages: [
           {
             role: "user",
-            content: `Based on this transcript, reply with a single short title that identifies the content. Use at most 25 characters. Output only the title, no quotes or punctuation. Transcript:\n\n${truncated}`,
+            content: `Based on this transcript, reply with a single short title that identifies the content. Use at most 75 characters. Output only the title, no quotes or punctuation. Transcript:\n\n${truncated}`,
           },
         ],
-        max_tokens: 30,
+        max_tokens: 60,
       }),
     }
   );
@@ -386,13 +389,14 @@ async function generateTitle(transcript: string): Promise<string | null> {
 
   const data = (await response.json()) as Record<string, any>;
   const title = data.choices?.[0]?.message?.content?.trim();
-  return title ? title.substring(0, 25) : null;
+  return title ? title.substring(0, 75) : null;
 }
 
 interface ExtractedActionItem {
   title: string;
   dueDate?: string;
   deadline?: string;
+  notes?: string;
 }
 
 function parseActionItems(raw: string): ExtractedActionItem[] {
@@ -423,6 +427,8 @@ function parseActionItems(raw: string): ExtractedActionItem[] {
               result.dueDate = obj.dueDate;
             if (typeof obj.deadline === "string" && obj.deadline)
               result.deadline = obj.deadline;
+            if (typeof obj.notes === "string" && obj.notes)
+              result.notes = obj.notes;
             return result;
           }
           return null;
@@ -527,6 +533,7 @@ Respond with ONLY a JSON array of objects. No markdown, no explanation, no code 
 
 Each object has:
 - "title" (string, required): a short phrase describing the task.
+- "notes" (string, optional): 1-3 concise sentences of context from the transcript explaining WHY this task exists — the reason, background, or details behind it. Paraphrase naturally; do not quote verbatim. Omit if there is no meaningful context beyond the title itself.
 - "deadline" (string, optional): ISO 8601 date YYYY-MM-DD. Use when the speaker indicates a task must be COMPLETED, FINISHED, or DELIVERED by a certain date. This is the "finish by" date.
 - "dueDate" (string, optional): Local datetime in format "YYYY-MM-DDTHH:MM:SS" with NO timezone offset (e.g. "2026-02-27T17:00:00"). Use when the speaker indicates they will WORK ON, ATTEND, or DO something at a specific date AND time. Output the clock time the user stated, exactly as a local time — do NOT convert to UTC or append any offset.
 
@@ -564,7 +571,7 @@ KEY RULES:
 8. "End of day" = deadline for today. "End of week" = deadline for this Friday. "End of month" = deadline for the last day of the current month.
 
 Example output:
-[{"title":"Buy groceries","deadline":"2026-03-01"},{"title":"Call dentist","dueDate":"2026-03-02T14:00:00"},{"title":"Prepare presentation for client meeting","dueDate":"2026-03-04T10:00:00","deadline":"2026-03-05"}]`;
+[{"title":"Buy groceries","notes":"Need to restock for the dinner party on Saturday.","deadline":"2026-03-01"},{"title":"Call dentist","notes":"Need to reschedule the cleaning appointment that was missed last week.","dueDate":"2026-03-02T14:00:00"},{"title":"Prepare presentation for client meeting","dueDate":"2026-03-04T10:00:00","deadline":"2026-03-05"}]`;
 
   const response = await fetch(
     "https://api.openai.com/v1/chat/completions",
@@ -606,6 +613,169 @@ Example output:
 
   return parseActionItems(content);
 }
+
+// ---------------------------------------------------------------------------
+// Retry action-item extraction (user-initiated, more aggressive prompt)
+// ---------------------------------------------------------------------------
+
+async function extractActionItemsAggressive(
+  transcript: string,
+  timezone: string
+): Promise<ExtractedActionItem[]> {
+  const truncated = transcript.substring(0, 3000);
+  const now = new Date();
+  const today = now.toLocaleDateString("en-CA", { timeZone: timezone });
+  const dayOfWeek = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: timezone,
+  });
+
+  const aggressivePrefix = `The user has explicitly requested task extraction from this transcript. Be more liberal and inclusive in identifying potential tasks. Look for:
+- Direct tasks ("call the bank", "send the email")
+- Implied intentions ("I should probably...", "I need to think about...")
+- Soft reminders ("don't forget to...", "I want to eventually...")
+- Future plans ("next week I'll...", "at some point I have to...")
+- Anything that sounds like it could be actionable
+Err on the side of inclusion — the user can always delete tasks they don't want.
+
+`;
+
+  const systemPrompt = `${aggressivePrefix}You are a smart personal assistant that extracts action items from voice transcripts. Think like a human assistant who deeply understands intent.
+
+Today is ${dayOfWeek}, ${today}. The user's timezone is ${timezone}. Use this to resolve relative dates like "this Friday", "next Monday", "tomorrow", "end of week", etc.
+
+Respond with ONLY a JSON array of objects. No markdown, no explanation, no code fences.
+
+Each object has:
+- "title" (string, required): a short phrase describing the task.
+- "notes" (string, optional): 1-3 concise sentences of context from the transcript explaining WHY this task exists — the reason, background, or details behind it. Paraphrase naturally; do not quote verbatim. Omit if there is no meaningful context beyond the title itself.
+- "deadline" (string, optional): ISO 8601 date YYYY-MM-DD. Use when the speaker indicates a task must be COMPLETED, FINISHED, or DELIVERED by a certain date.
+- "dueDate" (string, optional): Local datetime in format "YYYY-MM-DDTHH:MM:SS" with NO timezone offset. Use when the speaker indicates they will WORK ON, ATTEND, or DO something at a specific date AND time.
+
+If there are genuinely zero actionable items, return [].`;
+
+  const response = await fetch(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openaiApiKey.value()}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `Extract all tasks, intentions, reminders, and to-dos from this transcript. Be inclusive — if something could reasonably be a task, include it.\n\nTranscript:\n\n${truncated}`,
+          },
+        ],
+        max_tokens: 1024,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    console.error(
+      "OpenAI aggressive action-item request failed:",
+      response.status,
+      await response.text()
+    );
+    return [];
+  }
+
+  const data = (await response.json()) as Record<string, any>;
+  const content = data.choices?.[0]?.message?.content?.trim();
+  if (!content) return [];
+
+  return parseActionItems(content);
+}
+
+export const retryExtractActionItems = onCall(
+  { secrets: [openaiApiKey], timeoutSeconds: 60 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Not authenticated");
+    }
+    const uid = request.auth.uid;
+    const { recordingId, timezone } = request.data as {
+      recordingId: string;
+      timezone?: string;
+    };
+    if (!recordingId) {
+      throw new HttpsError("invalid-argument", "recordingId is required");
+    }
+    const tz = timezone ?? "UTC";
+
+    // Read transcript from Firestore
+    const recordingSnap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("recordings")
+      .doc(recordingId)
+      .get();
+    if (!recordingSnap.exists) {
+      throw new HttpsError("not-found", "Recording not found");
+    }
+    const transcript = recordingSnap.data()?.transcription as string | undefined;
+    if (!transcript) {
+      throw new HttpsError("failed-precondition", "Recording has no transcript");
+    }
+
+    // Idempotency: if items already exist for this recording, return count
+    const existingSnap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("actionItems")
+      .where("recordingId", "==", recordingId)
+      .limit(1)
+      .get();
+    if (!existingSnap.empty) {
+      return { count: existingSnap.size };
+    }
+
+    // Extract with aggressive prompt
+    const items = await extractActionItemsAggressive(transcript, tz);
+
+    if (items.length > 0) {
+      const batch = db.batch();
+      const actionItemsRef = db
+        .collection("users")
+        .doc(uid)
+        .collection("actionItems");
+
+      for (const item of items) {
+        const docRef = actionItemsRef.doc();
+        const doc: Record<string, unknown> = {
+          title: item.title.substring(0, 200),
+          completed: false,
+          recordingId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (item.notes) {
+          doc.notes = item.notes.substring(0, 500);
+        }
+        if (item.dueDate) {
+          const d = parseLocalDateTimeInTimezone(item.dueDate, tz);
+          if (d) {
+            doc.dueDate = admin.firestore.Timestamp.fromDate(d);
+          }
+        }
+        if (item.deadline) {
+          const d = parseDateAsNoonUtc(item.deadline);
+          if (d && !isNaN(d.getTime())) {
+            doc.deadline = admin.firestore.Timestamp.fromDate(d);
+          }
+        }
+        batch.set(docRef, doc);
+      }
+      await batch.commit();
+    }
+
+    return { count: items.length };
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Google Calendar integration
@@ -766,6 +936,7 @@ export const syncActionItemToCalendar = onDocumentWritten(
     const dueDate = after.dueDate as admin.firestore.Timestamp | undefined;
     const deadline = after.deadline as admin.firestore.Timestamp | undefined;
     const title = (after.title as string) || "VoiceMind Task";
+    const notes = (after.notes as string | undefined) || undefined;
 
     const hasDate = dueDate || deadline;
 
@@ -778,7 +949,7 @@ export const syncActionItemToCalendar = onDocumentWritten(
 
     if (!hasDate) return;
 
-    const calendarEvent = buildCalendarEvent(title, dueDate, deadline);
+    const calendarEvent = buildCalendarEvent(title, dueDate, deadline, notes);
 
     if (eventId) {
       // Update existing event
@@ -808,11 +979,12 @@ export const syncActionItemToCalendar = onDocumentWritten(
 function buildCalendarEvent(
   title: string,
   dueDate?: admin.firestore.Timestamp,
-  deadline?: admin.firestore.Timestamp
+  deadline?: admin.firestore.Timestamp,
+  notes?: string
 ) {
   const event: Record<string, unknown> = {
     summary: title,
-    description: "Created by VoiceMind AI",
+    description: notes || "",
   };
 
   if (dueDate) {

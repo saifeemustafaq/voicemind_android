@@ -3,6 +3,7 @@ package com.voicemind.data.repository
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.functions.FirebaseFunctions
 import com.voicemind.data.model.ActionItem
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +17,7 @@ import javax.inject.Singleton
 class ActionItemRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val authRepository: AuthRepository,
+    private val functions: FirebaseFunctions,
 ) {
     private fun collection() =
         firestore.collection("users/${requireNotNull(authRepository.currentUser) { "User must be signed in" }.uid}/actionItems")
@@ -85,5 +87,15 @@ class ActionItemRepository @Inject constructor(
             .get().await()
             .toObjects(ActionItem::class.java)
             .sortedBy { it.createdAt }
+    }
+
+    suspend fun retryExtractActionItems(recordingId: String, timezone: String): Int {
+        val result = functions
+            .getHttpsCallable("retryExtractActionItems")
+            .call(hashMapOf("recordingId" to recordingId, "timezone" to timezone))
+            .await()
+        @Suppress("UNCHECKED_CAST")
+        val data = result.getData() as? Map<*, *> ?: return 0
+        return (data["count"] as? Long)?.toInt() ?: 0
     }
 }
