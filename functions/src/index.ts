@@ -212,6 +212,122 @@ export const generateSummary = onCall(
   }
 );
 
+interface CollectiveSummaryRequest {
+  recordingIds: string[];
+}
+
+/**
+ * Generates a collective summary from the combined transcripts of multiple recordings.
+ * Stores the result in users/{uid}/collectiveSummaries.
+ */
+export const generateCollectiveSummary = onCall(
+  { secrets: [openaiApiKey], timeoutSeconds: 120 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "User must be signed in");
+    }
+
+    const uid = request.auth.uid;
+    const { recordingIds } = request.data as CollectiveSummaryRequest;
+
+    if (!recordingIds || recordingIds.length === 0) {
+      throw new HttpsError("invalid-argument", "recordingIds is required and must not be empty");
+    }
+
+    // Fetch all recording documents
+    const recordingsRef = db.collection("users").doc(uid).collection("recordings");
+    const recordingDocs = await Promise.all(recordingIds.map((id) => recordingsRef.doc(id).get()));
+
+    const recordingsWithTranscripts: Array<{ id: string; title: string; transcription: string; createdAt: admin.firestore.Timestamp | null }> = [];
+    const skippedCount = recordingDocs.reduce((count, doc) => {
+      if (!doc.exists) return count + 1;
+      const data = doc.data()!;
+      if (!data.transcription) return count + 1;
+      recordingsWithTranscripts.push({
+        id: doc.id,
+        title: (data.title as string) || "Untitled",
+        transcription: data.transcription as string,
+        createdAt: (data.createdAt as admin.firestore.Timestamp) || null,
+      });
+      return count;
+    }, 0);
+
+    if (recordingsWithTranscripts.length === 0) {
+      throw new HttpsError(
+        "failed-precondition",
+        "None of the selected recordings have transcripts to summarize"
+      );
+    }
+
+    // Sort by createdAt ascending
+    recordingsWithTranscripts.sort((a, b) => {
+      const aMs = a.createdAt?.toMillis() ?? 0;
+      const bMs = b.createdAt?.toMillis() ?? 0;
+      return aMs - bMs;
+    });
+
+    // Concatenate transcripts with separator
+    const combined = recordingsWithTranscripts
+      .map((r) => r.transcription)
+      .join("\n---\n");
+
+    // Truncate to ~12000 chars for gpt-4o-mini context limit
+    const truncated = combined.substring(0, 12000);
+
+    const response = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openaiApiKey.value()}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "user",
+              content: `Summarize the following combined transcripts from multiple voice recordings concisely. Highlight key themes, decisions, and action items across all recordings. Output only the summary.\n\n${truncated}`,
+            },
+          ],
+          max_tokens: 500,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new HttpsError(
+        "internal",
+        `Collective summary generation failed: ${response.status} ${errorText}`
+      );
+    }
+
+    const data = (await response.json()) as Record<string, any>;
+    const summary = data.choices?.[0]?.message?.content?.trim();
+
+    if (!summary) {
+      throw new HttpsError("internal", "Empty summary returned from OpenAI");
+    }
+
+    // Store in collectiveSummaries collection
+    const summaryRef = db.collection("users").doc(uid).collection("collectiveSummaries").doc();
+    await summaryRef.set({
+      summary,
+      recordingIds: recordingsWithTranscripts.map((r) => r.id),
+      recordingTitles: recordingsWithTranscripts.map((r) => r.title),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      success: true,
+      summaryId: summaryRef.id,
+      summary,
+      skippedCount,
+    };
+  }
+);
+
 async function transcribeAudio(audioPath: string): Promise<string> {
   const bucket = storage.bucket();
   const file = bucket.file(audioPath);

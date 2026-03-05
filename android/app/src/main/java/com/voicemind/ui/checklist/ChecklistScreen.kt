@@ -63,6 +63,7 @@ import java.util.Locale
 fun ChecklistScreen(
     viewModel: ChecklistViewModel = hiltViewModel(),
     onOpenDrawer: (() -> Unit)? = null,
+    onSettings: (() -> Unit)? = null,
     onTaskClick: (String) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -74,6 +75,7 @@ fun ChecklistScreen(
                 title = "Checklist",
                 icon = Icons.Default.Checklist,
                 onOpenDrawer = onOpenDrawer,
+                onSettings = onSettings,
             )
 
             Column(

@@ -192,7 +192,7 @@ Everything the app can do today.
 - Collective summarization: concatenate transcripts of selected recordings, generate a single combined summary via a new `generateCollectiveSummary` Cloud Function (OpenAI gpt-4o-mini).
 - New Firestore collection `users/{uid}/collectiveSummaries` storing summary text, source recording IDs/titles, and creation timestamp.
 - New **Summaries** screen accessible from bottom nav / sidebar: list of all collective summaries with preview, source recordings, and creation date.
-- Full summary view with source recording links, share, copy to clipboard, and delete actions.
+- Full summary view with source recording links, share, copy to clipboard, and delete actions. 
 
 ### Pagination
 
@@ -208,6 +208,13 @@ Everything the app can do today.
 - Lock screen playback-style controls for recording management.
 - Tapping the notification body navigates to the active recording screen.
 - Notification non-dismissible during active recording; dismissible once stopped.
+
+### Settings in Top App Bar
+
+- Move Settings out of the bottom nav bar and sidebar drawer.
+- Add a Settings gear icon to the right side of `VoiceMindTopAppBar`, visible on all main screens (Home, Recordings, Checklist, Folders).
+- Settings icon hidden during multi-select mode (replaced by `MultiSelectTopBar` actions).
+- Frees a slot in the bottom nav for higher-priority destinations.
 
 ### Other
 

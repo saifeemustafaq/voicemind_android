@@ -55,6 +55,7 @@ fun FoldersScreen(
     onFolderClick: (String) -> Unit,
     viewModel: FoldersViewModel = hiltViewModel(),
     onOpenDrawer: (() -> Unit)? = null,
+    onSettings: (() -> Unit)? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -67,6 +68,7 @@ fun FoldersScreen(
                 title = "Folders",
                 icon = Icons.Default.Folder,
                 onOpenDrawer = onOpenDrawer,
+                onSettings = onSettings,
             )
 
             Column(

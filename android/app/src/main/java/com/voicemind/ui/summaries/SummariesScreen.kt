@@ -1,0 +1,253 @@
+package com.voicemind.ui.summaries
+
+import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.voicemind.data.model.CollectiveSummary
+import com.voicemind.ui.components.EmptyStateCard
+import com.voicemind.ui.components.GlassCard
+import com.voicemind.ui.components.VoiceMindTopAppBar
+import com.voicemind.ui.theme.IosAccent
+import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.util.toShortDateString
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SummariesScreen(
+    viewModel: SummariesViewModel = hiltViewModel(),
+    onOpenDrawer: (() -> Unit)? = null,
+    onSettings: (() -> Unit)? = null,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        VoiceMindTopAppBar(
+            title = "Summaries",
+            icon = Icons.Default.AutoAwesome,
+            onOpenDrawer = onOpenDrawer,
+            onSettings = onSettings,
+        )
+
+        Box(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
+            when {
+                state.isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = IosAccent)
+                    }
+                }
+                state.summaries.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        EmptyStateCard(
+                            icon = Icons.Default.AutoAwesome,
+                            message = "No summaries yet.\nSelect recordings and tap the summarize icon.",
+                        )
+                    }
+                }
+                else -> {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item { Spacer(modifier = Modifier.height(4.dp)) }
+                        items(state.summaries, key = { it.id }) { summary ->
+                            SummaryRow(
+                                summary = summary,
+                                onClick = { viewModel.selectSummary(summary) },
+                            )
+                        }
+                        item { Spacer(modifier = Modifier.height(80.dp)) }
+                    }
+                }
+            }
+        }
+    }
+
+    // Full summary bottom sheet
+    state.selectedSummary?.let { summary ->
+        SummaryDetailSheet(
+            summary = summary,
+            onDismiss = { viewModel.clearSelection() },
+            onCopy = {
+                viewModel.copyToClipboard(context, summary.summary)
+                Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+            },
+            onShare = { viewModel.share(context, summary.summary) },
+            onDelete = { viewModel.deleteSummary(summary.id) },
+        )
+    }
+}
+
+@Composable
+private fun SummaryRow(
+    summary: CollectiveSummary,
+    onClick: () -> Unit,
+) {
+    GlassCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }, innerPadding = 12.dp) {
+        Column {
+            Text(
+                text = summary.summary,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            val sourcesLabel = when {
+                summary.recordingTitles.size <= 2 -> summary.recordingTitles.joinToString(", ")
+                else -> "${summary.recordingTitles.size} recordings"
+            }
+            Text(
+                text = sourcesLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = IosAccent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            summary.createdAt?.toDate()?.let { date ->
+                Text(
+                    text = date.toShortDateString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IosSecondaryLabel,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SummaryDetailSheet(
+    summary: CollectiveSummary,
+    onDismiss: () -> Unit,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Summary", style = MaterialTheme.typography.titleMedium)
+                Row {
+                    IconButton(onClick = onCopy) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = IosAccent)
+                    }
+                    IconButton(onClick = onShare) {
+                        Icon(Icons.Default.Share, contentDescription = "Share", tint = IosAccent)
+                    }
+                    IconButton(onClick = { showDeleteConfirm = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    text = summary.summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
+                if (summary.recordingTitles.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Sources",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = IosSecondaryLabel,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    summary.recordingTitles.forEach { title ->
+                        Text(
+                            text = "• $title",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = IosSecondaryLabel,
+                            modifier = Modifier.padding(vertical = 2.dp),
+                        )
+                    }
+                }
+
+                summary.createdAt?.toDate()?.let { date ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = date.toShortDateString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = IosSecondaryLabel,
+                    )
+                }
+            }
+        }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete summary?") },
+            text = { Text("This summary will be permanently deleted.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete()
+                        onDismiss()
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            },
+        )
+    }
+}

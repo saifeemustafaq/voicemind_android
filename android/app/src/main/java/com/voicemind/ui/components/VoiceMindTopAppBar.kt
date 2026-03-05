@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +30,7 @@ fun VoiceMindTopAppBar(
     icon: ImageVector,
     onOpenDrawer: (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
+    onSettings: (() -> Unit)? = null,
 ) {
     TopAppBar(
         title = {
@@ -50,6 +52,13 @@ fun VoiceMindTopAppBar(
                 }
                 onOpenDrawer != null -> IconButton(onClick = onOpenDrawer) {
                     Icon(Icons.Default.Menu, contentDescription = "Menu")
+                }
+            }
+        },
+        actions = {
+            if (onSettings != null) {
+                IconButton(onClick = onSettings) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
                 }
             }
         },

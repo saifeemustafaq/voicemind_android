@@ -24,6 +24,7 @@ import com.voicemind.ui.folders.FoldersScreen
 import com.voicemind.ui.home.HomeScreen
 import com.voicemind.ui.recording.RecordingsScreen
 import com.voicemind.ui.settings.SettingsScreen
+import com.voicemind.ui.summaries.SummariesScreen
 import com.voicemind.ui.theme.IosBackground
 import kotlinx.coroutines.launch
 
@@ -45,12 +46,21 @@ fun AppNavHost(
     val showBottomBar = !useSidebar
 
     val navigateTo: (Routes) -> Unit = { destination ->
-        navController.navigate(destination.route) {
-            popUpTo(navController.graph.findStartDestination().id) {
-                saveState = true
+        val popped = navController.popBackStack(destination.route, inclusive = false)
+        if (!popped) {
+            navController.navigate(destination.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
             }
-            launchSingleTop = true
-            restoreState = true
+            // If restoreState brought back sub-routes (e.g. folder_detail on top
+            // of folders), pop back to the tab root so the user always lands on
+            // the main screen for the tab they tapped.
+            if (navController.currentBackStackEntry?.destination?.route != destination.route) {
+                navController.popBackStack(destination.route, inclusive = false)
+            }
         }
     }
 
@@ -67,6 +77,8 @@ fun AppNavHost(
     } else {
         null
     }
+
+    val onSettings: () -> Unit = { navigateTo(Routes.Settings) }
 
     val sidebarNavigate: (Routes) -> Unit = { destination ->
         scope.launch { drawerState.close() }
@@ -91,10 +103,11 @@ fun AppNavHost(
                         navigateTo(Routes.Folders)
                     },
                     onOpenDrawer = onOpenDrawer,
+                    onSettings = onSettings,
                 )
             }
             composable(Routes.Recordings.route) {
-                RecordingsScreen(onOpenDrawer = onOpenDrawer)
+                RecordingsScreen(onOpenDrawer = onOpenDrawer, navController = navController, onSettings = onSettings)
             }
             composable(Routes.Checklist.route) {
                 ChecklistScreen(
@@ -102,6 +115,7 @@ fun AppNavHost(
                     onTaskClick = { itemId ->
                         navController.navigate(taskDetailRoute(itemId))
                     },
+                    onSettings = onSettings,
                 )
             }
             composable(TASK_DETAIL_ROUTE) {
@@ -109,12 +123,16 @@ fun AppNavHost(
                     onBack = { navController.popBackStack() },
                 )
             }
+            composable(Routes.Summaries.route) {
+                SummariesScreen(onOpenDrawer = onOpenDrawer, onSettings = onSettings)
+            }
             composable(Routes.Folders.route) {
                 FoldersScreen(
                     onFolderClick = { folderId ->
                         navController.navigate(folderDetailRoute(folderId))
                     },
                     onOpenDrawer = onOpenDrawer,
+                    onSettings = onSettings,
                 )
             }
             composable(Routes.Settings.route) {

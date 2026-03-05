@@ -111,4 +111,16 @@ class RecordingRepository @Inject constructor(
         docs.forEach { batch.update(it.reference, "folderId", toFolderId) }
         batch.commit().await()
     }
+
+    suspend fun deleteRecordings(recordings: List<Recording>) {
+        recordings.forEach { deleteRecording(it) }
+    }
+
+    suspend fun moveRecordingsToFolder(recordingIds: List<String>, folderId: String) {
+        val batch = firestore.batch()
+        recordingIds.forEach { id ->
+            batch.update(collection().document(id), "folderId", folderId)
+        }
+        batch.commit().await()
+    }
 }

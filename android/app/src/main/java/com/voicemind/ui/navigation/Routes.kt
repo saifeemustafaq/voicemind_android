@@ -1,6 +1,7 @@
 package com.voicemind.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
@@ -22,11 +23,12 @@ sealed class Routes(
     data object Home : Routes("home", "Home", Icons.Filled.Home, Icons.Outlined.Home)
     data object Recordings : Routes("recordings", "Recordings", Icons.Filled.Mic, Icons.Outlined.Mic)
     data object Checklist : Routes("checklist", "Checklist", Icons.Filled.Checklist, Icons.Outlined.Checklist)
+    data object Summaries : Routes("summaries", "Summaries", Icons.Filled.AutoAwesome, Icons.Filled.AutoAwesome)
     data object Folders : Routes("folders", "Folders", Icons.Filled.Folder, Icons.Outlined.Folder)
     data object Settings : Routes("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 
     companion object {
-        val drawerItems by lazy { listOf(Home, Recordings, Checklist, Folders, Settings) }
+        val drawerItems by lazy { listOf(Home, Recordings, Checklist, Summaries, Folders) }
     }
 }
 

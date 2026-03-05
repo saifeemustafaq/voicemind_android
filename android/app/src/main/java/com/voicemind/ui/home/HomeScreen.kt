@@ -75,6 +75,7 @@ fun HomeScreen(
     onRecordingClick: () -> Unit,
     onViewAllFolders: () -> Unit = {},
     onOpenDrawer: (() -> Unit)? = null,
+    onSettings: (() -> Unit)? = null,
     homeViewModel: HomeViewModel = hiltViewModel(),
     recordingViewModel: RecordingViewModel = hiltViewModel(),
     recordingsViewModel: RecordingsViewModel = hiltViewModel(),
@@ -96,6 +97,7 @@ fun HomeScreen(
                 title = "VoiceMind AI",
                 icon = Icons.Default.Home,
                 onOpenDrawer = onOpenDrawer,
+                onSettings = onSettings,
             )
 
             LazyColumn(

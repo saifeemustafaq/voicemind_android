@@ -8,12 +8,15 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voicemind.data.model.ActionItem
+import com.voicemind.data.model.CollectiveSummary
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.ActionItemRepository
+import com.voicemind.data.repository.CollectiveSummaryRepository
 import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
+import com.google.firebase.functions.FirebaseFunctionsException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,6 +46,13 @@ data class RecordingsListState(
     val isLoading: Boolean = true,
     val playingRecordingId: String? = null,
     val filterFolderId: String? = null,
+    val isMultiSelectActive: Boolean = false,
+    val selectedRecordingIds: Set<String> = emptySet(),
+    val isBulkDeleting: Boolean = false,
+    val isBulkMoving: Boolean = false,
+    val isCollectiveSummarizing: Boolean = false,
+    val collectiveSummarizeError: String? = null,
+    val collectiveSummarizeResult: CollectiveSummary? = null,
 )
 
 @HiltViewModel
@@ -51,6 +61,7 @@ class RecordingsViewModel @Inject constructor(
     private val folderRepository: FolderRepository,
     private val storageRepository: StorageRepository,
     private val actionItemRepository: ActionItemRepository,
+    private val collectiveSummaryRepository: CollectiveSummaryRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecordingsListState())
@@ -223,6 +234,111 @@ class RecordingsViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    // Multi-select
+
+    fun enterMultiSelect(recordingId: String) {
+        _state.value = _state.value.copy(
+            isMultiSelectActive = true,
+            selectedRecordingIds = setOf(recordingId),
+        )
+    }
+
+    fun toggleSelection(recordingId: String) {
+        val current = _state.value.selectedRecordingIds
+        _state.value = _state.value.copy(
+            selectedRecordingIds = if (recordingId in current) current - recordingId else current + recordingId
+        )
+    }
+
+    fun selectAll() {
+        _state.value = _state.value.copy(
+            selectedRecordingIds = _state.value.recordings.map { it.id }.toSet()
+        )
+    }
+
+    fun deselectAll() {
+        _state.value = _state.value.copy(selectedRecordingIds = emptySet())
+    }
+
+    fun exitMultiSelect() {
+        _state.value = _state.value.copy(
+            isMultiSelectActive = false,
+            selectedRecordingIds = emptySet(),
+            collectiveSummarizeError = null,
+            collectiveSummarizeResult = null,
+        )
+    }
+
+    fun bulkDelete(recordings: List<Recording>) {
+        _state.value = _state.value.copy(isBulkDeleting = true)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                recordings.forEach { if (_state.value.playingRecordingId == it.id) stopPlayback() }
+                recordingRepository.deleteRecordings(recordings)
+                _state.value = _state.value.copy(isBulkDeleting = false)
+                exitMultiSelect()
+            } catch (e: Exception) {
+                Timber.e("Bulk delete failed: %s", e.message)
+                _state.value = _state.value.copy(isBulkDeleting = false)
+            }
+        }
+    }
+
+    fun bulkMoveToFolder(recordingIds: List<String>, folderId: String) {
+        _state.value = _state.value.copy(isBulkMoving = true)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                recordingRepository.moveRecordingsToFolder(recordingIds, folderId)
+                _state.value = _state.value.copy(isBulkMoving = false)
+                exitMultiSelect()
+            } catch (e: Exception) {
+                Timber.e("Bulk move failed: %s", e.message)
+                _state.value = _state.value.copy(isBulkMoving = false)
+            }
+        }
+    }
+
+    fun collectiveSummarize(recordingIds: List<String>) {
+        _state.value = _state.value.copy(
+            isCollectiveSummarizing = true,
+            collectiveSummarizeError = null,
+            collectiveSummarizeResult = null,
+        )
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = collectiveSummaryRepository.generateCollectiveSummary(recordingIds)
+                _state.value = _state.value.copy(
+                    isCollectiveSummarizing = false,
+                    collectiveSummarizeResult = result,
+                )
+                exitMultiSelect()
+            } catch (e: Exception) {
+                Timber.e(e, "Collective summarize failed")
+                val msg = when {
+                    e is FirebaseFunctionsException && e.code == FirebaseFunctionsException.Code.FAILED_PRECONDITION ->
+                        e.message ?: "None of the selected recordings have transcripts to summarize."
+                    e is FirebaseFunctionsException && e.code == FirebaseFunctionsException.Code.NOT_FOUND ->
+                        "Summarization function not found. Please ensure it is deployed."
+                    e is FirebaseFunctionsException ->
+                        "Summarization failed: ${e.message ?: e.code.name}"
+                    else -> "Summarization failed: ${e.message ?: "Unknown error"}"
+                }
+                _state.value = _state.value.copy(
+                    isCollectiveSummarizing = false,
+                    collectiveSummarizeError = msg,
+                )
+            }
+        }
+    }
+
+    fun clearCollectiveSummarizeError() {
+        _state.value = _state.value.copy(collectiveSummarizeError = null)
+    }
+
+    fun clearCollectiveSummarizeResult() {
+        _state.value = _state.value.copy(collectiveSummarizeResult = null)
     }
 
     override fun onCleared() {
