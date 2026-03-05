@@ -89,8 +89,8 @@ class RecordingsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            val alreadyShown = navPreferenceRepository.multiSelectHintShown.first()
-            if (!alreadyShown) {
+            val dismissCount = navPreferenceRepository.multiSelectHintDismissCount.first()
+            if (dismissCount % 5 == 0) {
                 _state.value = _state.value.copy(showMultiSelectHint = true)
             }
         }
@@ -272,7 +272,7 @@ class RecordingsViewModel @Inject constructor(
     fun dismissMultiSelectHint() {
         _state.value = _state.value.copy(showMultiSelectHint = false)
         viewModelScope.launch {
-            navPreferenceRepository.setMultiSelectHintShown(true)
+            navPreferenceRepository.incrementMultiSelectHintDismissCount()
         }
     }
 
@@ -283,7 +283,7 @@ class RecordingsViewModel @Inject constructor(
             showMultiSelectHint = false,
         )
         viewModelScope.launch {
-            navPreferenceRepository.setMultiSelectHintShown(true)
+            navPreferenceRepository.incrementMultiSelectHintDismissCount()
         }
     }
 

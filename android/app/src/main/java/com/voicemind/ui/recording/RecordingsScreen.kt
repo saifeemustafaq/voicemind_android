@@ -738,7 +738,7 @@ private fun RecordingRow(
                 Text(
                     text = recording.title,
                     style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 recording.createdAt?.toDate()?.let { date ->

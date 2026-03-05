@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
@@ -42,15 +43,16 @@ class NavPreferenceRepository @Inject constructor(
         }
     }
 
-    private val multiSelectHintShownKey = booleanPreferencesKey("multi_select_hint_shown")
+    private val multiSelectHintDismissCountKey = intPreferencesKey("multi_select_hint_dismiss_count")
 
-    val multiSelectHintShown: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[multiSelectHintShownKey] ?: false
+    val multiSelectHintDismissCount: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[multiSelectHintDismissCountKey] ?: 0
     }
 
-    suspend fun setMultiSelectHintShown(value: Boolean) {
+    suspend fun incrementMultiSelectHintDismissCount() {
         context.dataStore.edit { prefs ->
-            prefs[multiSelectHintShownKey] = value
+            val current = prefs[multiSelectHintDismissCountKey] ?: 0
+            prefs[multiSelectHintDismissCountKey] = current + 1
         }
     }
 

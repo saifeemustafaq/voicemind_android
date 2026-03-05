@@ -394,7 +394,7 @@ fun RenameRecordingDialog(
         text = {
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it.take(25) },
+                onValueChange = { title = it.take(75) },
                 singleLine = true,
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth()
