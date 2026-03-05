@@ -183,6 +183,17 @@ Everything the app can do today.
 - Basic semantic search (find recordings by meaning, not just exact words).
 - Search results with highlighted matches and tap-to-navigate.
 
+### Multi-Select & Collective Summarization ([#9](https://github.com/saifeemustafaq/voicemind_android/issues/9))
+
+- Multi-select mode on Recordings screen: long-press to activate, checkboxes on rows, select all / deselect all.
+- Top bar transforms during multi-select to show selection count and action icons.
+- Bulk delete: cascading delete of all selected recordings (Firestore docs + Storage audio files).
+- Bulk move to folder: folder picker, moves all selected recordings at once.
+- Collective summarization: concatenate transcripts of selected recordings, generate a single combined summary via a new `generateCollectiveSummary` Cloud Function (OpenAI gpt-4o-mini).
+- New Firestore collection `users/{uid}/collectiveSummaries` storing summary text, source recording IDs/titles, and creation timestamp.
+- New **Summaries** screen accessible from bottom nav / sidebar: list of all collective summaries with preview, source recordings, and creation date.
+- Full summary view with source recording links, share, copy to clipboard, and delete actions.
+
 ### Pagination
 
 - Paginated recent recordings on Home screen (load more on scroll instead of showing all at once).

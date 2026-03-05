@@ -10,6 +10,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -30,6 +31,8 @@ import kotlinx.coroutines.launch
 fun AppNavHost(
     onSignOut: () -> Unit,
     navPreferenceRepository: NavPreferenceRepository,
+    openRecordingsOnStart: Boolean = false,
+    onRecordingsOpened: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -48,6 +51,14 @@ fun AppNavHost(
             }
             launchSingleTop = true
             restoreState = true
+        }
+    }
+
+    // Navigate to Recordings when the app is opened from a notification tap.
+    LaunchedEffect(openRecordingsOnStart) {
+        if (openRecordingsOnStart) {
+            navigateTo(Routes.Recordings)
+            onRecordingsOpened()
         }
     }
 

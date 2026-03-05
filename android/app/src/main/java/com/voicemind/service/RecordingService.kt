@@ -10,6 +10,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -25,6 +27,7 @@ import com.voicemind.audio.AudioRecorder
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.RecordingRepository
+import com.voicemind.data.repository.RecordingStateRepository
 import com.voicemind.data.repository.StorageRepository
 import com.voicemind.util.formatRecordingTime
 import com.voicemind.util.toDefaultTitle
@@ -51,6 +54,7 @@ class RecordingService : Service() {
     @Inject lateinit var storageRepository: StorageRepository
     @Inject lateinit var recordingRepository: RecordingRepository
     @Inject lateinit var functions: FirebaseFunctions
+    @Inject lateinit var recordingStateRepository: RecordingStateRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var timerJob: Job? = null
@@ -65,10 +69,24 @@ class RecordingService : Service() {
     private var isPaused = false
 
     private var wakeLock: PowerManager.WakeLock? = null
+    private var mediaSession: MediaSession? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        setupMediaSession()
+    }
+
+    private fun setupMediaSession() {
+        mediaSession = MediaSession(this, "VoiceMindRecording").apply {
+            // Hardware media button / headset button integration
+            setCallback(object : MediaSession.Callback() {
+                override fun onPause() = handlePause()
+                override fun onPlay() = handleResume()
+                override fun onStop() = handleStopSave(null, null)
+            })
+            isActive = true
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -92,7 +110,10 @@ class RecordingService : Service() {
             ACTION_START -> handleStart()
             ACTION_PAUSE -> handlePause()
             ACTION_RESUME -> handleResume()
-            ACTION_STOP_SAVE -> handleStopSave()
+            ACTION_STOP_SAVE -> handleStopSave(
+                titleOverride = intent.getStringExtra(EXTRA_TITLE),
+                folderIdOverride = intent.getStringExtra(EXTRA_FOLDER_ID),
+            )
             ACTION_DISCARD -> handleDiscard()
             else -> resetAndStop()
         }
@@ -100,9 +121,14 @@ class RecordingService : Service() {
     }
 
     private fun handleStart() {
+        // Guard: prevent double-start if already recording or paused.
+        if (isRecording || isPaused) {
+            Timber.d("Already recording — ignoring duplicate start")
+            return
+        }
         // Guard: mic permission must be granted before starting the recorder.
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            Timber.w("RECORD_AUDIO permission not granted — cannot start recording from widget")
+            Timber.w("RECORD_AUDIO permission not granted — cannot start recording")
             scope.launch {
                 pushWidgetState(needsMicPermission = true)
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -117,12 +143,13 @@ class RecordingService : Service() {
             elapsedSeconds = 0
             elapsedBeforePause = 0
             acquireWakeLock()
+            recordingStateRepository.onRecordingStarted()
             updateNotification()
             startTimer()
             scope.launch { pushWidgetState() }
-            Timber.d("Widget recording started")
+            Timber.d("Recording started")
         } catch (e: Exception) {
-            Timber.e(e, "Failed to start recording from widget")
+            Timber.e(e, "Failed to start recording")
             resetAndStop()
         }
     }
@@ -131,13 +158,14 @@ class RecordingService : Service() {
         if (!isRecording) return
         audioRecorder.pause()
         timerJob?.cancel()
-        elapsedBeforePause = elapsedSeconds  // snapshot time at pause
+        elapsedBeforePause = elapsedSeconds
         isRecording = false
         isPaused = true
         releaseWakeLock()
+        recordingStateRepository.onPaused(elapsedSeconds)
         updateNotification()
         scope.launch { pushWidgetState() }
-        Timber.d("Widget recording paused")
+        Timber.d("Recording paused")
     }
 
     private fun handleResume() {
@@ -146,13 +174,14 @@ class RecordingService : Service() {
         isRecording = true
         isPaused = false
         acquireWakeLock()
+        recordingStateRepository.onResumed()
         startTimer()
         updateNotification()
         scope.launch { pushWidgetState() }
-        Timber.d("Widget recording resumed")
+        Timber.d("Recording resumed")
     }
 
-    private fun handleStopSave() {
+    private fun handleStopSave(titleOverride: String?, folderIdOverride: String?) {
         if (!isRecording && !isPaused) {
             resetAndStop()
             return
@@ -167,19 +196,29 @@ class RecordingService : Service() {
         isPaused = false
         releaseWakeLock()
 
+        // Resolve title and folder: explicit extras → pending values from ViewModel → defaults.
+        val title = titleOverride?.takeIf { it.isNotBlank() }
+            ?: recordingStateRepository.pendingTitle.takeIf { it.isNotBlank() }
+            ?: Date().toDefaultTitle()
+        val folderId = folderIdOverride
+            ?: recordingStateRepository.pendingFolderId.takeIf { it != Folder.UNFILED_ID }
+            ?: Folder.UNFILED_ID
+
+        // Signal UI: saving in progress (sheet stays open with spinner)
+        recordingStateRepository.onSaving()
+
         scope.launch(Dispatchers.IO) {
             try {
                 pushWidgetState()
 
                 val recordingId = "rec-${System.currentTimeMillis()}-${(1000..9999).random()}"
                 val audioPath = storageRepository.uploadAudio(recordingId, file)
-                val title = Date().toDefaultTitle().take(25)
 
                 recordingRepository.createRecording(
                     Recording(
                         id = recordingId,
-                        title = title,
-                        folderId = Folder.UNFILED_ID,
+                        title = title.take(25),
+                        folderId = folderId,
                         audioPath = audioPath,
                     )
                 )
@@ -193,10 +232,11 @@ class RecordingService : Service() {
 
                 file.delete()
                 audioFile = null
-                Timber.d("Widget recording saved: $recordingId")
+                Timber.d("Recording saved: $recordingId")
             } catch (e: Exception) {
-                Timber.e("Failed to save widget recording: %s", e.message)
+                Timber.e("Failed to save recording: %s", e.message)
             } finally {
+                recordingStateRepository.onIdle()
                 withContext(Dispatchers.Main) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -214,7 +254,7 @@ class RecordingService : Service() {
         audioRecorder.discardAndRelease()
         audioFile = null
         releaseWakeLock()
-        Timber.d("Widget recording discarded")
+        Timber.d("Recording discarded")
         resetAndStop()
     }
 
@@ -224,6 +264,7 @@ class RecordingService : Service() {
         elapsedSeconds = 0
         elapsedBeforePause = 0
         scope.launch {
+            recordingStateRepository.onIdle()
             pushWidgetState()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -238,6 +279,7 @@ class RecordingService : Service() {
                 delay(500)
                 val sessionSeconds = (SystemClock.elapsedRealtime() - recordingStartedAt) / 1000
                 elapsedSeconds = elapsedBeforePause + sessionSeconds
+                recordingStateRepository.onTimerTick(elapsedSeconds)
                 updateNotification()
                 pushWidgetState()
             }
@@ -254,7 +296,6 @@ class RecordingService : Service() {
             glanceIds.forEach { glanceId ->
                 updateAppWidgetState(this@RecordingService, glanceId) { prefs ->
                     prefs[RecordingWidgetStateKeys.IS_SIGNED_IN] = isSignedIn
-                    // needsMicPermission arg takes precedence; otherwise derive from live state
                     prefs[RecordingWidgetStateKeys.NEEDS_MIC_PERMISSION] =
                         needsMicPermission || !hasMicPerm
                     prefs[RecordingWidgetStateKeys.IS_RECORDING] = isRecording
@@ -273,7 +314,7 @@ class RecordingService : Service() {
         wakeLock = pm.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "VoiceMind:RecordingWakeLock",
-        ).apply { acquire(4 * 60 * 60 * 1000L) } // safety cap: 4 hours
+        ).apply { acquire(4 * 60 * 60 * 1000L) }
     }
 
     private fun releaseWakeLock() {
@@ -289,38 +330,81 @@ class RecordingService : Service() {
         ).apply {
             description = "Shows when VoiceMind is recording audio"
             setShowBadge(false)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-        val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(channel)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
     private fun buildNotification(): Notification {
+        // Tap: open app and navigate directly to the Recordings screen
         val tapIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(EXTRA_OPEN_RECORDINGS, true)
         }
         val tapPending = PendingIntent.getActivity(
-            this, 0, tapIntent, PendingIntent.FLAG_IMMUTABLE
+            this, 0, tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val statusText = when {
-            isPaused -> "Paused - ${formatRecordingTime(elapsedSeconds)}"
-            isRecording -> "Recording - ${formatRecordingTime(elapsedSeconds)}"
-            else -> "VoiceMind"
-        }
+        // Action 0: Delete / Discard
+        val deletePending = PendingIntent.getService(
+            this, 1,
+            buildIntent(this, ACTION_DISCARD),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
+        // Action 1: Pause or Resume (state-dependent)
+        val pauseResumePending = PendingIntent.getService(
+            this, 2,
+            buildIntent(this, if (isPaused) ACTION_RESUME else ACTION_PAUSE),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Action 2: Stop & Save
+        val stopPending = PendingIntent.getService(
+            this, 3,
+            buildIntent(this, ACTION_STOP_SAVE),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Keep MediaSession in sync for headset/hardware button support.
+        mediaSession?.setPlaybackState(
+            PlaybackState.Builder()
+                .setState(
+                    if (isPaused) PlaybackState.STATE_PAUSED else PlaybackState.STATE_PLAYING,
+                    PlaybackState.PLAYBACK_POSITION_UNKNOWN,
+                    1f,
+                )
+                .setActions(PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_STOP)
+                .build()
+        )
+
+        // Use NotificationCompat (no MediaStyle). MediaStyle requires setMediaSession() to
+        // render anything on Android 13+, and when the session IS set Android overrides our
+        // action buttons with its own media-player transport controls. Plain NotificationCompat
+        // reliably shows all three action buttons in the expanded notification on all versions.
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("VoiceMind")
-            .setContentText(statusText)
+            .setSmallIcon(R.drawable.ic_mic_white)
+            .setContentTitle(if (isPaused) "Paused" else "Recording")
+            .setContentText(formatRecordingTime(elapsedSeconds))
             .setOngoing(true)
             .setSilent(true)
+            .setShowWhen(false)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(tapPending)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .addAction(R.drawable.ic_delete_24, "Delete", deletePending)
+            .addAction(
+                if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
+                if (isPaused) "Resume" else "Pause",
+                pauseResumePending,
+            )
+            .addAction(R.drawable.ic_stop_24, "Stop & Save", stopPending)
             .build()
     }
 
     private fun updateNotification() {
-        val nm = getSystemService(NotificationManager::class.java)
-        nm.notify(NOTIFICATION_ID, buildNotification())
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification())
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -329,15 +413,26 @@ class RecordingService : Service() {
         timerJob?.cancel()
         scope.cancel()
         releaseWakeLock()
+        mediaSession?.release()
+        mediaSession = null
         super.onDestroy()
     }
 
     companion object {
-        const val ACTION_START = "com.voicemind.action.WIDGET_START"
-        const val ACTION_PAUSE = "com.voicemind.action.WIDGET_PAUSE"
-        const val ACTION_RESUME = "com.voicemind.action.WIDGET_RESUME"
+        const val ACTION_START   = "com.voicemind.action.WIDGET_START"
+        const val ACTION_PAUSE   = "com.voicemind.action.WIDGET_PAUSE"
+        const val ACTION_RESUME  = "com.voicemind.action.WIDGET_RESUME"
         const val ACTION_STOP_SAVE = "com.voicemind.action.WIDGET_STOP_SAVE"
         const val ACTION_DISCARD = "com.voicemind.action.WIDGET_DISCARD"
+
+        /** Intent extra: navigates to Recordings when tapping the notification body. */
+        const val EXTRA_OPEN_RECORDINGS = "open_recordings"
+
+        /** Optional title override passed by the ViewModel on stop-save. */
+        const val EXTRA_TITLE = "extra_title"
+
+        /** Optional folder-id override passed by the ViewModel on stop-save. */
+        const val EXTRA_FOLDER_ID = "extra_folder_id"
 
         private const val CHANNEL_ID = "recording_channel"
         private const val NOTIFICATION_ID = 1001
