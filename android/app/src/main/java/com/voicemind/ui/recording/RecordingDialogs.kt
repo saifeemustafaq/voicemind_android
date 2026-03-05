@@ -15,7 +15,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,9 +42,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
 import com.voicemind.ui.theme.IosAccent
+import com.voicemind.ui.theme.IosDestructive
 import com.voicemind.ui.theme.IosLabel
 import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSuccess
@@ -221,7 +225,7 @@ private fun TasksContent(sheetState: TranscriptSheetState) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             sheetState.actionItems.forEach { item ->
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(
@@ -229,16 +233,80 @@ private fun TasksContent(sheetState: TranscriptSheetState) {
                         else Icons.Outlined.Circle,
                         contentDescription = null,
                         tint = if (item.completed) IosSuccess else IosSecondaryLabel,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier
+                            .size(20.dp)
+                            .padding(top = 2.dp),
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = IosLabel,
-                    )
+                    Column {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = IosLabel,
+                        )
+                        TaskDateLabels(item)
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TaskDateLabels(item: ActionItem) {
+    val now = remember { java.util.Date() }
+    val isOverdue = !item.completed
+
+    item.dueDate?.let { ts ->
+        val date = ts.toDate()
+        val overdue = isOverdue && date.before(now)
+        val formatted = remember(ts) {
+            java.text.SimpleDateFormat("MMM d, h:mm a", java.util.Locale.getDefault())
+                .format(date)
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 2.dp),
+        ) {
+            Icon(
+                Icons.Default.AccessTime,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = if (overdue) IosDestructive else IosSecondaryLabel,
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = formatted,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (overdue) IosDestructive else IosSecondaryLabel,
+            )
+        }
+    }
+
+    item.deadline?.let { ts ->
+        val date = ts.toDate()
+        val overdue = isOverdue && date.before(now)
+        val formatted = remember(ts) {
+            java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault()).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(date)
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 2.dp),
+        ) {
+            Icon(
+                Icons.Default.Flag,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = if (overdue) IosDestructive else IosSecondaryLabel,
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "Deadline: $formatted",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (overdue) IosDestructive else IosSecondaryLabel,
+            )
         }
     }
 }

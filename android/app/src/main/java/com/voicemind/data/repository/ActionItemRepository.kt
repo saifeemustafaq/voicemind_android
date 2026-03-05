@@ -1,5 +1,6 @@
 package com.voicemind.data.repository
 
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.voicemind.data.model.ActionItem
@@ -39,6 +40,43 @@ class ActionItemRepository @Inject constructor(
 
     suspend fun deleteItem(itemId: String) {
         collection().document(itemId).delete().await()
+    }
+
+    fun observeActionItem(itemId: String): Flow<ActionItem?> = callbackFlow {
+        val registration = collection().document(itemId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "observeActionItem")
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObject(ActionItem::class.java))
+            }
+        awaitClose { registration.remove() }
+    }
+
+    suspend fun updateTitle(itemId: String, title: String) {
+        collection().document(itemId).update("title", title).await()
+    }
+
+    suspend fun updateDueDate(itemId: String, dueDate: Timestamp?) {
+        collection().document(itemId).update("dueDate", dueDate).await()
+    }
+
+    suspend fun updateDeadline(itemId: String, deadline: Timestamp?) {
+        collection().document(itemId).update("deadline", deadline).await()
+    }
+
+    suspend fun updateNotes(itemId: String, notes: String?) {
+        collection().document(itemId).update("notes", notes).await()
+    }
+
+    suspend fun createItem(title: String) {
+        val data = hashMapOf(
+            "title" to title,
+            "completed" to false,
+            "createdAt" to Timestamp.now(),
+        )
+        collection().add(data).await()
     }
 
     suspend fun getByRecordingId(recordingId: String): List<ActionItem> {

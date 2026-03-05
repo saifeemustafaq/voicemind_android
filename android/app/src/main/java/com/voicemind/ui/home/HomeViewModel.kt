@@ -42,7 +42,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             recordingRepository.observeRecordings().collect { recordings ->
                 _uiState.value = _uiState.value.copy(
-                    recentRecordings = recordings.take(10),
+                    recentRecordings = recordings.take(4),
                     folderRecordingCounts = recordings.countByFolder(),
                     isLoading = false,
                 )

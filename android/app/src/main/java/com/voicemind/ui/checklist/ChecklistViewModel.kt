@@ -3,7 +3,6 @@ package com.voicemind.ui.checklist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voicemind.data.model.ActionItem
-import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.RecordingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -54,9 +53,11 @@ class ChecklistViewModel @Inject constructor(
         }
     }
 
-    fun deleteItem(item: ActionItem) {
+    fun addItem(title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
-            actionItemRepository.deleteItem(item.id)
+            actionItemRepository.createItem(trimmed)
         }
     }
 }

@@ -66,3 +66,5 @@ pids
 .grunt
 bower_components
 .lock-wscript
+
+.secrets
