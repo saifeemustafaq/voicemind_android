@@ -630,29 +630,36 @@ async function extractActionItemsAggressive(
     timeZone: timezone,
   });
 
-  const aggressivePrefix = `The user has explicitly requested task extraction from this transcript. Be more liberal and inclusive in identifying potential tasks. Look for:
-- Direct tasks ("call the bank", "send the email")
-- Implied intentions ("I should probably...", "I need to think about...")
-- Soft reminders ("don't forget to...", "I want to eventually...")
-- Future plans ("next week I'll...", "at some point I have to...")
-- Anything that sounds like it could be actionable
-Err on the side of inclusion — the user can always delete tasks they don't want.
+  const systemPrompt = `The user has explicitly requested task extraction from this voice memo. You are a highly inclusive task extractor — err heavily on the side of extracting too many tasks rather than too few. The user can always delete ones they don't want.
 
-`;
+Today is ${dayOfWeek}, ${today}. The user's timezone is ${timezone}. Use this to resolve relative dates like "this Friday", "next Monday", "tomorrow", etc.
 
-  const systemPrompt = `${aggressivePrefix}You are a smart personal assistant that extracts action items from voice transcripts. Think like a human assistant who deeply understands intent.
+SPEAKER INTERPRETATION:
+- Treat the speaker as the person responsible for everything discussed.
+- "we need to", "we should", "we want to", "we are doing" → the speaker's personal task.
+- "I", "me", "my" → straightforward personal task.
+- Passive voice ("the report needs to be sent", "this should be fixed") → the speaker will do it.
 
-Today is ${dayOfWeek}, ${today}. The user's timezone is ${timezone}. Use this to resolve relative dates like "this Friday", "next Monday", "tomorrow", "end of week", etc.
+WHAT TO EXTRACT — include ALL of these patterns:
+1. Direct tasks: "call the bank", "send the email", "book the flight"
+2. Implied intentions: "I should probably...", "I need to think about...", "I was thinking of..."
+3. Soft reminders: "don't forget to...", "I want to eventually...", "at some point..."
+4. Future plans: "next week I'll...", "I have to...", "I'm planning to..."
+5. Technical/engineering work: feature descriptions, improvements, bug fixes, implementations
+6. Feature descriptions: "when X happens, Y should occur" → task to implement X and Y
+7. Follow-ups and checks: "I need to check on...", "I should follow up with...", "ask John about..."
+8. Decisions pending: "we haven't decided on X yet" → task to decide on X
+9. Anything a reasonable person would put on a to-do list
 
 Respond with ONLY a JSON array of objects. No markdown, no explanation, no code fences.
 
 Each object has:
-- "title" (string, required): a short phrase describing the task.
-- "notes" (string, optional): 1-3 concise sentences of context from the transcript explaining WHY this task exists — the reason, background, or details behind it. Paraphrase naturally; do not quote verbatim. Omit if there is no meaningful context beyond the title itself.
-- "deadline" (string, optional): ISO 8601 date YYYY-MM-DD. Use when the speaker indicates a task must be COMPLETED, FINISHED, or DELIVERED by a certain date.
-- "dueDate" (string, optional): Local datetime in format "YYYY-MM-DDTHH:MM:SS" with NO timezone offset. Use when the speaker indicates they will WORK ON, ATTEND, or DO something at a specific date AND time.
+- "title" (string, required): a short imperative phrase describing the task (e.g. "Add notes to Google Calendar event description").
+- "notes" (string, optional): 1-3 concise sentences of context from the transcript explaining WHY this task exists. Paraphrase naturally; do not quote verbatim. Omit if there is no meaningful context beyond the title itself.
+- "deadline" (string, optional): ISO 8601 date YYYY-MM-DD. Use when the speaker indicates a task must be COMPLETED by a certain date.
+- "dueDate" (string, optional): Local datetime "YYYY-MM-DDTHH:MM:SS" with NO timezone offset. Use when the speaker mentions a specific time to work on or attend something.
 
-If there are genuinely zero actionable items, return [].`;
+If there are genuinely zero actionable items after careful consideration, return [].`;
 
   const response = await fetch(
     "https://api.openai.com/v1/chat/completions",
@@ -668,7 +675,7 @@ If there are genuinely zero actionable items, return [].`;
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: `Extract all tasks, intentions, reminders, and to-dos from this transcript. Be inclusive — if something could reasonably be a task, include it.\n\nTranscript:\n\n${truncated}`,
+            content: `Extract every task, intention, reminder, feature, improvement, or implementation item mentioned. Treat "we" as the speaker. Treat passive voice and feature descriptions as tasks the speaker will do. Be very inclusive — the user can delete unwanted tasks.\n\nTranscript:\n\n${truncated}`,
           },
         ],
         max_tokens: 1024,
@@ -718,21 +725,9 @@ export const retryExtractActionItems = onCall(
     if (!recordingSnap.exists) {
       throw new HttpsError("not-found", "Recording not found");
     }
-    const transcript = recordingSnap.data()?.transcription as string | undefined;
+    const transcript = (recordingSnap.data()?.transcription as string | undefined)?.trim();
     if (!transcript) {
       throw new HttpsError("failed-precondition", "Recording has no transcript");
-    }
-
-    // Idempotency: if items already exist for this recording, return count
-    const existingSnap = await db
-      .collection("users")
-      .doc(uid)
-      .collection("actionItems")
-      .where("recordingId", "==", recordingId)
-      .limit(1)
-      .get();
-    if (!existingSnap.empty) {
-      return { count: existingSnap.size };
     }
 
     // Extract with aggressive prompt

@@ -96,6 +96,11 @@ class ActionItemRepository @Inject constructor(
             .await()
         @Suppress("UNCHECKED_CAST")
         val data = result.getData() as? Map<*, *> ?: return 0
-        return (data["count"] as? Long)?.toInt() ?: 0
+        return when (val raw = data["count"]) {
+            is Long -> raw.toInt()
+            is Double -> raw.toInt()
+            is Int -> raw
+            else -> 0
+        }
     }
 }

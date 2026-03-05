@@ -127,7 +127,7 @@ fun TranscriptSheet(
                     )
                 }
 
-                if (!hasTasks && recording.transcription != null && sheetState.actionItemsLoaded) {
+                if (!hasTasks && !recording.transcription.isNullOrBlank() && sheetState.actionItemsLoaded) {
                     if (sheetState.isGeneratingTasks) {
                         FilterChip(
                             selected = false,
@@ -184,13 +184,25 @@ fun TranscriptSheet(
                 }
             }
 
-            if (sheetState.generateTasksFailed && !sheetState.isGeneratingTasks) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    "No tasks could be identified from this transcript.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = IosSecondaryLabel,
-                )
+            if (!sheetState.isGeneratingTasks) {
+                when {
+                    sheetState.generateTasksNoResults -> {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "No tasks could be identified. Try again or edit the transcript.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = IosSecondaryLabel,
+                        )
+                    }
+                    sheetState.generateTasksFailed -> {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "Something went wrong — tap Generate Tasks to try again.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = IosDestructive,
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

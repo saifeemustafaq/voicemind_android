@@ -44,6 +44,7 @@ data class TranscriptSheetState(
     val actionItemsLoaded: Boolean = false,
     val isGeneratingTasks: Boolean = false,
     val generateTasksFailed: Boolean = false,
+    val generateTasksNoResults: Boolean = false,
 )
 
 data class RecordingsListState(
@@ -226,11 +227,19 @@ class RecordingsViewModel @Inject constructor(
     fun generateTasks(recording: Recording) {
         if (_sheetState.value.isGeneratingTasks) return
         viewModelScope.launch(Dispatchers.IO) {
-            _sheetState.update { it.copy(isGeneratingTasks = true, generateTasksFailed = false) }
+            _sheetState.update {
+                it.copy(isGeneratingTasks = true, generateTasksFailed = false, generateTasksNoResults = false)
+            }
             try {
-                val tz = TimeZone.getDefault().id
-                actionItemRepository.retryExtractActionItems(recording.id, tz)
-                loadActionItems(recording.id)
+                val count = actionItemRepository.retryExtractActionItems(
+                    recording.id, TimeZone.getDefault().id
+                )
+                if (count > 0) {
+                    val items = actionItemRepository.getByRecordingId(recording.id)
+                    _sheetState.update { it.copy(actionItems = items, actionItemsLoaded = true) }
+                } else {
+                    _sheetState.update { it.copy(generateTasksNoResults = true) }
+                }
             } catch (e: Exception) {
                 Timber.e("generateTasks failed: %s", e.message)
                 _sheetState.update { it.copy(generateTasksFailed = true) }
