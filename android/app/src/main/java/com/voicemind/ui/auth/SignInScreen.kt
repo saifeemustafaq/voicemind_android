@@ -17,12 +17,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import com.composables.icons.lucide.Eye
+import com.composables.icons.lucide.EyeOff
+import com.composables.icons.lucide.Lock
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Mail
+import com.composables.icons.lucide.Mic
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -43,7 +43,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -60,11 +59,11 @@ import androidx.credentials.exceptions.NoCredentialException
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.voiceMindTextFieldColors
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosLabel
+import com.voicemind.ui.theme.IosDestructive
 import com.voicemind.ui.theme.IosOpaqueSeparator
-import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSeparator
+import com.voicemind.ui.theme.IosWhite
+import com.voicemind.ui.theme.VmDimens
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -94,10 +93,10 @@ fun SignInScreen(viewModel: AuthViewModel) {
             Spacer(modifier = Modifier.height(80.dp))
 
             Icon(
-                imageVector = Icons.Default.Mic,
+                imageVector = Lucide.Mic,
                 contentDescription = "VoiceMind",
                 modifier = Modifier.size(64.dp),
-                tint = IosAccent
+                tint = MaterialTheme.colorScheme.primary
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -105,34 +104,34 @@ fun SignInScreen(viewModel: AuthViewModel) {
             Text(
                 text = "VoiceMind AI",
                 style = MaterialTheme.typography.headlineLarge,
-                color = IosLabel,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
 
             Text(
                 text = "Capture your thoughts with voice",
                 style = MaterialTheme.typography.bodyMedium,
-                color = IosSecondaryLabel
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(48.dp))
 
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
-                innerPadding = 20.dp
+                innerPadding = VmDimens.SpaceXl,
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
                         text = if (uiState.isCreateAccount) "Create Account" else "Sign In",
                         style = MaterialTheme.typography.titleMedium,
-                        color = IosLabel
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
                         label = { Text("Email") },
-                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                        leadingIcon = { Icon(Lucide.Mail, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
@@ -147,11 +146,11 @@ fun SignInScreen(viewModel: AuthViewModel) {
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Password") },
-                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                        leadingIcon = { Icon(Lucide.Lock, contentDescription = null) },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
-                                    if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    if (passwordVisible) Lucide.EyeOff else Lucide.Eye,
                                     contentDescription = if (passwordVisible) "Hide password" else "Show password"
                                 )
                             }
@@ -187,7 +186,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                     ) {
                         Text(
                             text = if (uiState.isCreateAccount) "Already have an account? Sign in" else "Don't have an account? Create one",
-                            color = IosAccent,
+                            color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -205,7 +204,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                     modifier = Modifier.weight(1f),
                     color = IosSeparator
                 )
-                Text("or", style = MaterialTheme.typography.bodySmall, color = IosSecondaryLabel)
+                Text("or", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
                     color = IosSeparator
@@ -244,16 +243,16 @@ fun SignInScreen(viewModel: AuthViewModel) {
                     .fillMaxWidth()
                     .height(50.dp),
                 enabled = !uiState.isLoading,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, IosOpaqueSeparator),
+                shape = RoundedCornerShape(VmDimens.RadiusMedium),
+                border = BorderStroke(VmDimens.ThinBorder, IosOpaqueSeparator),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = IosLabel
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 )
             ) {
                 Text(
                     text = "Continue with Google",
                     style = MaterialTheme.typography.titleSmall,
-                    color = IosLabel
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -262,7 +261,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
             if (uiState.isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(32.dp),
-                    color = IosAccent,
+                    color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 3.dp
                 )
             }
@@ -272,14 +271,15 @@ fun SignInScreen(viewModel: AuthViewModel) {
             Snackbar(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(16.dp),
+                    .padding(VmDimens.SpaceLg),
                 action = {
                     TextButton(onClick = { viewModel.clearError() }) {
-                        Text("Dismiss", color = Color.White)
+                        Text("Dismiss", color = IosWhite)
                     }
-                }
+                },
+                containerColor = IosDestructive,
             ) {
-                Text(error)
+                Text(error, color = IosWhite)
             }
         }
     }

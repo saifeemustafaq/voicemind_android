@@ -1,9 +1,11 @@
 package com.voicemind.ui.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,20 +18,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.DriveFileMove
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.PauseCircle
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Share
+import com.composables.icons.lucide.ChevronDown
+import com.composables.icons.lucide.ChevronRight
+import com.composables.icons.lucide.ChevronUp
+import com.composables.icons.lucide.CirclePause
+import com.composables.icons.lucide.CirclePlay
+import com.composables.icons.lucide.FileText
+import com.composables.icons.lucide.Folder
+import com.composables.icons.lucide.FolderInput
+import com.composables.icons.lucide.House
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Mic
+import com.composables.icons.lucide.Pencil
+import com.composables.icons.lucide.Share
+import com.composables.icons.lucide.Trash2
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,7 +51,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -62,10 +67,8 @@ import com.voicemind.ui.components.RecordingDialogsHost
 import com.voicemind.ui.recording.RecordingBottomSheet
 import com.voicemind.ui.recording.RecordingViewModel
 import com.voicemind.ui.recording.RecordingsViewModel
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSeparator
+import com.voicemind.ui.theme.VmDimens
 import com.voicemind.util.toFullDateString
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -95,7 +98,7 @@ fun HomeScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             VoiceMindTopAppBar(
                 title = "VoiceMind AI",
-                icon = Icons.Default.Home,
+                icon = Lucide.House,
                 onOpenDrawer = onOpenDrawer,
                 onSettings = onSettings,
             )
@@ -112,20 +115,20 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { foldersExpanded = !foldersExpanded }
-                                .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
+                                .padding(start = VmDimens.ScreenHorizontalPadding, end = VmDimens.SpaceSm, top = VmDimens.SpaceSm, bottom = VmDimens.SpaceXs),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = "Folders",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = IosSecondaryLabel,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f),
                             )
                             Icon(
-                                if (foldersExpanded) Icons.Default.KeyboardArrowUp
-                                else Icons.Default.KeyboardArrowDown,
+                                if (foldersExpanded) Lucide.ChevronUp
+                                else Lucide.ChevronDown,
                                 contentDescription = if (foldersExpanded) "Collapse" else "Expand",
-                                tint = IosSecondaryLabel,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -142,18 +145,28 @@ fun HomeScreen(
                         ) {
                             GlassCard(modifier = Modifier.fillMaxWidth(), innerPadding = 0.dp) {
                                 Column {
+                                    val cardRadius = VmDimens.RadiusMedium
                                     visibleFolders.forEachIndexed { index, folder ->
+                                        val isFirst = index == 0
+                                        val isLast = index == visibleFolders.lastIndex && !hasMore
+                                        val rowShape = when {
+                                            isFirst && isLast -> RoundedCornerShape(cardRadius)
+                                            isFirst -> RoundedCornerShape(topStart = cardRadius, topEnd = cardRadius)
+                                            isLast -> RoundedCornerShape(bottomStart = cardRadius, bottomEnd = cardRadius)
+                                            else -> RoundedCornerShape(0.dp)
+                                        }
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
+                                                .clip(rowShape)
                                                 .clickable { onFolderClick(folder.id) }
                                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Icon(
-                                                Icons.Default.Folder,
+                                                Lucide.Folder,
                                                 contentDescription = null,
-                                                tint = IosAccent,
+                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(24.dp)
                                             )
                                             Text(
@@ -168,20 +181,20 @@ fun HomeScreen(
                                                 Text(
                                                     text = "$count",
                                                     style = MaterialTheme.typography.bodyMedium,
-                                                    color = IosSecondaryLabel,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                     modifier = Modifier.padding(end = 4.dp),
                                                 )
                                             }
                                             Icon(
-                                                Icons.Default.ChevronRight,
+                                                Lucide.ChevronRight,
                                                 contentDescription = null,
-                                                tint = IosSecondaryLabel,
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                         if (index < visibleFolders.lastIndex || hasMore) {
                                             HorizontalDivider(
                                                 color = IosSeparator,
-                                                thickness = 0.5.dp,
+                                                thickness = VmDimens.HairlineBorder,
                                                 modifier = Modifier.padding(start = 52.dp),
                                             )
                                         }
@@ -190,6 +203,7 @@ fun HomeScreen(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
+                                                .clip(RoundedCornerShape(bottomStart = cardRadius, bottomEnd = cardRadius))
                                                 .clickable { onViewAllFolders() }
                                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                                             horizontalArrangement = Arrangement.Center,
@@ -197,7 +211,7 @@ fun HomeScreen(
                                             Text(
                                                 text = "View more",
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                color = IosAccent,
+                                                color = MaterialTheme.colorScheme.primary,
                                             )
                                         }
                                     }
@@ -209,12 +223,11 @@ fun HomeScreen(
 
                 if (homeState.recentRecordings.isNotEmpty()) {
                     item {
-                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Recent Files",
                             style = MaterialTheme.typography.bodySmall,
-                            color = IosSecondaryLabel,
-                            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = VmDimens.ScreenHorizontalPadding, top = VmDimens.SpaceSm, bottom = VmDimens.SpaceXs)
                         )
                     }
                     item {
@@ -223,7 +236,11 @@ fun HomeScreen(
                                 homeState.recentRecordings.forEachIndexed { index, recording ->
                                     HomeRecordingRow(
                                         recording = recording,
-                                        isPlaying = listState.playingRecordingId == recording.id,
+                                        isPlaying = listState.playingRecordingId == recording.id && !listState.isPlaybackPaused,
+                                        isExpanded = listState.playingRecordingId == recording.id,
+                                        isPlaybackPaused = listState.isPlaybackPaused,
+                                        playbackPositionMs = listState.playbackPositionMs,
+                                        playbackDurationMs = listState.playbackDurationMs,
                                         onPlayPause = {
                                             if (listState.playingRecordingId == recording.id) {
                                                 recordingsViewModel.stopPlayback()
@@ -231,6 +248,11 @@ fun HomeScreen(
                                                 recordingsViewModel.playAudio(recording)
                                             }
                                         },
+                                        onPause = { recordingsViewModel.pausePlayback() },
+                                        onResume = { recordingsViewModel.resumePlayback() },
+                                        onSeekTo = { recordingsViewModel.seekTo(it) },
+                                        onSkipForward = { recordingsViewModel.skipForward15() },
+                                        onSkipBackward = { recordingsViewModel.skipBackward15() },
                                         onTranscript = { showTranscript = recording },
                                         onDelete = { showDeleteConfirm = recording },
                                         onRename = { showRenameDialog = recording },
@@ -239,13 +261,14 @@ fun HomeScreen(
                                     )
                                     HorizontalDivider(
                                         color = IosSeparator,
-                                        thickness = 0.5.dp,
-                                        modifier = Modifier.padding(start = 16.dp),
+                                        thickness = VmDimens.HairlineBorder,
+                                        modifier = Modifier.padding(start = 52.dp),
                                     )
                                 }
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .clip(RoundedCornerShape(bottomStart = VmDimens.RadiusMedium, bottomEnd = VmDimens.RadiusMedium))
                                         .clickable { onRecordingClick() }
                                         .padding(horizontal = 16.dp, vertical = 14.dp),
                                     horizontalArrangement = Arrangement.Center,
@@ -253,7 +276,7 @@ fun HomeScreen(
                                     Text(
                                         text = "View more",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = IosAccent,
+                                        color = MaterialTheme.colorScheme.primary,
                                     )
                                 }
                             }
@@ -264,13 +287,13 @@ fun HomeScreen(
                 if (homeState.recentRecordings.isEmpty() && homeState.folders.isEmpty() && !homeState.isLoading) {
                     item {
                         EmptyStateCard(
-                            icon = Icons.Default.Mic,
+                            icon = Lucide.Mic,
                             message = "Tap the record button to capture your first thought",
                         )
                     }
                 }
 
-                item { Spacer(modifier = Modifier.height(80.dp)) }
+                item { Spacer(modifier = Modifier.height(VmDimens.FabClearance)) }
             }
         }
 
@@ -306,7 +329,16 @@ fun HomeScreen(
 private fun HomeRecordingRow(
     recording: Recording,
     isPlaying: Boolean,
+    isExpanded: Boolean,
+    isPlaybackPaused: Boolean,
+    playbackPositionMs: Long,
+    playbackDurationMs: Long,
     onPlayPause: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onSeekTo: (Long) -> Unit,
+    onSkipForward: () -> Unit,
+    onSkipBackward: () -> Unit,
     onTranscript: () -> Unit,
     onDelete: () -> Unit,
     onRename: () -> Unit,
@@ -314,16 +346,21 @@ private fun HomeRecordingRow(
     onMoveToFolder: () -> Unit,
 ) {
     var longPressMenuExpanded by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
+    Column {
     Box {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(
                     onClick = {},
-                    onLongClick = { longPressMenuExpanded = true },
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        longPressMenuExpanded = true
+                    },
                 )
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = VmDimens.ScreenHorizontalPadding, vertical = VmDimens.SpaceMd),
             verticalAlignment = Alignment.CenterVertically,
         ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -337,47 +374,47 @@ private fun HomeRecordingRow(
                         Text(
                             text = date.toFullDateString(),
                             style = MaterialTheme.typography.bodySmall,
-                            color = IosSecondaryLabel,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(VmDimens.SpaceSm))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = onPlayPause,
-                        modifier = Modifier.size(38.dp),
+                        modifier = Modifier.size(VmDimens.TouchTarget),
                     ) {
                         Icon(
-                            if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
+                            if (isPlaying) Lucide.CirclePause else Lucide.CirclePlay,
                             contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = IosAccent,
-                            modifier = Modifier.size(26.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(VmDimens.IconMd),
                         )
                     }
 
                     IconButton(
                         onClick = onTranscript,
-                        modifier = Modifier.size(38.dp),
+                        modifier = Modifier.size(VmDimens.TouchTarget),
                     ) {
                         Icon(
-                            Icons.Default.Description,
+                            Lucide.FileText,
                             contentDescription = "View transcript",
-                            tint = IosAccent,
-                            modifier = Modifier.size(22.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(VmDimens.IconMd),
                         )
                     }
 
                     IconButton(
                         onClick = onDelete,
-                        modifier = Modifier.size(38.dp),
+                        modifier = Modifier.size(VmDimens.TouchTarget),
                     ) {
                         Icon(
-                            Icons.Default.Delete,
+                            Lucide.Trash2,
                             contentDescription = "Delete",
-                            tint = IosDestructive,
-                            modifier = Modifier.size(22.dp),
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(VmDimens.IconMd),
                         )
                     }
                 }
@@ -386,22 +423,45 @@ private fun HomeRecordingRow(
         DropdownMenu(
             expanded = longPressMenuExpanded,
             onDismissRequest = { longPressMenuExpanded = false },
+            shape = RoundedCornerShape(VmDimens.RadiusSmall),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
+            shadowElevation = 3.dp,
+            border = BorderStroke(VmDimens.HairlineBorder, MaterialTheme.colorScheme.outline),
         ) {
             DropdownMenuItem(
                 text = { Text("Rename") },
                 onClick = { longPressMenuExpanded = false; onRename() },
-                leadingIcon = { Icon(Icons.Default.Edit, null) },
+                leadingIcon = { Icon(Lucide.Pencil, null) },
             )
             DropdownMenuItem(
                 text = { Text("Share Audio") },
                 onClick = { longPressMenuExpanded = false; onShareAudio() },
-                leadingIcon = { Icon(Icons.Default.Share, null) },
+                leadingIcon = { Icon(Lucide.Share, null) },
             )
             DropdownMenuItem(
                 text = { Text("Move to Folder") },
                 onClick = { longPressMenuExpanded = false; onMoveToFolder() },
-                leadingIcon = { Icon(Icons.Default.DriveFileMove, null) },
+                leadingIcon = { Icon(Lucide.FolderInput, null) },
             )
         }
     }
+
+    androidx.compose.animation.AnimatedVisibility(
+        visible = isExpanded,
+        enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+        exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut(),
+    ) {
+        com.voicemind.ui.components.InlinePlayerControls(
+            isPlaying = !isPlaybackPaused,
+            positionMs = playbackPositionMs,
+            durationMs = playbackDurationMs,
+            onPlayPause = { if (isPlaybackPaused) onResume() else onPause() },
+            onSkipForward = onSkipForward,
+            onSkipBackward = onSkipBackward,
+            onSeek = onSeekTo,
+            modifier = Modifier.padding(start = VmDimens.ScreenHorizontalPadding, end = VmDimens.ScreenHorizontalPadding, bottom = VmDimens.SpaceMd),
+        )
+    }
+    } // end Column
 }

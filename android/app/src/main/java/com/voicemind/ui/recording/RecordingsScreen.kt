@@ -14,12 +14,14 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,33 +33,40 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.RadioButtonChecked
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DriveFileMove
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PauseCircle
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.TextSnippet
-import androidx.compose.material.icons.filled.TouchApp
+import com.composables.icons.lucide.Check
+import com.composables.icons.lucide.CircleDot
+import com.composables.icons.lucide.Circle
+import com.composables.icons.lucide.CirclePause
+import com.composables.icons.lucide.CirclePlay
+import com.composables.icons.lucide.Copy
+import com.composables.icons.lucide.EllipsisVertical
+import com.composables.icons.lucide.FileText
+import com.composables.icons.lucide.Folder
+import com.composables.icons.lucide.FolderInput
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Mic
+import com.composables.icons.lucide.Pencil
+import com.composables.icons.lucide.Pointer
+import com.composables.icons.lucide.Share
+import com.composables.icons.lucide.Sparkles
+import com.composables.icons.lucide.Trash2
+import com.composables.icons.lucide.X
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -78,6 +87,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
@@ -99,7 +113,12 @@ import com.voicemind.ui.components.RecordingDialogsHost
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.navigation.Routes
 import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.ui.theme.IosSeparator
+import com.voicemind.ui.theme.IosWhite
+import com.voicemind.ui.theme.ShimmerBlue
+import com.voicemind.ui.theme.ShimmerGold
+import com.voicemind.ui.theme.ShimmerPurple
+import com.voicemind.ui.theme.VmDimens
 import com.voicemind.util.formatRecordingTime
 import com.voicemind.util.toDateSectionKey
 import com.voicemind.util.toShortDateString
@@ -195,7 +214,7 @@ fun RecordingsScreen(
                 } else {
                     VoiceMindTopAppBar(
                         title = "Recordings",
-                        icon = Icons.Default.Mic,
+                        icon = Lucide.Mic,
                         onOpenDrawer = onOpenDrawer,
                         onSettings = onSettings,
                     )
@@ -219,13 +238,13 @@ fun RecordingsScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         EmptyStateCard(
-                            icon = if (folderId != null) Icons.Default.Folder else Icons.Default.Mic,
+                            icon = if (folderId != null) Lucide.Folder else Lucide.Mic,
                             message = if (folderId != null) "No recordings in this folder" else "No recordings yet",
                             extraContent = if (folderId != null && onBack != null) {
                                 {
                                     Spacer(modifier = Modifier.height(20.dp))
                                     TextButton(onClick = onBack) {
-                                        Text("Back to Folders", color = IosAccent)
+                                        Text("Back to Folders", color = MaterialTheme.colorScheme.primary)
                                     }
                                 }
                             } else null,
@@ -239,19 +258,19 @@ fun RecordingsScreen(
                     }
                 }
 
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn {
                     grouped.forEach { (dateLabel, recordings) ->
                         item(key = "header_$dateLabel") {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 4.dp, top = 12.dp, bottom = 2.dp),
+                                    .padding(start = VmDimens.ScreenHorizontalPadding, top = VmDimens.SpaceLg, bottom = VmDimens.SpaceXs),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
                                     text = dateLabel,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = IosSecondaryLabel,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.weight(1f),
                                 )
                                 if (recordings.size > 1 && !listState.isMultiSelectActive) {
@@ -260,7 +279,7 @@ fun RecordingsScreen(
                                             modifier = Modifier
                                                 .size(20.dp)
                                                 .padding(end = 4.dp),
-                                            color = IosAccent,
+                                            color = MaterialTheme.colorScheme.primary,
                                             strokeWidth = 2.dp,
                                         )
                                     } else {
@@ -272,9 +291,9 @@ fun RecordingsScreen(
                                             modifier = Modifier.size(28.dp),
                                         ) {
                                             Icon(
-                                                Icons.Default.AutoAwesome,
+                                                Lucide.Sparkles,
                                                 contentDescription = "Summarize $dateLabel recordings",
-                                                tint = IosAccent,
+                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(16.dp),
                                             )
                                         }
@@ -282,44 +301,70 @@ fun RecordingsScreen(
                                 }
                             }
                         }
-                        items(recordings, key = { it.id }) { recording ->
-                            val isSelected = recording.id in listState.selectedRecordingIds
-                            RecordingRow(
-                                recording = recording,
-                                isPlaying = listState.playingRecordingId == recording.id,
-                                isMultiSelectActive = listState.isMultiSelectActive,
-                                isSelected = isSelected,
-                                onPlayPause = {
-                                    if (listState.playingRecordingId == recording.id) {
-                                        recordingsViewModel.stopPlayback()
-                                    } else {
-                                        recordingsViewModel.playAudio(recording)
-                                    }
-                                },
-                                onLongPress = { if (folderId == null) recordingsViewModel.enterMultiSelect(recording.id) },
-                                onToggleSelect = { recordingsViewModel.toggleSelection(recording.id) },
-                                onTranscript = { showTranscript = recording },
-                                onRename = { showRenameDialog = recording },
-                                onMove = { showMoveDialog = recording },
-                                onDelete = { showDeleteConfirm = recording },
-                                onShareAudio = { recordingsViewModel.shareAudio(context, recording) },
-                                onCopyTranscript = {
-                                    recording.transcription?.let { text ->
-                                        val clip = ClipData.newPlainText("Transcript", text)
-                                        (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                                            .setPrimaryClip(clip)
-                                        Toast.makeText(context, "Transcript copied", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                onShareTranscript = {
-                                    recording.transcription?.let { text ->
-                                        recordingsViewModel.shareTranscript(context, text)
+                        item(key = "group_$dateLabel") {
+                            Surface(
+                                shape = RoundedCornerShape(VmDimens.RadiusMedium),
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(VmDimens.HairlineBorder, MaterialTheme.colorScheme.outline),
+                            ) {
+                                Column {
+                                    recordings.forEachIndexed { index, recording ->
+                                        val isSelected = recording.id in listState.selectedRecordingIds
+                                        RecordingRow(
+                                            recording = recording,
+                                            isPlaying = listState.playingRecordingId == recording.id && !listState.isPlaybackPaused,
+                                            isExpanded = listState.playingRecordingId == recording.id,
+                                            isPlaybackPaused = listState.isPlaybackPaused,
+                                            playbackPositionMs = listState.playbackPositionMs,
+                                            playbackDurationMs = listState.playbackDurationMs,
+                                            isMultiSelectActive = listState.isMultiSelectActive,
+                                            isSelected = isSelected,
+                                            onPlayPause = {
+                                                if (listState.playingRecordingId == recording.id) {
+                                                    recordingsViewModel.stopPlayback()
+                                                } else {
+                                                    recordingsViewModel.playAudio(recording)
+                                                }
+                                            },
+                                            onPause = { recordingsViewModel.pausePlayback() },
+                                            onResume = { recordingsViewModel.resumePlayback() },
+                                            onSeekTo = { recordingsViewModel.seekTo(it) },
+                                            onSkipForward = { recordingsViewModel.skipForward15() },
+                                            onSkipBackward = { recordingsViewModel.skipBackward15() },
+                                            onLongPress = { if (folderId == null) recordingsViewModel.enterMultiSelect(recording.id) },
+                                            onToggleSelect = { recordingsViewModel.toggleSelection(recording.id) },
+                                            onTranscript = { showTranscript = recording },
+                                            onRename = { showRenameDialog = recording },
+                                            onMove = { showMoveDialog = recording },
+                                            onDelete = { showDeleteConfirm = recording },
+                                            onShareAudio = { recordingsViewModel.shareAudio(context, recording) },
+                                            onCopyTranscript = {
+                                                recording.transcription?.let { text ->
+                                                    val clip = ClipData.newPlainText("Transcript", text)
+                                                    (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                                                        .setPrimaryClip(clip)
+                                                    Toast.makeText(context, "Transcript copied", Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            onShareTranscript = {
+                                                recording.transcription?.let { text ->
+                                                    recordingsViewModel.shareTranscript(context, text)
+                                                }
+                                            }
+                                        )
+                                        if (index < recordings.lastIndex) {
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(start = 56.dp),
+                                                thickness = VmDimens.HairlineBorder,
+                                                color = IosSeparator,
+                                            )
+                                        }
                                     }
                                 }
-                            )
+                            }
                         }
                     }
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
+                    item { Spacer(modifier = Modifier.height(VmDimens.FabClearance)) }
                 }
             }
         }
@@ -330,7 +375,7 @@ fun RecordingsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(color = IosAccent)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -356,15 +401,38 @@ fun RecordingsScreen(
             )
         }
 
-        // Summarization popup — non-blocking floating card at center-bottom
+        // Scrim — dims background while island popup is visible
         AnimatedVisibility(
             visible = showSummarizationPopup && listState.isCollectiveSummarizing,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut(),
+            enter = fadeIn(animationSpec = tween(250)),
+            exit = fadeOut(animationSpec = tween(200)),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .pointerInput(Unit) { detectTapGestures { } },
+            )
+        }
+
+        // Summarization island — spring-animated floating pill above FAB
+        AnimatedVisibility(
+            visible = showSummarizationPopup && listState.isCollectiveSummarizing,
+            enter = scaleIn(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessHigh,
+                ),
+                initialScale = 0.85f,
+            ) + fadeIn(animationSpec = tween(150)),
+            exit = scaleOut(
+                animationSpec = tween(180),
+                targetScale = 0.9f,
+            ) + fadeOut(animationSpec = tween(180)),
             modifier = Modifier
-                .align(BiasAlignment(horizontalBias = 0f, verticalBias = 0.3f))
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .align(Alignment.BottomCenter)
+                .padding(bottom = VmDimens.FabClearance + VmDimens.SpaceXl),
         ) {
             SummarizationPopup(onHide = { showSummarizationPopup = false })
         }
@@ -460,75 +528,188 @@ private fun SummarizationPopup(onHide: () -> Unit) {
         label = "shimmerOffset",
     )
     val shimmerBrush = Brush.linearGradient(
-        colors = listOf(
-            Color(0xFF5E9EFF), // blue
-            Color(0xFFFFD700), // gold
-            Color(0xFFB47FFF), // purple
-            Color(0xFF5E9EFF), // back to blue
-        ),
+        colors = listOf(ShimmerBlue, ShimmerGold, ShimmerPurple, ShimmerBlue),
         start = Offset(animatedOffset * 800f - 400f, 0f),
         end = Offset(animatedOffset * 800f + 400f, 0f),
     )
+    // Liquid glass: fully opaque base + layered specular highlights
+    val isDark = isSystemInDarkTheme()
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-        border = BorderStroke(width = 1.dp, color = Color(0x33888888)),
-        modifier = Modifier.fillMaxWidth(),
+    // Glass rim border: bright white at top fading to shimmer hues at bottom
+    val borderBrush = Brush.verticalGradient(
+        0.0f to Color.White.copy(alpha = if (isDark) 0.65f else 0.90f),
+        0.35f to ShimmerBlue.copy(alpha = 0.50f),
+        1.0f to ShimmerPurple.copy(alpha = 0.20f),
+    )
+
+    // Solid opaque base with subtle icy-blue tint (optical glass character)
+    val islandBackground = if (isDark) Color(0xFF1E2030) else Color(0xFFF2F5FF)
+
+    // Iridescent shimmer tint — diagonal blue→purple wash at low opacity
+    val iridescence = Brush.linearGradient(
+        colors = listOf(
+            ShimmerBlue.copy(alpha = 0.10f),
+            ShimmerPurple.copy(alpha = 0.08f),
+            Color.Transparent,
+        ),
+        start = Offset(0f, 0f),
+        end = Offset(280f, 56f),
+    )
+    // Top specular highlight — bright white band that reads as curved glass
+    val liquidSpecular = Brush.verticalGradient(
+        0.0f to Color.White.copy(alpha = if (isDark) 0.16f else 0.75f),
+        0.40f to Color.White.copy(alpha = if (isDark) 0.04f else 0.20f),
+        1.0f to Color.Transparent,
+    )
+    val islandShape = RoundedCornerShape(28.dp)
+
+    Box(
+        modifier = Modifier
+            .wrapContentWidth()
+            .widthIn(min = 220.dp, max = 320.dp)
+            .shadow(
+                elevation = 12.dp,
+                shape = islandShape,
+                spotColor = ShimmerBlue.copy(alpha = 0.6f),
+                ambientColor = ShimmerPurple.copy(alpha = 0.25f),
+            )
+            .border(width = 1.5.dp, brush = borderBrush, shape = islandShape)
+            .background(color = islandBackground, shape = islandShape)
+            .clip(islandShape),
     ) {
+        // Iridescent tint layer (bottom-most overlay)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(brush = iridescence),
+        )
+        // Specular highlight layer (topmost — the glass sheen)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(brush = liquidSpecular),
+        )
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+                .wrapContentWidth()
+                .padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Icon(
-                Icons.Default.AutoAwesome,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = IosAccent,
-            )
-            Spacer(modifier = Modifier.width(10.dp))
+            PulseRingIcon()
             Text(
                 text = "Generating Summary…",
                 style = MaterialTheme.typography.bodyMedium.copy(brush = shimmerBrush),
-                modifier = Modifier.weight(1f),
+                maxLines = 1,
             )
-            TextButton(onClick = onHide) {
-                Text("Hide", color = IosSecondaryLabel)
+            IconButton(
+                onClick = onHide,
+                modifier = Modifier.size(28.dp),
+            ) {
+                Icon(
+                    Lucide.X,
+                    contentDescription = "Hide",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                )
             }
         }
     }
 }
 
 @Composable
+private fun PulseRingIcon() {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val innerScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "innerScale",
+    )
+    val innerAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 0.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "innerAlpha",
+    )
+    val outerScale by infiniteTransition.animateFloat(
+        initialValue = 1.3f,
+        targetValue = 1.9f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "outerScale",
+    )
+    val outerAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "outerAlpha",
+    )
+
+    Box(
+        modifier = Modifier.size(40.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .scale(outerScale)
+                .alpha(outerAlpha)
+                .background(color = ShimmerBlue.copy(alpha = 0.3f), shape = CircleShape),
+        )
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .scale(innerScale)
+                .alpha(innerAlpha)
+                .background(color = ShimmerPurple.copy(alpha = 0.4f), shape = CircleShape),
+        )
+        Icon(
+            Lucide.Sparkles,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = ShimmerBlue,
+        )
+    }
+}
+
+@Composable
 private fun CompletionToast(onClick: () -> Unit) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        onClick = onClick,
+        shape = RoundedCornerShape(VmDimens.RadiusMedium),
         colors = CardDefaults.cardColors(containerColor = IosAccent),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = VmDimens.SpaceLg, vertical = VmDimens.SpaceMd),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Default.AutoAwesome,
+                Lucide.Sparkles,
                 contentDescription = null,
-                tint = Color.White,
+                tint = IosWhite,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = "Summary ready. Tap to view",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.White,
+                color = IosWhite,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -553,30 +734,30 @@ private fun MultiSelectTopBar(
         title = { Text("$selectedCount selected", style = MaterialTheme.typography.titleSmall) },
         navigationIcon = {
             IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Exit selection")
+                Icon(Lucide.X, contentDescription = "Exit selection")
             }
         },
         actions = {
             IconButton(onClick = onSelectAll) {
                 Icon(
-                    if (isAllSelected) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
+                    if (isAllSelected) Lucide.CircleDot else Lucide.Circle,
                     contentDescription = if (isAllSelected) "Deselect all" else "Select all",
-                    tint = IosAccent,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
             if (hasSelection) {
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error)
+                    Icon(Lucide.Trash2, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error)
                 }
                 IconButton(onClick = onMove) {
-                    Icon(Icons.Default.DriveFileMove, contentDescription = "Move selected", tint = IosAccent)
+                    Icon(Lucide.FolderInput, contentDescription = "Move selected", tint = MaterialTheme.colorScheme.primary)
                 }
                 if (!isSummarizing) {
                     IconButton(onClick = onSummarize) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = "Summarize selected", tint = IosAccent)
+                        Icon(Lucide.Sparkles, contentDescription = "Summarize selected", tint = MaterialTheme.colorScheme.primary)
                     }
                 } else {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(4.dp), color = IosAccent, strokeWidth = 2.dp)
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(4.dp), color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp)
                 }
             }
         },
@@ -604,7 +785,7 @@ private fun BulkMoveToFolderDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Icon(Icons.Default.Folder, contentDescription = null, tint = IosAccent)
+                            Icon(Lucide.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(folder.name, color = MaterialTheme.colorScheme.onSurface)
                         }
@@ -632,24 +813,24 @@ private fun MultiSelectHintBanner(onDismiss: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(
-                Icons.Default.TouchApp,
+                Lucide.Pointer,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = IosAccent,
+                tint = MaterialTheme.colorScheme.primary,
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Tip: Long-press a recording to select multiple",
                 style = MaterialTheme.typography.bodySmall,
-                color = IosSecondaryLabel,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                 Icon(
-                    Icons.Default.Close,
+                    Lucide.X,
                     contentDescription = "Dismiss",
                     modifier = Modifier.size(16.dp),
-                    tint = IosSecondaryLabel,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -661,9 +842,18 @@ private fun MultiSelectHintBanner(onDismiss: () -> Unit) {
 private fun RecordingRow(
     recording: Recording,
     isPlaying: Boolean,
+    isExpanded: Boolean,
+    isPlaybackPaused: Boolean,
+    playbackPositionMs: Long,
+    playbackDurationMs: Long,
     isMultiSelectActive: Boolean,
     isSelected: Boolean,
     onPlayPause: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onSeekTo: (Long) -> Unit,
+    onSkipForward: () -> Unit,
+    onSkipBackward: () -> Unit,
     onLongPress: () -> Unit,
     onToggleSelect: () -> Unit,
     onTranscript: () -> Unit,
@@ -673,133 +863,157 @@ private fun RecordingRow(
     onShareAudio: () -> Unit,
     onCopyTranscript: () -> Unit,
     onShareTranscript: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    GlassCard(
+    Column(modifier = modifier.fillMaxWidth()) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = { if (isMultiSelectActive) onToggleSelect() },
                 onLongClick = { if (!isMultiSelectActive) onLongPress() },
-            ),
-        innerPadding = 12.dp,
+            )
+            .padding(12.dp),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (isMultiSelectActive) {
+        if (isMultiSelectActive) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clickable { onToggleSelect() },
+                contentAlignment = Alignment.Center,
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
-                        .clickable { onToggleSelect() },
+                        .size(24.dp)
+                        .background(
+                            color = if (isSelected) IosAccent else Color.Transparent,
+                            shape = CircleShape,
+                        )
+                        .border(
+                            width = 2.dp,
+                            color = if (isSelected) IosAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                            shape = CircleShape,
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .background(
-                                color = if (isSelected) IosAccent else Color.Transparent,
-                                shape = CircleShape,
-                            )
-                            .border(
-                                width = 2.dp,
-                                color = if (isSelected) IosAccent else IosSecondaryLabel,
-                                shape = CircleShape,
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp),
-                            )
-                        }
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Lucide.Check,
+                            contentDescription = null,
+                            tint = IosWhite,
+                            modifier = Modifier.size(14.dp),
+                        )
                     }
                 }
-            } else {
-                IconButton(onClick = onPlayPause, modifier = Modifier.size(48.dp)) {
-                    Icon(
-                        if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = IosAccent,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
             }
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp)
-            ) {
-                Text(
-                    text = recording.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+        } else {
+            IconButton(onClick = onPlayPause, modifier = Modifier.size(48.dp)) {
+                Icon(
+                    if (isPlaying) Lucide.CirclePause else Lucide.CirclePlay,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp),
                 )
-                recording.createdAt?.toDate()?.let { date ->
-                    val durationStr = if (recording.durationSeconds > 0) " · ${formatRecordingTime(recording.durationSeconds)}" else ""
-                    Text(
-                        text = date.toShortDateString() + durationStr,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = IosSecondaryLabel,
-                    )
-                }
             }
+        }
 
-            if (!isMultiSelectActive) {
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                    }
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        if (recording.transcription != null) {
-                            DropdownMenuItem(
-                                text = { Text("View Transcript") },
-                                onClick = { menuExpanded = false; onTranscript() },
-                                leadingIcon = { Icon(Icons.Default.TextSnippet, null) }
-                            )
-                        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 8.dp),
+        ) {
+            Text(
+                text = recording.title,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            recording.createdAt?.toDate()?.let { date ->
+                val durationStr = if (recording.durationSeconds > 0) " · ${formatRecordingTime(recording.durationSeconds)}" else ""
+                Text(
+                    text = date.toShortDateString() + durationStr,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        if (!isMultiSelectActive) {
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Lucide.EllipsisVertical, contentDescription = "More options")
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    shape = RoundedCornerShape(VmDimens.RadiusSmall),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 3.dp,
+                    border = BorderStroke(VmDimens.HairlineBorder, MaterialTheme.colorScheme.outline),
+                ) {
+                    if (recording.transcription != null) {
                         DropdownMenuItem(
-                            text = { Text("Rename") },
-                            onClick = { menuExpanded = false; onRename() },
-                            leadingIcon = { Icon(Icons.Default.Edit, null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Move to Folder") },
-                            onClick = { menuExpanded = false; onMove() },
-                            leadingIcon = { Icon(Icons.Default.DriveFileMove, null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Share Audio") },
-                            onClick = { menuExpanded = false; onShareAudio() },
-                            leadingIcon = { Icon(Icons.Default.Share, null) }
-                        )
-                        if (recording.transcription != null) {
-                            DropdownMenuItem(
-                                text = { Text("Copy Transcript") },
-                                onClick = { menuExpanded = false; onCopyTranscript() },
-                                leadingIcon = { Icon(Icons.Default.ContentCopy, null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Share Transcript") },
-                                onClick = { menuExpanded = false; onShareTranscript() },
-                                leadingIcon = { Icon(Icons.Default.Share, null) }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                            onClick = { menuExpanded = false; onDelete() },
-                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
+                            text = { Text("View Transcript") },
+                            onClick = { menuExpanded = false; onTranscript() },
+                            leadingIcon = { Icon(Lucide.FileText, null) },
                         )
                     }
+                    DropdownMenuItem(
+                        text = { Text("Rename") },
+                        onClick = { menuExpanded = false; onRename() },
+                        leadingIcon = { Icon(Lucide.Pencil, null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Move to Folder") },
+                        onClick = { menuExpanded = false; onMove() },
+                        leadingIcon = { Icon(Lucide.FolderInput, null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Share Audio") },
+                        onClick = { menuExpanded = false; onShareAudio() },
+                        leadingIcon = { Icon(Lucide.Share, null) },
+                    )
+                    if (recording.transcription != null) {
+                        DropdownMenuItem(
+                            text = { Text("Copy Transcript") },
+                            onClick = { menuExpanded = false; onCopyTranscript() },
+                            leadingIcon = { Icon(Lucide.Copy, null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Share Transcript") },
+                            onClick = { menuExpanded = false; onShareTranscript() },
+                            leadingIcon = { Icon(Lucide.Share, null) },
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        onClick = { menuExpanded = false; onDelete() },
+                        leadingIcon = { Icon(Lucide.Trash2, null, tint = MaterialTheme.colorScheme.error) },
+                    )
                 }
             }
         }
     }
+
+    androidx.compose.animation.AnimatedVisibility(
+        visible = isExpanded,
+        enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+        exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut(),
+    ) {
+        com.voicemind.ui.components.InlinePlayerControls(
+            isPlaying = !isPlaybackPaused,
+            positionMs = playbackPositionMs,
+            durationMs = playbackDurationMs,
+            onPlayPause = { if (isPlaybackPaused) onResume() else onPause() },
+            onSkipForward = onSkipForward,
+            onSkipBackward = onSkipBackward,
+            onSeek = onSeekTo,
+            modifier = Modifier.padding(start = 56.dp, end = 8.dp, bottom = 12.dp),
+        )
+    }
+    } // end Column
 }

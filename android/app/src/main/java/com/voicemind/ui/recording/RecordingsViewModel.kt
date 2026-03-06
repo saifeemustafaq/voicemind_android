@@ -52,6 +52,9 @@ data class RecordingsListState(
     val folders: List<Folder> = emptyList(),
     val isLoading: Boolean = true,
     val playingRecordingId: String? = null,
+    val isPlaybackPaused: Boolean = false,
+    val playbackPositionMs: Long = 0,
+    val playbackDurationMs: Long = 0,
     val filterFolderId: String? = null,
     val isMultiSelectActive: Boolean = false,
     val selectedRecordingIds: Set<String> = emptySet(),
@@ -81,6 +84,7 @@ class RecordingsViewModel @Inject constructor(
 
     private var mediaPlayer: MediaPlayer? = null
     private var recordingsJob: Job? = null
+    private var positionPollJob: Job? = null
 
     init {
         observeRecordings()
@@ -125,10 +129,21 @@ class RecordingsViewModel @Inject constructor(
                     setDataSource(url.toString())
                     setOnPreparedListener {
                         it.start()
-                        _state.value = _state.value.copy(playingRecordingId = recording.id)
+                        _state.update { s -> s.copy(
+                            playingRecordingId = recording.id,
+                            isPlaybackPaused = false,
+                            playbackDurationMs = it.duration.toLong(),
+                            playbackPositionMs = 0,
+                        )}
+                        startPositionPolling()
                     }
                     setOnCompletionListener {
-                        _state.value = _state.value.copy(playingRecordingId = null)
+                        positionPollJob?.cancel()
+                        _state.update { it.copy(
+                            playingRecordingId = null,
+                            isPlaybackPaused = false,
+                            playbackPositionMs = 0,
+                        )}
                     }
                     prepareAsync()
                 }
@@ -139,12 +154,60 @@ class RecordingsViewModel @Inject constructor(
     }
 
     fun stopPlayback() {
+        positionPollJob?.cancel()
         try {
             mediaPlayer?.stop()
             mediaPlayer?.release()
         } catch (_: Exception) { }
         mediaPlayer = null
-        _state.value = _state.value.copy(playingRecordingId = null)
+        _state.update { it.copy(
+            playingRecordingId = null,
+            isPlaybackPaused = false,
+            playbackPositionMs = 0,
+            playbackDurationMs = 0,
+        )}
+    }
+
+    fun pausePlayback() {
+        try { mediaPlayer?.pause() } catch (_: Exception) {}
+        positionPollJob?.cancel()
+        _state.update { it.copy(isPlaybackPaused = true) }
+    }
+
+    fun resumePlayback() {
+        try { mediaPlayer?.start() } catch (_: Exception) {}
+        startPositionPolling()
+        _state.update { it.copy(isPlaybackPaused = false) }
+    }
+
+    fun seekTo(positionMs: Long) {
+        try { mediaPlayer?.seekTo(positionMs.toInt()) } catch (_: Exception) {}
+        _state.update { it.copy(playbackPositionMs = positionMs) }
+    }
+
+    fun skipForward15() {
+        val mp = mediaPlayer ?: return
+        val newPos = (mp.currentPosition + 15_000).coerceAtMost(mp.duration)
+        seekTo(newPos.toLong())
+    }
+
+    fun skipBackward15() {
+        val mp = mediaPlayer ?: return
+        val newPos = (mp.currentPosition - 15_000).coerceAtLeast(0)
+        seekTo(newPos.toLong())
+    }
+
+    private fun startPositionPolling() {
+        positionPollJob?.cancel()
+        positionPollJob = viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(100L)
+                val mp = mediaPlayer ?: break
+                try {
+                    _state.update { it.copy(playbackPositionMs = mp.currentPosition.toLong()) }
+                } catch (_: Exception) { break }
+            }
+        }
     }
 
     fun renameRecording(recordingId: String, newTitle: String) {

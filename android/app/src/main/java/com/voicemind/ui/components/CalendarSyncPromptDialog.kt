@@ -11,8 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosSecondaryLabel
 
 /**
  * Startup prompt shown whenever the user has not yet connected Google Calendar.
@@ -42,7 +40,7 @@ fun CalendarSyncPromptDialog(
                         "recordings. When Google Calendar is connected, anything with a time or " +
                         "date mentioned is automatically added to your calendar — no copy-pasting needed.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = IosSecondaryLabel,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
@@ -55,13 +53,13 @@ fun CalendarSyncPromptDialog(
                     text = "We only request permission to create and update events on your behalf. " +
                         "We never read your existing events or share your data.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = IosSecondaryLabel,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = onConnect) {
-                Text("Connect", color = IosAccent)
+                Text("Connect", color = MaterialTheme.colorScheme.primary)
             }
         },
         dismissButton = {

@@ -2,6 +2,7 @@ package com.voicemind.ui.checklist
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,15 +16,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.Notes
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import com.composables.icons.lucide.Calendar
+import com.composables.icons.lucide.Circle
+import com.composables.icons.lucide.CircleCheckBig
+import com.composables.icons.lucide.Clock
+import com.composables.icons.lucide.Flag
+import com.composables.icons.lucide.ListChecks
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.StickyNote
+import com.composables.icons.lucide.X
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -48,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -57,10 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicemind.data.model.ActionItem
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
-import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosLabel
-import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSuccess
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -82,7 +81,7 @@ fun TaskDetailScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         VoiceMindTopAppBar(
             title = "Task",
-            icon = Icons.Default.Checklist,
+            icon = Lucide.ListChecks,
             onBack = onBack,
         )
 
@@ -91,7 +90,7 @@ fun TaskDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(color = IosAccent, modifier = Modifier.size(32.dp))
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
             }
             return
         }
@@ -102,7 +101,7 @@ fun TaskDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Task not found", color = IosSecondaryLabel)
+                Text("Task not found", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             return
         }
@@ -128,7 +127,7 @@ fun TaskDetailScreen(
                 Text(
                     text = "From ${state.recordingTitle}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = IosAccent,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 16.dp),
                 )
             }
@@ -138,25 +137,25 @@ fun TaskDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 cornerRadius = 12.dp,
                 innerPadding = 0.dp,
+                onClick = { viewModel.toggleCompleted() },
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { viewModel.toggleCompleted() }
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        if (item.completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                        if (item.completed) Lucide.CircleCheckBig else Lucide.Circle,
                         contentDescription = null,
-                        tint = if (item.completed) IosSuccess else IosSecondaryLabel,
+                        tint = if (item.completed) IosSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = if (item.completed) "Completed" else "Mark as complete",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (item.completed) IosSuccess else IosLabel,
+                        color = if (item.completed) IosSuccess else MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -211,9 +210,9 @@ private fun EditableTitle(
         textStyle = TextStyle(
             fontSize = MaterialTheme.typography.headlineSmall.fontSize,
             fontWeight = MaterialTheme.typography.headlineSmall.fontWeight,
-            color = IosLabel,
+            color = MaterialTheme.colorScheme.onSurface,
         ),
-        cursorBrush = SolidColor(IosAccent),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         modifier = Modifier
             .fillMaxWidth()
             .onFocusChanged { focusState ->
@@ -233,7 +232,7 @@ private fun EditableTitle(
                     Text(
                         "Task title",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = IosSecondaryLabel,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 innerTextField()
@@ -264,9 +263,9 @@ private fun NotesCard(
             verticalAlignment = Alignment.Top,
         ) {
             Icon(
-                Icons.Filled.Notes,
+                Lucide.StickyNote,
                 contentDescription = null,
-                tint = IosAccent,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .size(22.dp)
                     .padding(top = 2.dp),
@@ -276,7 +275,7 @@ private fun NotesCard(
                 Text(
                     text = "Notes",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = IosLabel,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 BasicTextField(
@@ -284,9 +283,9 @@ private fun NotesCard(
                     onValueChange = { text = it },
                     textStyle = TextStyle(
                         fontSize = MaterialTheme.typography.bodySmall.fontSize,
-                        color = IosLabel,
+                        color = MaterialTheme.colorScheme.onSurface,
                     ),
-                    cursorBrush = SolidColor(IosAccent),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 10.dp)
@@ -304,7 +303,7 @@ private fun NotesCard(
                                 Text(
                                     "Add details about this task...",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = IosSecondaryLabel,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             innerTextField()
@@ -341,14 +340,15 @@ private fun DateDeadlineCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                     .clickable { pickerMode = PickerMode.DueDateDate }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Default.AccessTime,
+                    Lucide.Clock,
                     contentDescription = null,
-                    tint = IosAccent,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp),
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -356,7 +356,7 @@ private fun DateDeadlineCard(
                     Text(
                         text = "Date & Time",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = IosLabel,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     if (item.dueDate != null) {
                         val date = item.dueDate.toDate()
@@ -368,13 +368,13 @@ private fun DateDeadlineCard(
                         Text(
                             text = formatted,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (overdue) IosDestructive else IosSecondaryLabel,
+                            color = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         Text(
                             text = "Not set",
                             style = MaterialTheme.typography.bodySmall,
-                            color = IosSecondaryLabel,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -384,7 +384,7 @@ private fun DateDeadlineCard(
                         modifier = Modifier.size(32.dp),
                     ) {
                         Icon(
-                            Icons.Default.Close,
+                            Lucide.X,
                             contentDescription = "Clear",
                             modifier = Modifier.size(16.dp),
                             tint = IosDestructive,
@@ -399,14 +399,15 @@ private fun DateDeadlineCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
                     .clickable { pickerMode = PickerMode.DeadlineDate }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Default.Flag,
+                    Lucide.Flag,
                     contentDescription = null,
-                    tint = IosAccent,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp),
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -414,7 +415,7 @@ private fun DateDeadlineCard(
                     Text(
                         text = "Deadline",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = IosLabel,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     if (item.deadline != null) {
                         val date = item.deadline.toDate()
@@ -427,13 +428,13 @@ private fun DateDeadlineCard(
                         Text(
                             text = formatted,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (overdue) IosDestructive else IosSecondaryLabel,
+                            color = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         Text(
                             text = "Not set",
                             style = MaterialTheme.typography.bodySmall,
-                            color = IosSecondaryLabel,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -443,7 +444,7 @@ private fun DateDeadlineCard(
                         modifier = Modifier.size(32.dp),
                     ) {
                         Icon(
-                            Icons.Default.Close,
+                            Lucide.X,
                             contentDescription = "Clear",
                             modifier = Modifier.size(16.dp),
                             tint = IosDestructive,
@@ -461,7 +462,7 @@ private fun DateDeadlineCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.Event,
+                        Lucide.Calendar,
                         contentDescription = null,
                         tint = IosSuccess,
                         modifier = Modifier.size(16.dp),

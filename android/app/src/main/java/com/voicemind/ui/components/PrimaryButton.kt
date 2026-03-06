@@ -9,9 +9,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosWhite
+import com.voicemind.ui.theme.VmDimens
 
 @Composable
 fun PrimaryButton(
@@ -24,9 +24,9 @@ fun PrimaryButton(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(50.dp),
+            .height(VmDimens.ButtonHeight),
         enabled = enabled,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(VmDimens.RadiusMedium),
         colors = ButtonDefaults.buttonColors(
             containerColor = IosAccent,
             contentColor = IosWhite,

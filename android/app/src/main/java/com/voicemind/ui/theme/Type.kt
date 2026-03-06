@@ -16,67 +16,67 @@ val InterFontFamily = FontFamily(
 )
 
 val VmTypography = Typography(
-    // iOS Large Title
+    // Display / Hero
     headlineLarge = TextStyle(
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 34.sp,
-        lineHeight = 41.sp,
-    ),
-    // iOS Title 1
-    titleLarge = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 28.sp,
         lineHeight = 34.sp,
     ),
-    // iOS Title 2
-    titleMedium = TextStyle(
+    // Brand header
+    titleLarge = TextStyle(
         fontFamily = InterFontFamily,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,
         fontSize = 22.sp,
         lineHeight = 28.sp,
     ),
-    // iOS Headline
+    // Sheet / dialog titles
+    titleMedium = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+    ),
+    // App bar / emphasis
     titleSmall = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 17.sp,
-        lineHeight = 22.sp,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
     ),
-    // iOS Body
+    // Primary list content
     bodyLarge = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 17.sp,
-        lineHeight = 22.sp,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
     ),
-    // iOS Callout
+    // Body / descriptions
     bodyMedium = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 21.sp,
+        fontSize = 14.sp,
+        lineHeight = 19.sp,
     ),
-    // iOS Footnote
+    // Metadata / section labels
     bodySmall = TextStyle(
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 13.sp,
-        lineHeight = 18.sp,
-    ),
-    // iOS Caption 1
-    labelMedium = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
     ),
-    // iOS Caption 2
-    labelSmall = TextStyle(
+    // Chips / small interactive
+    labelMedium = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 11.sp,
+        lineHeight = 15.sp,
+    ),
+    // Captions / nav labels
+    labelSmall = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 10.sp,
         lineHeight = 13.sp,
     ),
 )

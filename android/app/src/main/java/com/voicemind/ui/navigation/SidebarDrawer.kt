@@ -15,11 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosLabel
-import com.voicemind.ui.theme.IosSecondaryLabel
-import com.voicemind.ui.theme.IosSeparator
-import com.voicemind.ui.theme.IosWhite
 
 @Composable
 fun SidebarDrawer(
@@ -27,7 +22,7 @@ fun SidebarDrawer(
     onNavigate: (Routes) -> Unit,
 ) {
     ModalDrawerSheet(
-        drawerContainerColor = IosWhite,
+        drawerContainerColor = MaterialTheme.colorScheme.surface,
         modifier = Modifier.width(280.dp),
     ) {
         Spacer(modifier = Modifier.height(24.dp))
@@ -35,13 +30,13 @@ fun SidebarDrawer(
         Text(
             text = "VoiceMind AI",
             style = MaterialTheme.typography.titleLarge,
-            color = IosLabel,
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
         )
 
         HorizontalDivider(
-            color = IosSeparator,
+            color = MaterialTheme.colorScheme.outline,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
@@ -54,14 +49,14 @@ fun SidebarDrawer(
                     Icon(
                         imageVector = item.icon,
                         contentDescription = item.label,
-                        tint = if (selected) IosAccent else IosSecondaryLabel,
+                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
                 label = {
                     Text(
                         text = item.label,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = if (selected) IosAccent else IosLabel,
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                     )
                 },
@@ -69,8 +64,8 @@ fun SidebarDrawer(
                 onClick = { onNavigate(item) },
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
                 colors = NavigationDrawerItemDefaults.colors(
-                    selectedContainerColor = IosAccent.copy(alpha = 0.08f),
-                    unselectedContainerColor = IosWhite,
+                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    unselectedContainerColor = MaterialTheme.colorScheme.surface,
                 ),
             )
         }

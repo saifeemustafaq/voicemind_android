@@ -18,11 +18,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Pause
+import com.composables.icons.lucide.Play
+import com.composables.icons.lucide.Square
+import com.composables.icons.lucide.Trash2
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,6 +53,7 @@ import com.voicemind.ui.theme.IosLabel
 import com.voicemind.ui.theme.IosOpaqueSeparator
 import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosWhite
+import com.voicemind.ui.theme.VmDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,12 +66,12 @@ fun RecordingBottomSheet(
 
     if (!state.showSheet) return
 
-    val sheetShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+    val sheetShape = RoundedCornerShape(topStart = VmDimens.RadiusLarge, topEnd = VmDimens.RadiusLarge)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = IosWhite,
+        containerColor = MaterialTheme.colorScheme.surface,
         shape = sheetShape,
         dragHandle = null,
     ) {
@@ -85,7 +86,7 @@ fun RecordingBottomSheet(
                 modifier = Modifier
                     .width(36.dp)
                     .height(5.dp)
-                    .clip(RoundedCornerShape(2.5.dp))
+                    .clip(RoundedCornerShape(VmDimens.SpaceXs))
                     .background(IosOpaqueSeparator)
             )
             Spacer(modifier = Modifier.height(20.dp))
@@ -131,9 +132,9 @@ fun RecordingBottomSheet(
                 text = formatTime(state.elapsedSeconds),
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 48.sp,
+                    fontSize = 40.sp,
                 ),
-                color = IosLabel,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
 
@@ -167,7 +168,7 @@ fun RecordingBottomSheet(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            Icons.Default.Delete,
+                            Lucide.Trash2,
                             contentDescription = "Discard",
                             tint = IosDestructive,
                             modifier = Modifier.size(24.dp),
@@ -181,13 +182,13 @@ fun RecordingBottomSheet(
                         if (state.isPaused) viewModel.resumeRecording()
                         else viewModel.pauseRecording()
                     },
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(52.dp),
                     shape = CircleShape,
                     color = IosAccent.copy(alpha = 0.1f),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = if (state.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                            imageVector = if (state.isPaused) Lucide.Play else Lucide.Pause,
                             contentDescription = if (state.isPaused) "Resume" else "Pause",
                             tint = IosAccent,
                             modifier = Modifier.size(30.dp),
@@ -210,7 +211,7 @@ fun RecordingBottomSheet(
                     ),
                 ) {
                     Icon(
-                        Icons.Default.Stop,
+                        Lucide.Square,
                         contentDescription = "Stop and save",
                         modifier = Modifier.size(32.dp)
                     )

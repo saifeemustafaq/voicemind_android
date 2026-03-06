@@ -2,8 +2,8 @@ package com.voicemind.ui.folders
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
+import com.composables.icons.lucide.Folder
+import com.composables.icons.lucide.Lucide
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,7 +26,7 @@ fun FolderDetailScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         VoiceMindTopAppBar(
             title = folderName,
-            icon = Icons.Default.Folder,
+            icon = Lucide.Folder,
             onBack = onBack,
         )
         RecordingsScreen(folderId = folderId, onBack = onBack)

@@ -14,12 +14,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.outlined.Circle
+import com.composables.icons.lucide.Circle
+import com.composables.icons.lucide.CircleCheckBig
+import com.composables.icons.lucide.Clock
+import com.composables.icons.lucide.Flag
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Sparkles
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,8 +48,6 @@ import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
 import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosLabel
-import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSuccess
 import com.voicemind.ui.theme.IosTertiaryFill
 import com.voicemind.ui.theme.IosWhite
@@ -86,7 +84,7 @@ fun TranscriptSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = IosWhite,
+        containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
     ) {
         Column(
@@ -120,7 +118,7 @@ fun TranscriptSheet(
                             selectedContainerColor = IosAccent,
                             selectedLabelColor = IosWhite,
                             containerColor = IosTertiaryFill,
-                            labelColor = IosLabel,
+                            labelColor = MaterialTheme.colorScheme.onSurface,
                         ),
                         shape = RoundedCornerShape(20.dp),
                         border = null,
@@ -143,14 +141,14 @@ fun TranscriptSheet(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(14.dp),
                                     strokeWidth = 2.dp,
-                                    color = IosAccent,
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = IosTertiaryFill,
-                                labelColor = IosLabel,
+                                labelColor = MaterialTheme.colorScheme.onSurface,
                                 disabledContainerColor = IosTertiaryFill,
-                                disabledLabelColor = IosSecondaryLabel,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             ),
                             shape = RoundedCornerShape(20.dp),
                             border = null,
@@ -167,15 +165,15 @@ fun TranscriptSheet(
                             },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.AutoAwesome,
+                                    Lucide.Sparkles,
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
-                                    tint = IosAccent,
+                                    tint = MaterialTheme.colorScheme.primary,
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = IosTertiaryFill,
-                                labelColor = IosLabel,
+                                labelColor = MaterialTheme.colorScheme.onSurface,
                             ),
                             shape = RoundedCornerShape(20.dp),
                             border = null,
@@ -191,7 +189,7 @@ fun TranscriptSheet(
                         Text(
                             "No tasks could be identified. Try again or edit the transcript.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = IosSecondaryLabel,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     sheetState.generateTasksFailed -> {
@@ -235,7 +233,7 @@ private fun TranscriptContent(recording: Recording) {
     Text(
         text = recording.transcription ?: "No transcript",
         style = MaterialTheme.typography.bodyMedium,
-        color = if (recording.transcription != null) IosLabel else IosSecondaryLabel,
+        color = if (recording.transcription != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
@@ -255,14 +253,14 @@ private fun SummaryContent(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(32.dp),
-                        color = IosAccent,
+                        color = MaterialTheme.colorScheme.primary,
                         strokeWidth = 3.dp,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         "Summary is being generated...",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = IosSecondaryLabel,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -271,7 +269,7 @@ private fun SummaryContent(
             Text(
                 text = summaryState.text,
                 style = MaterialTheme.typography.bodyMedium,
-                color = IosLabel,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
         is SummaryState.Error -> {
@@ -288,7 +286,7 @@ private fun SummaryContent(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(onClick = onRetry) {
-                    Text("Retry", color = IosAccent)
+                    Text("Retry", color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -301,7 +299,7 @@ private fun TasksContent(sheetState: TranscriptSheetState) {
         Text(
             "No tasks",
             style = MaterialTheme.typography.bodyMedium,
-            color = IosSecondaryLabel,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -311,10 +309,10 @@ private fun TasksContent(sheetState: TranscriptSheetState) {
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(
-                        imageVector = if (item.completed) Icons.Filled.CheckCircle
-                        else Icons.Outlined.Circle,
+                        imageVector = if (item.completed) Lucide.CircleCheckBig
+                        else Lucide.Circle,
                         contentDescription = null,
-                        tint = if (item.completed) IosSuccess else IosSecondaryLabel,
+                        tint = if (item.completed) IosSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .size(20.dp)
                             .padding(top = 2.dp),
@@ -324,7 +322,7 @@ private fun TasksContent(sheetState: TranscriptSheetState) {
                         Text(
                             text = item.title,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = IosLabel,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         TaskDateLabels(item)
                     }
@@ -351,16 +349,16 @@ private fun TaskDateLabels(item: ActionItem) {
             modifier = Modifier.padding(top = 2.dp),
         ) {
             Icon(
-                Icons.Default.AccessTime,
+                Lucide.Clock,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = if (overdue) IosDestructive else IosSecondaryLabel,
+                tint = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = formatted,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (overdue) IosDestructive else IosSecondaryLabel,
+                color = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -378,16 +376,16 @@ private fun TaskDateLabels(item: ActionItem) {
             modifier = Modifier.padding(top = 2.dp),
         ) {
             Icon(
-                Icons.Default.Flag,
+                Lucide.Flag,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = if (overdue) IosDestructive else IosSecondaryLabel,
+                tint = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "Deadline: $formatted",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (overdue) IosDestructive else IosSecondaryLabel,
+                color = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

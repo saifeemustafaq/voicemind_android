@@ -1,15 +1,14 @@
 package com.voicemind.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.Info
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.Info
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Menu
+import com.composables.icons.lucide.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosSecondaryLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,30 +42,29 @@ fun VoiceMindTopAppBar(
                     icon,
                     contentDescription = null,
                     modifier = Modifier.size(22.dp),
-                    tint = IosAccent,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(title, style = MaterialTheme.typography.titleSmall)
                 if (onInfoClick != null) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        Icons.Outlined.Info,
-                        contentDescription = "How summaries work",
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable { onInfoClick() },
-                        tint = IosSecondaryLabel,
-                    )
+                    IconButton(onClick = onInfoClick) {
+                        Icon(
+                            Lucide.Info,
+                            contentDescription = "How summaries work",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         },
         navigationIcon = {
             when {
                 onBack != null -> IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Icon(Lucide.ArrowLeft, contentDescription = "Back")
                 }
                 onOpenDrawer != null -> IconButton(onClick = onOpenDrawer) {
-                    Icon(Icons.Default.Menu, contentDescription = "Menu")
+                    Icon(Lucide.Menu, contentDescription = "Menu")
                 }
             }
         },
@@ -76,7 +72,7 @@ fun VoiceMindTopAppBar(
             extraActions()
             if (onSettings != null) {
                 IconButton(onClick = onSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    Icon(Lucide.Settings, contentDescription = "Settings")
                 }
             }
         },

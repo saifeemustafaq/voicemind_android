@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +28,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -39,12 +38,10 @@ import com.voicemind.BuildConfig
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.VoiceMindTopAppBar
-import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosLabel
-import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSuccess
 import com.voicemind.ui.theme.IosWhite
+import com.voicemind.ui.theme.VmDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,7 +78,7 @@ fun SettingsScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         VoiceMindTopAppBar(
             title = "Settings",
-            icon = Icons.Default.Settings,
+            icon = Lucide.Settings,
             onOpenDrawer = onOpenDrawer,
         )
 
@@ -93,8 +90,8 @@ fun SettingsScreen(
             Text(
                 text = "ACCOUNT",
                 style = MaterialTheme.typography.bodySmall,
-                color = IosSecondaryLabel,
-                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = VmDimens.ScreenHorizontalPadding, top = VmDimens.SpaceSm, bottom = VmDimens.SpaceXs)
             )
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -102,7 +99,7 @@ fun SettingsScreen(
                     Text(
                         text = settingsViewModel.userDisplayText,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = IosSecondaryLabel,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     PrimaryButton(
@@ -112,13 +109,13 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceXl))
 
             Text(
                 text = "NAVIGATION",
                 style = MaterialTheme.typography.bodySmall,
-                color = IosSecondaryLabel,
-                modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = VmDimens.ScreenHorizontalPadding, top = VmDimens.SpaceSm, bottom = VmDimens.SpaceXs)
             )
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -131,13 +128,13 @@ fun SettingsScreen(
                             Text(
                                 text = "Use sidebar navigation",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = IosLabel,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
                                 text = if (useSidebar) "Swipe or tap menu to open drawer"
                                        else "Tabs shown at the bottom of the screen",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = IosSecondaryLabel,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Switch(
@@ -152,13 +149,13 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceXl))
 
             Text(
                 text = "INTEGRATIONS",
                 style = MaterialTheme.typography.bodySmall,
-                color = IosSecondaryLabel,
-                modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = VmDimens.ScreenHorizontalPadding, top = VmDimens.SpaceSm, bottom = VmDimens.SpaceXs)
             )
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -171,19 +168,19 @@ fun SettingsScreen(
                             Text(
                                 text = "Google Calendar",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = IosLabel,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
                                 text = if (calendarConnected) "Task dates sync to your calendar"
                                        else "Sync task dates to Google Calendar",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = IosSecondaryLabel,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         if (calendarLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
-                                color = IosAccent,
+                                color = MaterialTheme.colorScheme.primary,
                                 strokeWidth = 2.dp,
                             )
                         } else {
@@ -213,7 +210,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(bottom = 8.dp),
                     action = {
                         TextButton(onClick = { settingsViewModel.clearCalendarError() }) {
-                            Text("Dismiss", color = Color.White)
+                            Text("Dismiss", color = IosWhite)
                         }
                     },
                     containerColor = IosDestructive,
@@ -225,7 +222,7 @@ fun SettingsScreen(
             Text(
                 text = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                 style = MaterialTheme.typography.bodySmall,
-                color = IosSecondaryLabel,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()

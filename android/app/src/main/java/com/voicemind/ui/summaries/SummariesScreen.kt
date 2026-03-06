@@ -1,7 +1,7 @@
 package com.voicemind.ui.summaries
 
 import android.widget.Toast
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,11 +16,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Share
+import com.composables.icons.lucide.Copy
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Share
+import com.composables.icons.lucide.Sparkles
+import com.composables.icons.lucide.Trash2
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -52,7 +52,7 @@ import com.voicemind.ui.components.EmptyStateCard
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosSecondaryLabel
+import com.voicemind.ui.theme.VmDimens
 import com.voicemind.util.toShortDateString
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,7 +68,7 @@ fun SummariesScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         VoiceMindTopAppBar(
             title = "Summaries",
-            icon = Icons.Default.AutoAwesome,
+            icon = Lucide.Sparkles,
             onOpenDrawer = onOpenDrawer,
             onSettings = onSettings,
             onInfoClick = { viewModel.showInfoSheet() },
@@ -78,13 +78,13 @@ fun SummariesScreen(
             when {
                 state.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = IosAccent)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 state.summaries.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         EmptyStateCard(
-                            icon = Icons.Default.AutoAwesome,
+                            icon = Lucide.Sparkles,
                             message = "No summaries yet.\nSelect recordings and tap the summarize icon.",
                         )
                     }
@@ -96,9 +96,13 @@ fun SummariesScreen(
                             SummaryRow(
                                 summary = summary,
                                 onClick = { viewModel.selectSummary(summary) },
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = tween(200),
+                                    fadeOutSpec = tween(200),
+                                ),
                             )
                         }
-                        item { Spacer(modifier = Modifier.height(80.dp)) }
+                        item { Spacer(modifier = Modifier.height(VmDimens.FabClearance)) }
                     }
                 }
             }
@@ -128,8 +132,9 @@ fun SummariesScreen(
 private fun SummaryRow(
     summary: CollectiveSummary,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }, innerPadding = 12.dp) {
+    GlassCard(modifier = modifier.fillMaxWidth(), onClick = onClick, innerPadding = VmDimens.SpaceMd) {
         Column {
             Text(
                 text = summary.summary.stripMarkdown(),
@@ -137,7 +142,7 @@ private fun SummaryRow(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceSm))
             val sourcesLabel = when {
                 summary.recordingTitles.size <= 2 -> summary.recordingTitles.joinToString(", ")
                 else -> "${summary.recordingTitles.size} recordings"
@@ -145,7 +150,7 @@ private fun SummaryRow(
             Text(
                 text = sourcesLabel,
                 style = MaterialTheme.typography.bodySmall,
-                color = IosAccent,
+                color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -153,7 +158,7 @@ private fun SummaryRow(
                 Text(
                     text = date.toShortDateString(),
                     style = MaterialTheme.typography.bodySmall,
-                    color = IosSecondaryLabel,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -179,8 +184,8 @@ private fun SummaryDetailSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = VmDimens.SpaceXl)
+                .padding(bottom = VmDimens.SpaceXxl)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -190,13 +195,13 @@ private fun SummaryDetailSheet(
                 Text("Summary", style = MaterialTheme.typography.titleMedium)
                 Row {
                     IconButton(onClick = onCopy) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = IosAccent)
+                        Icon(Lucide.Copy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = onShare) {
-                        Icon(Icons.Default.Share, contentDescription = "Share", tint = IosAccent)
+                        Icon(Lucide.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                        Icon(Lucide.Trash2, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -213,14 +218,14 @@ private fun SummaryDetailSheet(
                     Text(
                         text = "Sources",
                         style = MaterialTheme.typography.labelMedium,
-                        color = IosSecondaryLabel,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     summary.recordingTitles.forEach { title ->
                         Text(
                             text = "• $title",
                             style = MaterialTheme.typography.bodySmall,
-                            color = IosSecondaryLabel,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 2.dp),
                         )
                     }
@@ -231,7 +236,7 @@ private fun SummaryDetailSheet(
                     Text(
                         text = date.toShortDateString(),
                         style = MaterialTheme.typography.bodySmall,
-                        color = IosSecondaryLabel,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -278,10 +283,10 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    Icons.Default.AutoAwesome,
+                    Lucide.Sparkles,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
-                    tint = IosAccent,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.size(8.dp))
                 Text("How Summaries Work", style = MaterialTheme.typography.titleMedium)
@@ -309,7 +314,7 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
             Text(
                 text = "Summaries are generated from the transcripts of your selected recordings.",
                 style = MaterialTheme.typography.bodySmall,
-                color = IosSecondaryLabel,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Spacer(modifier = Modifier.height(20.dp))

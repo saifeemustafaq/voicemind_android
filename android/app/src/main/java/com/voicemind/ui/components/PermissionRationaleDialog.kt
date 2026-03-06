@@ -11,8 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosSecondaryLabel
 
 /**
  * Shown after the user denies one or both of the required permissions.
@@ -50,7 +48,7 @@ fun PermissionRationaleDialog(
                         text = "VoiceMind needs microphone access to record your voice memos. " +
                             "Recording will not work without it.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = IosSecondaryLabel,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (missingNotification) Spacer(Modifier.height(16.dp))
                 }
@@ -66,7 +64,7 @@ fun PermissionRationaleDialog(
                             "stop, or delete a recording while VoiceMind is running in the " +
                             "background. All recording controls appear in the notification shade.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = IosSecondaryLabel,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -75,7 +73,7 @@ fun PermissionRationaleDialog(
             TextButton(onClick = onAllow) {
                 Text(
                     text = if (anyPermanentlyDenied) "Open Settings" else "Allow",
-                    color = IosAccent,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         },

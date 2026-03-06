@@ -30,3 +30,17 @@ val IosQuaternaryFill = Color(0x14747480) // 0.08 alpha
 
 // Surface / card
 val IosWhite = Color(0xFFFFFFFF)
+
+// Shimmer animation (SummarizationPopup)
+val ShimmerBlue = Color(0xFF5E9EFF)
+val ShimmerGold = Color(0xFFFFD700)
+val ShimmerPurple = Color(0xFFB47FFF)
+
+// Dark mode equivalents
+val IosDarkBackground = Color(0xFF000000)
+val IosDarkSecondaryBackground = Color(0xFF1C1C1E)
+val IosDarkTertiaryBackground = Color(0xFF2C2C2E)
+val IosDarkLabel = Color(0xFFFFFFFF)
+val IosDarkSecondaryLabel = Color(0x99EBEBF5)
+val IosDarkSeparator = Color(0x52545458)
+val IosDarkAccent = Color(0xFF0A84FF)

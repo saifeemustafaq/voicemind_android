@@ -1,13 +1,14 @@
 package com.voicemind.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.dp
 
-private val IosColorScheme = lightColorScheme(
+private val IosLightColorScheme = lightColorScheme(
     primary = IosAccent,
     onPrimary = IosWhite,
     primaryContainer = IosAccent,
@@ -30,22 +31,45 @@ private val IosColorScheme = lightColorScheme(
     outlineVariant = IosOpaqueSeparator,
 )
 
-private val IosShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(8.dp),
-    medium = RoundedCornerShape(10.dp),
-    large = RoundedCornerShape(12.dp),
-    extraLarge = RoundedCornerShape(22.dp),
+private val IosDarkColorScheme = darkColorScheme(
+    primary = IosDarkAccent,
+    onPrimary = IosDarkLabel,
+    primaryContainer = IosDarkAccent,
+    onPrimaryContainer = IosDarkLabel,
+    secondary = IosDarkAccent,
+    onSecondary = IosDarkLabel,
+    secondaryContainer = IosTertiaryFill,
+    onSecondaryContainer = IosDarkLabel,
+    tertiary = IosWarning,
+    onTertiary = IosDarkLabel,
+    background = IosDarkBackground,
+    onBackground = IosDarkLabel,
+    surface = IosDarkSecondaryBackground,
+    onSurface = IosDarkLabel,
+    surfaceVariant = IosDarkTertiaryBackground,
+    onSurfaceVariant = IosDarkSecondaryLabel,
+    error = IosDestructive,
+    onError = IosDarkLabel,
+    outline = IosDarkSeparator,
+    outlineVariant = IosDarkSeparator,
+)
+
+private val VmShapes = Shapes(
+    small = RoundedCornerShape(VmDimens.RadiusSmall),    // 10dp — inputs, chips
+    medium = RoundedCornerShape(VmDimens.RadiusMedium),  // 14dp — cards, buttons
+    large = RoundedCornerShape(VmDimens.RadiusLarge),    // 22dp — sheets, modals
 )
 
 @Composable
 fun VoiceMindAITheme(
-    content: @Composable () -> Unit
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
 ) {
+    val colorScheme = if (darkTheme) IosDarkColorScheme else IosLightColorScheme
     MaterialTheme(
-        colorScheme = IosColorScheme,
+        colorScheme = colorScheme,
         typography = VmTypography,
-        shapes = IosShapes,
-        content = content
+        shapes = VmShapes,
+        content = content,
     )
 }

@@ -15,13 +15,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import com.composables.icons.lucide.Circle
+import com.composables.icons.lucide.CircleCheckBig
+import com.composables.icons.lucide.Clock
+import com.composables.icons.lucide.Flag
+import com.composables.icons.lucide.ListChecks
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Plus
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -50,10 +50,9 @@ import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosLabel
-import com.voicemind.ui.theme.IosSecondaryLabel
 import com.voicemind.ui.theme.IosSuccess
 import com.voicemind.ui.theme.IosWhite
+import com.voicemind.ui.theme.VmDimens
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -73,7 +72,7 @@ fun ChecklistScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             VoiceMindTopAppBar(
                 title = "Checklist",
-                icon = Icons.Default.Checklist,
+                icon = Lucide.ListChecks,
                 onOpenDrawer = onOpenDrawer,
                 onSettings = onSettings,
             )
@@ -87,21 +86,20 @@ fun ChecklistScreen(
                 Text(
                     text = "TO-DO",
                     style = MaterialTheme.typography.bodySmall,
-                    color = IosSecondaryLabel,
-                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = VmDimens.ScreenHorizontalPadding, top = VmDimens.SpaceSm, bottom = VmDimens.SpaceXs)
                 )
 
                 GlassCard(
                     modifier = Modifier.fillMaxWidth(),
-                    cornerRadius = 10.dp,
-                    innerPadding = 0.dp
+                    innerPadding = 0.dp,
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         if (state.todoItems.isEmpty()) {
                             Text(
                                 text = "No pending items",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = IosSecondaryLabel,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         }
@@ -121,13 +119,12 @@ fun ChecklistScreen(
                 Text(
                     text = "DONE",
                     style = MaterialTheme.typography.bodySmall,
-                    color = IosSecondaryLabel,
-                    modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = VmDimens.ScreenHorizontalPadding, top = VmDimens.SpaceSm, bottom = VmDimens.SpaceXs)
                 )
 
                 GlassCard(
                     modifier = Modifier.fillMaxWidth(),
-                    cornerRadius = 10.dp,
                     innerPadding = 0.dp,
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -135,7 +132,7 @@ fun ChecklistScreen(
                             Text(
                                 text = "Completed items appear here",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = IosSecondaryLabel,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         }
@@ -150,7 +147,7 @@ fun ChecklistScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(80.dp))
+                Spacer(modifier = Modifier.height(VmDimens.FabClearance))
             }
         }
 
@@ -158,12 +155,12 @@ fun ChecklistScreen(
             onClick = { showAddDialog = true },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(24.dp),
+                .padding(VmDimens.SpaceXl),
             containerColor = IosAccent,
             contentColor = IosWhite,
             shape = CircleShape,
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Add task")
+            Icon(Lucide.Plus, contentDescription = "Add task")
         }
     }
 
@@ -194,9 +191,9 @@ private fun ActionItemRow(
     ) {
         IconButton(onClick = onToggle, modifier = Modifier.size(48.dp)) {
             Icon(
-                if (item.completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                if (item.completed) Lucide.CircleCheckBig else Lucide.Circle,
                 contentDescription = if (item.completed) "Mark incomplete" else "Mark complete",
-                tint = if (item.completed) IosSuccess else IosSecondaryLabel,
+                tint = if (item.completed) IosSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -206,7 +203,7 @@ private fun ActionItemRow(
                 style = MaterialTheme.typography.bodyMedium.copy(
                     textDecoration = if (item.completed) TextDecoration.LineThrough else TextDecoration.None,
                 ),
-                color = if (item.completed) IosSecondaryLabel else IosLabel,
+                color = if (item.completed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -260,16 +257,16 @@ private fun DateLabels(item: ActionItem) {
             modifier = Modifier.padding(top = 2.dp),
         ) {
             Icon(
-                Icons.Default.AccessTime,
+                Lucide.Clock,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = if (overdue) IosDestructive else IosSecondaryLabel,
+                tint = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = formatted,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (overdue) IosDestructive else IosSecondaryLabel,
+                color = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -287,16 +284,16 @@ private fun DateLabels(item: ActionItem) {
             modifier = Modifier.padding(top = 2.dp),
         ) {
             Icon(
-                Icons.Default.Flag,
+                Lucide.Flag,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = if (overdue) IosDestructive else IosSecondaryLabel,
+                tint = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "Deadline: $formatted",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (overdue) IosDestructive else IosSecondaryLabel,
+                color = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

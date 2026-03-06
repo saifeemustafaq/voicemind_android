@@ -4,26 +4,21 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Mic
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosBackground
 import com.voicemind.ui.theme.IosWhite
+import com.voicemind.ui.theme.VmDimens
 
 @Composable
 fun RecordFab(
@@ -31,7 +26,6 @@ fun RecordFab(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -40,18 +34,7 @@ fun RecordFab(
     }
 
     Box(
-        modifier = modifier
-            .size(120.dp)
-            .background(
-                brush = Brush.radialGradient(
-                    colorStops = arrayOf(
-                        0.0f to IosBackground,
-                        0.5f to IosBackground,
-                        1.0f to Color.Transparent,
-                    ),
-                    radius = with(density) { 60.dp.toPx() },
-                )
-            ),
+        modifier = modifier.size(VmDimens.FabContainerSize),
         contentAlignment = Alignment.Center,
     ) {
         FloatingActionButton(
@@ -62,15 +45,15 @@ fun RecordFab(
                 if (hasPerm) onStartRecording()
                 else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             },
-            modifier = Modifier.size(72.dp),
+            modifier = Modifier.size(VmDimens.FabSize),
             containerColor = IosAccent,
             contentColor = IosWhite,
             shape = CircleShape,
         ) {
             Icon(
-                Icons.Default.Mic,
+                Lucide.Mic,
                 contentDescription = "Record",
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(VmDimens.IconLg),
             )
         }
     }
