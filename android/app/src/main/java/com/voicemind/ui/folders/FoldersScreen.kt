@@ -18,15 +18,15 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
-import com.composables.icons.lucide.ChevronRight
-import com.composables.icons.lucide.Clock
-import com.composables.icons.lucide.EllipsisVertical
-import com.composables.icons.lucide.Folder
-import com.composables.icons.lucide.ListOrdered
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Pencil
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Trash2
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -53,8 +53,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.voicemind.data.model.Folder
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosWhite
 import com.voicemind.ui.theme.VmDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,22 +72,22 @@ fun FoldersScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             VoiceMindTopAppBar(
                 title = "Folders",
-                icon = Lucide.Folder,
+                icon = Icons.Default.Folder,
                 onOpenDrawer = onOpenDrawer,
                 onSettings = onSettings,
                 extraActions = {
                     IconButton(onClick = { viewModel.setSortOrder(FolderSort.Recency) }) {
                         Icon(
-                            Lucide.Clock,
+                            Icons.Default.Schedule,
                             contentDescription = "Sort by recency",
-                            tint = if (state.sort == FolderSort.Recency) IosAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (state.sort == FolderSort.Recency) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     IconButton(onClick = { viewModel.setSortOrder(FolderSort.Count) }) {
                         Icon(
-                            Lucide.ListOrdered,
+                            Icons.AutoMirrored.Filled.Sort,
                             contentDescription = "Sort by count",
-                            tint = if (state.sort == FolderSort.Count) IosAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (state.sort == FolderSort.Count) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
@@ -133,11 +131,11 @@ fun FoldersScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(VmDimens.SpaceXl),
-            containerColor = IosAccent,
-            contentColor = IosWhite,
+            
+            
             shape = CircleShape,
         ) {
-            Icon(Lucide.Plus, contentDescription = "Create folder")
+            Icon(Icons.Default.Add, contentDescription = "Create folder")
         }
     }
 
@@ -205,9 +203,9 @@ private fun FolderRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Lucide.Folder,
+                Icons.Default.Folder,
                 contentDescription = null,
-                tint = IosAccent,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
             Text(
@@ -230,33 +228,29 @@ private fun FolderRow(
             if (!isUnfiled) {
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Lucide.EllipsisVertical, contentDescription = "Options")
+                        Icon(Icons.Default.MoreVert, contentDescription = "Options")
                     }
                     DropdownMenu(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
-                        shape = RoundedCornerShape(VmDimens.RadiusSmall),
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 0.dp,
-                        shadowElevation = 3.dp,
-                        border = BorderStroke(VmDimens.HairlineBorder, MaterialTheme.colorScheme.outline),
+                        shape = MaterialTheme.shapes.extraSmall,
                     ) {
                         DropdownMenuItem(
                             text = { Text("Rename") },
                             onClick = { menuExpanded = false; onRename() },
-                            leadingIcon = { Icon(Lucide.Pencil, null) }
+                            leadingIcon = { Icon(Icons.Default.Edit, null) }
                         )
                         DropdownMenuItem(
                             text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                             onClick = { menuExpanded = false; onDelete() },
-                            leadingIcon = { Icon(Lucide.Trash2, null, tint = MaterialTheme.colorScheme.error) }
+                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
                         )
                     }
                 }
             } else {
                 Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     Icon(
-                        Lucide.ChevronRight,
+                        Icons.Default.ChevronRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -16,11 +16,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.composables.icons.lucide.Copy
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Share
-import com.composables.icons.lucide.Sparkles
-import com.composables.icons.lucide.Trash2
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -51,7 +51,6 @@ import com.voicemind.data.model.CollectiveSummary
 import com.voicemind.ui.components.EmptyStateCard
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
-import com.voicemind.ui.theme.IosAccent
 import com.voicemind.ui.theme.VmDimens
 import com.voicemind.util.toShortDateString
 
@@ -68,7 +67,7 @@ fun SummariesScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         VoiceMindTopAppBar(
             title = "Summaries",
-            icon = Lucide.Sparkles,
+            icon = Icons.Default.AutoAwesome,
             onOpenDrawer = onOpenDrawer,
             onSettings = onSettings,
             onInfoClick = { viewModel.showInfoSheet() },
@@ -84,7 +83,7 @@ fun SummariesScreen(
                 state.summaries.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         EmptyStateCard(
-                            icon = Lucide.Sparkles,
+                            icon = Icons.Default.AutoAwesome,
                             message = "No summaries yet.\nSelect recordings and tap the summarize icon.",
                         )
                     }
@@ -195,13 +194,13 @@ private fun SummaryDetailSheet(
                 Text("Summary", style = MaterialTheme.typography.titleMedium)
                 Row {
                     IconButton(onClick = onCopy) {
-                        Icon(Lucide.Copy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = onShare) {
-                        Icon(Lucide.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(Lucide.Trash2, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -283,7 +282,7 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    Lucide.Sparkles,
+                    Icons.Default.AutoAwesome,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
                     tint = MaterialTheme.colorScheme.primary,
@@ -322,7 +321,7 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
             Button(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = IosAccent),
+                
             ) {
                 Text("Got it")
             }

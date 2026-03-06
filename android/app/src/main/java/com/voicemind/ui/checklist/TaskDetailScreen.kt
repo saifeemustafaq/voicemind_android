@@ -16,15 +16,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import com.composables.icons.lucide.Calendar
-import com.composables.icons.lucide.Circle
-import com.composables.icons.lucide.CircleCheckBig
-import com.composables.icons.lucide.Clock
-import com.composables.icons.lucide.Flag
-import com.composables.icons.lucide.ListChecks
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.StickyNote
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.automirrored.filled.Note
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -59,8 +59,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicemind.data.model.ActionItem
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
-import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosSuccess
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -81,7 +79,7 @@ fun TaskDetailScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         VoiceMindTopAppBar(
             title = "Task",
-            icon = Lucide.ListChecks,
+            icon = Icons.Default.Checklist,
             onBack = onBack,
         )
 
@@ -135,7 +133,6 @@ fun TaskDetailScreen(
             // Completed toggle
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
-                cornerRadius = 12.dp,
                 innerPadding = 0.dp,
                 onClick = { viewModel.toggleCompleted() },
             ) {
@@ -146,16 +143,16 @@ fun TaskDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        if (item.completed) Lucide.CircleCheckBig else Lucide.Circle,
+                        if (item.completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                         contentDescription = null,
-                        tint = if (item.completed) IosSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (item.completed) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = if (item.completed) "Completed" else "Mark as complete",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (item.completed) IosSuccess else MaterialTheme.colorScheme.onSurface,
+                        color = if (item.completed) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -184,8 +181,8 @@ fun TaskDetailScreen(
                 onClick = { viewModel.deleteItem() },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = IosDestructive.copy(alpha = 0.1f),
-                    contentColor = IosDestructive,
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
                 ),
             ) {
                 Text("Delete Task")
@@ -253,7 +250,6 @@ private fun NotesCard(
 
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 12.dp,
         innerPadding = 0.dp,
     ) {
         Row(
@@ -263,7 +259,7 @@ private fun NotesCard(
             verticalAlignment = Alignment.Top,
         ) {
             Icon(
-                Lucide.StickyNote,
+                Icons.AutoMirrored.Filled.Note,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
@@ -332,7 +328,6 @@ private fun DateDeadlineCard(
 
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 12.dp,
         innerPadding = 0.dp,
     ) {
         Column {
@@ -340,13 +335,13 @@ private fun DateDeadlineCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .clickable { pickerMode = PickerMode.DueDateDate }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Lucide.Clock,
+                    Icons.Default.Schedule,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp),
@@ -368,7 +363,7 @@ private fun DateDeadlineCard(
                         Text(
                             text = formatted,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         Text(
@@ -384,10 +379,10 @@ private fun DateDeadlineCard(
                         modifier = Modifier.size(32.dp),
                     ) {
                         Icon(
-                            Lucide.X,
+                            Icons.Default.Close,
                             contentDescription = "Clear",
                             modifier = Modifier.size(16.dp),
-                            tint = IosDestructive,
+                            tint = MaterialTheme.colorScheme.error,
                         )
                     }
                 }
@@ -399,13 +394,13 @@ private fun DateDeadlineCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .clickable { pickerMode = PickerMode.DeadlineDate }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Lucide.Flag,
+                    Icons.Default.Flag,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp),
@@ -428,7 +423,7 @@ private fun DateDeadlineCard(
                         Text(
                             text = formatted,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         Text(
@@ -444,10 +439,10 @@ private fun DateDeadlineCard(
                         modifier = Modifier.size(32.dp),
                     ) {
                         Icon(
-                            Lucide.X,
+                            Icons.Default.Close,
                             contentDescription = "Clear",
                             modifier = Modifier.size(16.dp),
-                            tint = IosDestructive,
+                            tint = MaterialTheme.colorScheme.error,
                         )
                     }
                 }
@@ -462,16 +457,16 @@ private fun DateDeadlineCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Lucide.Calendar,
+                        Icons.Default.CalendarToday,
                         contentDescription = null,
-                        tint = IosSuccess,
+                        tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Synced to Google Calendar",
                         style = MaterialTheme.typography.labelSmall,
-                        color = IosSuccess,
+                        color = MaterialTheme.colorScheme.tertiary,
                     )
                 }
             }

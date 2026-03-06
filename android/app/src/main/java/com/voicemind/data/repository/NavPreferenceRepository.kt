@@ -56,6 +56,18 @@ class NavPreferenceRepository @Inject constructor(
         }
     }
 
+    private val defaultLandingPageKey = stringPreferencesKey("default_landing_page")
+
+    val defaultLandingPage: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[defaultLandingPageKey] ?: "recordings"
+    }
+
+    suspend fun setDefaultLandingPage(route: String) {
+        context.dataStore.edit { prefs ->
+            prefs[defaultLandingPageKey] = route
+        }
+    }
+
     private val folderSortKey = stringPreferencesKey("folder_sort")
 
     val folderSort: Flow<String> = context.dataStore.data.map { prefs ->
@@ -65,6 +77,19 @@ class NavPreferenceRepository @Inject constructor(
     suspend fun setFolderSort(value: String) {
         context.dataStore.edit { prefs ->
             prefs[folderSortKey] = value
+        }
+    }
+
+    private val navOrderKey = stringPreferencesKey("nav_order")
+    private val defaultNavOrder = "recordings,checklist,summaries,folders"
+
+    val navOrder: Flow<List<String>> = context.dataStore.data.map { prefs ->
+        (prefs[navOrderKey] ?: defaultNavOrder).split(",")
+    }
+
+    suspend fun setNavOrder(routes: List<String>) {
+        context.dataStore.edit { prefs ->
+            prefs[navOrderKey] = routes.joinToString(",")
         }
     }
 }

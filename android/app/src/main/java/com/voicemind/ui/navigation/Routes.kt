@@ -1,13 +1,17 @@
 package com.voicemind.ui.navigation
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.composables.icons.lucide.Folder
-import com.composables.icons.lucide.House
-import com.composables.icons.lucide.ListChecks
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Mic
-import com.composables.icons.lucide.Settings
-import com.composables.icons.lucide.Sparkles
 
 sealed class Routes(
     val route: String,
@@ -15,15 +19,20 @@ sealed class Routes(
     val icon: ImageVector,
     val outlinedIcon: ImageVector,
 ) {
-    data object Home : Routes("home", "Home", Lucide.House, Lucide.House)
-    data object Recordings : Routes("recordings", "Recordings", Lucide.Mic, Lucide.Mic)
-    data object Checklist : Routes("checklist", "Checklist", Lucide.ListChecks, Lucide.ListChecks)
-    data object Summaries : Routes("summaries", "Summaries", Lucide.Sparkles, Lucide.Sparkles)
-    data object Folders : Routes("folders", "Folders", Lucide.Folder, Lucide.Folder)
-    data object Settings : Routes("settings", "Settings", Lucide.Settings, Lucide.Settings)
+    data object Recordings : Routes("recordings", "Recordings", Icons.Filled.Mic, Icons.Outlined.Mic)
+    data object Checklist : Routes("checklist", "Checklist", Icons.Filled.Checklist, Icons.Outlined.Checklist)
+    data object Summaries : Routes("summaries", "Summaries", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome)
+    data object Folders : Routes("folders", "Folders", Icons.Filled.Folder, Icons.Outlined.Folder)
+    data object Settings : Routes("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 
     companion object {
-        val drawerItems by lazy { listOf(Home, Recordings, Checklist, Summaries, Folders) }
+        val drawerItems by lazy { listOf(Recordings, Checklist, Summaries, Folders) }
+
+        fun orderedItems(order: List<String>): List<Routes> {
+            val mapped = order.mapNotNull { route -> drawerItems.find { it.route == route } }
+            val missing = drawerItems.filter { item -> mapped.none { it.route == item.route } }
+            return mapped + missing
+        }
     }
 }
 

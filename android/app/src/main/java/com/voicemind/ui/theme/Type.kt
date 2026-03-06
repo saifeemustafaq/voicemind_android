@@ -15,68 +15,112 @@ val InterFontFamily = FontFamily(
     Font(R.font.inter_bold, FontWeight.Bold),
 )
 
+// Full M3 type scale — all 15 baseline styles with Inter as the brand typeface.
+// Sizes and line-heights match the Material 3 specification exactly.
 val VmTypography = Typography(
-    // Display / Hero
+    displayLarge = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 57.sp,
+        lineHeight = 64.sp,
+        letterSpacing = (-0.25).sp,
+    ),
+    displayMedium = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 45.sp,
+        lineHeight = 52.sp,
+        letterSpacing = 0.sp,
+    ),
+    displaySmall = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 36.sp,
+        lineHeight = 44.sp,
+        letterSpacing = 0.sp,
+    ),
     headlineLarge = TextStyle(
         fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 28.sp,
-        lineHeight = 34.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 32.sp,
+        lineHeight = 40.sp,
+        letterSpacing = 0.sp,
     ),
-    // Brand header
+    headlineMedium = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 28.sp,
+        lineHeight = 36.sp,
+        letterSpacing = 0.sp,
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
+        letterSpacing = 0.sp,
+    ),
     titleLarge = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 22.sp,
         lineHeight = 28.sp,
+        letterSpacing = 0.sp,
     ),
-    // Sheet / dialog titles
     titleMedium = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp,
+        fontSize = 16.sp,
         lineHeight = 24.sp,
+        letterSpacing = 0.15.sp,
     ),
-    // App bar / emphasis
     titleSmall = TextStyle(
         fontFamily = InterFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 15.sp,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
         lineHeight = 20.sp,
+        letterSpacing = 0.1.sp,
     ),
-    // Primary list content
     bodyLarge = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 15.sp,
-        lineHeight = 20.sp,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp,
     ),
-    // Body / descriptions
     bodyMedium = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 19.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.25.sp,
     ),
-    // Metadata / section labels
     bodySmall = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
+        letterSpacing = 0.4.sp,
     ),
-    // Chips / small interactive
+    labelLarge = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp,
+    ),
     labelMedium = TextStyle(
         fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 11.sp,
-        lineHeight = 15.sp,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp,
     ),
-    // Captions / nav labels
     labelSmall = TextStyle(
         fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 10.sp,
-        lineHeight = 13.sp,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp,
     ),
 )

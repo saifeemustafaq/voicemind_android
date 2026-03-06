@@ -17,12 +17,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import com.composables.icons.lucide.Eye
-import com.composables.icons.lucide.EyeOff
-import com.composables.icons.lucide.Lock
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Mail
-import com.composables.icons.lucide.Mic
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -59,10 +59,6 @@ import androidx.credentials.exceptions.NoCredentialException
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.voiceMindTextFieldColors
-import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosOpaqueSeparator
-import com.voicemind.ui.theme.IosSeparator
-import com.voicemind.ui.theme.IosWhite
 import com.voicemind.ui.theme.VmDimens
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -93,7 +89,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
             Spacer(modifier = Modifier.height(80.dp))
 
             Icon(
-                imageVector = Lucide.Mic,
+                imageVector = Icons.Default.Mic,
                 contentDescription = "VoiceMind",
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.primary
@@ -131,14 +127,14 @@ fun SignInScreen(viewModel: AuthViewModel) {
                         value = email,
                         onValueChange = { email = it },
                         label = { Text("Email") },
-                        leadingIcon = { Icon(Lucide.Mail, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
                         ),
-                        shape = RoundedCornerShape(10.dp),
+                        
                         colors = voiceMindTextFieldColors()
                     )
 
@@ -146,11 +142,11 @@ fun SignInScreen(viewModel: AuthViewModel) {
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Password") },
-                        leadingIcon = { Icon(Lucide.Lock, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
-                                    if (passwordVisible) Lucide.EyeOff else Lucide.Eye,
+                                    if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                     contentDescription = if (passwordVisible) "Hide password" else "Show password"
                                 )
                             }
@@ -162,7 +158,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
                         ),
-                        shape = RoundedCornerShape(10.dp),
+                        
                         colors = voiceMindTextFieldColors()
                     )
 
@@ -202,12 +198,12 @@ fun SignInScreen(viewModel: AuthViewModel) {
             ) {
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
-                    color = IosSeparator
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
                 Text("or", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
-                    color = IosSeparator
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
             }
 
@@ -243,8 +239,8 @@ fun SignInScreen(viewModel: AuthViewModel) {
                     .fillMaxWidth()
                     .height(50.dp),
                 enabled = !uiState.isLoading,
-                shape = RoundedCornerShape(VmDimens.RadiusMedium),
-                border = BorderStroke(VmDimens.ThinBorder, IosOpaqueSeparator),
+                
+                border = BorderStroke(VmDimens.ThinBorder, MaterialTheme.colorScheme.outline),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.onSurface
                 )
@@ -274,12 +270,12 @@ fun SignInScreen(viewModel: AuthViewModel) {
                     .padding(VmDimens.SpaceLg),
                 action = {
                     TextButton(onClick = { viewModel.clearError() }) {
-                        Text("Dismiss", color = IosWhite)
+                        Text("Dismiss")
                     }
                 },
-                containerColor = IosDestructive,
+                containerColor = MaterialTheme.colorScheme.errorContainer,
             ) {
-                Text(error, color = IosWhite)
+                Text(error)
             }
         }
     }

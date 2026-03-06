@@ -4,11 +4,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import com.composables.icons.lucide.ArrowLeft
-import com.composables.icons.lucide.Info
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Menu
-import com.composables.icons.lucide.Settings
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,11 +45,11 @@ fun VoiceMindTopAppBar(
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(title, style = MaterialTheme.typography.titleLarge)
                 if (onInfoClick != null) {
                     IconButton(onClick = onInfoClick) {
                         Icon(
-                            Lucide.Info,
+                            Icons.Default.Info,
                             contentDescription = "How summaries work",
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -61,10 +61,10 @@ fun VoiceMindTopAppBar(
         navigationIcon = {
             when {
                 onBack != null -> IconButton(onClick = onBack) {
-                    Icon(Lucide.ArrowLeft, contentDescription = "Back")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
                 onOpenDrawer != null -> IconButton(onClick = onOpenDrawer) {
-                    Icon(Lucide.Menu, contentDescription = "Menu")
+                    Icon(Icons.Default.Menu, contentDescription = "Menu")
                 }
             }
         },
@@ -72,7 +72,7 @@ fun VoiceMindTopAppBar(
             extraActions()
             if (onSettings != null) {
                 IconButton(onClick = onSettings) {
-                    Icon(Lucide.Settings, contentDescription = "Settings")
+                    Icon(Icons.Default.Settings, contentDescription = "Settings")
                 }
             }
         },

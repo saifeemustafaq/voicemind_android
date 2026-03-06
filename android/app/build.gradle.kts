@@ -96,9 +96,6 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
 
-    // Lucide Icons (iOS-style outlined iconography)
-    implementation("com.composables:icons-lucide-android:1.1.0")
-
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

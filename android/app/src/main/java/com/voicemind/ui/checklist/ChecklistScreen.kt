@@ -15,13 +15,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.composables.icons.lucide.Circle
-import com.composables.icons.lucide.CircleCheckBig
-import com.composables.icons.lucide.Clock
-import com.composables.icons.lucide.Flag
-import com.composables.icons.lucide.ListChecks
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Plus
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -48,10 +48,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicemind.data.model.ActionItem
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosSuccess
-import com.voicemind.ui.theme.IosWhite
 import com.voicemind.ui.theme.VmDimens
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -72,7 +68,7 @@ fun ChecklistScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             VoiceMindTopAppBar(
                 title = "Checklist",
-                icon = Lucide.ListChecks,
+                icon = Icons.Default.Checklist,
                 onOpenDrawer = onOpenDrawer,
                 onSettings = onSettings,
             )
@@ -156,11 +152,11 @@ fun ChecklistScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(VmDimens.SpaceXl),
-            containerColor = IosAccent,
-            contentColor = IosWhite,
+            
+            
             shape = CircleShape,
         ) {
-            Icon(Lucide.Plus, contentDescription = "Add task")
+            Icon(Icons.Default.Add, contentDescription = "Add task")
         }
     }
 
@@ -191,9 +187,9 @@ private fun ActionItemRow(
     ) {
         IconButton(onClick = onToggle, modifier = Modifier.size(48.dp)) {
             Icon(
-                if (item.completed) Lucide.CircleCheckBig else Lucide.Circle,
+                if (item.completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                 contentDescription = if (item.completed) "Mark incomplete" else "Mark complete",
-                tint = if (item.completed) IosSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (item.completed) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -257,16 +253,16 @@ private fun DateLabels(item: ActionItem) {
             modifier = Modifier.padding(top = 2.dp),
         ) {
             Icon(
-                Lucide.Clock,
+                Icons.Default.Schedule,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = formatted,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -284,16 +280,16 @@ private fun DateLabels(item: ActionItem) {
             modifier = Modifier.padding(top = 2.dp),
         ) {
             Icon(
-                Lucide.Flag,
+                Icons.Default.Flag,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "Deadline: $formatted",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (overdue) IosDestructive else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

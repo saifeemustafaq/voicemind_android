@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,12 +16,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Pause
-import com.composables.icons.lucide.Play
-import com.composables.icons.lucide.Square
-import com.composables.icons.lucide.Trash2
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,20 +38,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.voicemind.ui.components.voiceMindTextFieldColors
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosLabel
-import com.voicemind.ui.theme.IosOpaqueSeparator
-import com.voicemind.ui.theme.IosSecondaryLabel
-import com.voicemind.ui.theme.IosWhite
-import com.voicemind.ui.theme.VmDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,14 +56,11 @@ fun RecordingBottomSheet(
 
     if (!state.showSheet) return
 
-    val sheetShape = RoundedCornerShape(topStart = VmDimens.RadiusLarge, topEnd = VmDimens.RadiusLarge)
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        shape = sheetShape,
-        dragHandle = null,
+        // shape uses M3 default (extraLarge = 28 dp top corners)
+        // containerColor uses M3 default (colorScheme.surfaceContainerLow)
     ) {
         Column(
             modifier = Modifier
@@ -81,21 +68,10 @@ fun RecordingBottomSheet(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Box(
-                modifier = Modifier
-                    .width(36.dp)
-                    .height(5.dp)
-                    .clip(RoundedCornerShape(VmDimens.SpaceXs))
-                    .background(IosOpaqueSeparator)
-            )
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             if (state.isSaving) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(48.dp),
-                    color = IosAccent
-                )
+                CircularProgressIndicator(modifier = Modifier.size(48.dp))
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Saving...", style = MaterialTheme.typography.titleSmall)
                 Spacer(modifier = Modifier.height(32.dp))
@@ -109,9 +85,9 @@ fun RecordingBottomSheet(
                     targetValue = 1f,
                     animationSpec = infiniteRepeatable(
                         animation = tween(800),
-                        repeatMode = RepeatMode.Reverse
+                        repeatMode = RepeatMode.Reverse,
                     ),
-                    label = "pulseAlpha"
+                    label = "pulseAlpha",
                 )
                 alpha
             } else {
@@ -121,9 +97,9 @@ fun RecordingBottomSheet(
             Text(
                 text = if (state.isPaused) "Paused" else "Recording",
                 style = MaterialTheme.typography.titleSmall,
-                color = IosDestructive,
+                color = MaterialTheme.colorScheme.error,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.alpha(pulseAlpha)
+                modifier = Modifier.alpha(pulseAlpha),
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -146,8 +122,8 @@ fun RecordingBottomSheet(
                 label = { Text("Title") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                colors = voiceMindTextFieldColors()
+                shape = MaterialTheme.shapes.small,
+                colors = voiceMindTextFieldColors(),
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -159,24 +135,24 @@ fun RecordingBottomSheet(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Discard
+                // Discard — errorContainer / onErrorContainer
                 Surface(
                     onClick = { viewModel.discardRecording() },
                     modifier = Modifier.size(52.dp),
                     shape = CircleShape,
-                    color = IosDestructive.copy(alpha = 0.1f),
+                    color = MaterialTheme.colorScheme.errorContainer,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            Lucide.Trash2,
+                            Icons.Default.Delete,
                             contentDescription = "Discard",
-                            tint = IosDestructive,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.size(24.dp),
                         )
                     }
                 }
 
-                // Pause / Resume
+                // Pause / Resume — secondaryContainer / onSecondaryContainer
                 Surface(
                     onClick = {
                         if (state.isPaused) viewModel.resumeRecording()
@@ -184,26 +160,26 @@ fun RecordingBottomSheet(
                     },
                     modifier = Modifier.size(52.dp),
                     shape = CircleShape,
-                    color = IosAccent.copy(alpha = 0.1f),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = if (state.isPaused) Lucide.Play else Lucide.Pause,
+                            imageVector = if (state.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                             contentDescription = if (state.isPaused) "Resume" else "Pause",
-                            tint = IosAccent,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.size(30.dp),
                         )
                     }
                 }
 
-                // Stop and save
+                // Stop and save — error / onError
                 Button(
                     onClick = { viewModel.stopAndSave() },
                     modifier = Modifier.size(72.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = IosDestructive,
-                        contentColor = IosWhite
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
                     ),
                     elevation = ButtonDefaults.buttonElevation(
                         defaultElevation = 0.dp,
@@ -211,9 +187,9 @@ fun RecordingBottomSheet(
                     ),
                 ) {
                     Icon(
-                        Lucide.Square,
+                        Icons.Default.Stop,
                         contentDescription = "Stop and save",
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(32.dp),
                     )
                 }
             }

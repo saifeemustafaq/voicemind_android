@@ -12,14 +12,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Settings
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,15 +42,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
 import com.voicemind.BuildConfig
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.VoiceMindTopAppBar
-import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosSuccess
-import com.voicemind.ui.theme.IosWhite
+import com.voicemind.ui.navigation.Routes
 import com.voicemind.ui.theme.VmDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +58,8 @@ fun SettingsScreen(
     settingsViewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val useSidebar by settingsViewModel.useSidebar.collectAsStateWithLifecycle()
+    val defaultLandingPage by settingsViewModel.defaultLandingPage.collectAsStateWithLifecycle()
+    val navOrder by settingsViewModel.navOrder.collectAsStateWithLifecycle()
     val calendarConnected by settingsViewModel.calendarConnected.collectAsStateWithLifecycle()
     val calendarLoading by settingsViewModel.calendarLoading.collectAsStateWithLifecycle()
     val calendarError by settingsViewModel.calendarError.collectAsStateWithLifecycle()
@@ -75,24 +84,23 @@ fun SettingsScreen(
         )
     }
 
+    val orderedNavItems = Routes.orderedItems(navOrder)
+
     Column(modifier = Modifier.fillMaxSize()) {
         VoiceMindTopAppBar(
             title = "Settings",
-            icon = Lucide.Settings,
+            icon = Icons.Default.Settings,
             onOpenDrawer = onOpenDrawer,
         )
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
         ) {
-            Text(
-                text = "ACCOUNT",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = VmDimens.ScreenHorizontalPadding, top = VmDimens.SpaceSm, bottom = VmDimens.SpaceXs)
-            )
+            // ── ACCOUNT ──────────────────────────────────────────────────
+            SettingsSectionHeader("ACCOUNT")
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
@@ -109,17 +117,12 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(VmDimens.SpaceXl))
-
-            Text(
-                text = "NAVIGATION",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = VmDimens.ScreenHorizontalPadding, top = VmDimens.SpaceSm, bottom = VmDimens.SpaceXs)
-            )
+            // ── NAVIGATION ───────────────────────────────────────────────
+            SettingsSectionHeader("NAVIGATION")
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
+                    // Sidebar toggle
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -140,23 +143,102 @@ fun SettingsScreen(
                         Switch(
                             checked = useSidebar,
                             onCheckedChange = { settingsViewModel.toggleNavMode() },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = IosWhite,
-                                checkedTrackColor = IosSuccess,
-                            ),
                         )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = VmDimens.SpaceMd))
+
+                    // Default landing page
+                    Text(
+                        text = "Default landing page",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Screen shown when the app opens",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceSm))
+
+                    val landingOptions = listOf("recordings" to "Recordings", "checklist" to "Checklist", "folders" to "Folders")
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        landingOptions.forEachIndexed { index, (route, label) ->
+                            SegmentedButton(
+                                selected = defaultLandingPage == route,
+                                onClick = { settingsViewModel.setDefaultLandingPage(route) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = landingOptions.size),
+                                label = { Text(label, style = MaterialTheme.typography.bodySmall) },
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = VmDimens.SpaceMd))
+
+                    // Tab order
+                    Text(
+                        text = "Tab order",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Rearrange the order of navigation tabs",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceSm))
+
+                    orderedNavItems.forEachIndexed { index, item ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = item.outlinedIcon,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = item.label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(
+                                onClick = { settingsViewModel.moveNavItem(item.route, moveUp = true) },
+                                enabled = index > 0,
+                                modifier = Modifier.size(36.dp),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.KeyboardArrowUp,
+                                    contentDescription = "Move up",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (index > 0) MaterialTheme.colorScheme.onSurface
+                                           else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                )
+                            }
+                            IconButton(
+                                onClick = { settingsViewModel.moveNavItem(item.route, moveUp = false) },
+                                enabled = index < orderedNavItems.lastIndex,
+                                modifier = Modifier.size(36.dp),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.KeyboardArrowDown,
+                                    contentDescription = "Move down",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (index < orderedNavItems.lastIndex) MaterialTheme.colorScheme.onSurface
+                                           else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(VmDimens.SpaceXl))
-
-            Text(
-                text = "INTEGRATIONS",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = VmDimens.ScreenHorizontalPadding, top = VmDimens.SpaceSm, bottom = VmDimens.SpaceXs)
-            )
+            // ── INTEGRATIONS ─────────────────────────────────────────────
+            SettingsSectionHeader("INTEGRATIONS")
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
@@ -193,27 +275,23 @@ fun SettingsScreen(
                                         settingsViewModel.disconnectCalendar()
                                     }
                                 },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = IosWhite,
-                                    checkedTrackColor = IosSuccess,
-                                ),
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceXl))
 
             calendarError?.let { error ->
                 Snackbar(
                     modifier = Modifier.padding(bottom = 8.dp),
                     action = {
                         TextButton(onClick = { settingsViewModel.clearCalendarError() }) {
-                            Text("Dismiss", color = IosWhite)
+                            Text("Dismiss")
                         }
                     },
-                    containerColor = IosDestructive,
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
                 ) {
                     Text(error)
                 }
@@ -230,4 +308,18 @@ fun SettingsScreen(
             )
         }
     }
+}
+
+@Composable
+private fun SettingsSectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(
+            start = VmDimens.ScreenHorizontalPadding,
+            top = VmDimens.SpaceLg,
+            bottom = VmDimens.SpaceXs,
+        ),
+    )
 }

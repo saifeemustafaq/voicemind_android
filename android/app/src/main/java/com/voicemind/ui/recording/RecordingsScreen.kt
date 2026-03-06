@@ -37,24 +37,25 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.composables.icons.lucide.Check
-import com.composables.icons.lucide.CircleDot
-import com.composables.icons.lucide.Circle
-import com.composables.icons.lucide.CirclePause
-import com.composables.icons.lucide.CirclePlay
-import com.composables.icons.lucide.Copy
-import com.composables.icons.lucide.EllipsisVertical
-import com.composables.icons.lucide.FileText
-import com.composables.icons.lucide.Folder
-import com.composables.icons.lucide.FolderInput
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Mic
-import com.composables.icons.lucide.Pencil
-import com.composables.icons.lucide.Pointer
-import com.composables.icons.lucide.Share
-import com.composables.icons.lucide.Sparkles
-import com.composables.icons.lucide.Trash2
-import com.composables.icons.lucide.X
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -112,9 +113,6 @@ import com.voicemind.ui.components.RecordFab
 import com.voicemind.ui.components.RecordingDialogsHost
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.navigation.Routes
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosSeparator
-import com.voicemind.ui.theme.IosWhite
 import com.voicemind.ui.theme.ShimmerBlue
 import com.voicemind.ui.theme.ShimmerGold
 import com.voicemind.ui.theme.ShimmerPurple
@@ -214,7 +212,7 @@ fun RecordingsScreen(
                 } else {
                     VoiceMindTopAppBar(
                         title = "Recordings",
-                        icon = Lucide.Mic,
+                        icon = Icons.Default.Mic,
                         onOpenDrawer = onOpenDrawer,
                         onSettings = onSettings,
                     )
@@ -238,7 +236,7 @@ fun RecordingsScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         EmptyStateCard(
-                            icon = if (folderId != null) Lucide.Folder else Lucide.Mic,
+                            icon = if (folderId != null) Icons.Default.Folder else Icons.Default.Mic,
                             message = if (folderId != null) "No recordings in this folder" else "No recordings yet",
                             extraContent = if (folderId != null && onBack != null) {
                                 {
@@ -291,7 +289,7 @@ fun RecordingsScreen(
                                             modifier = Modifier.size(28.dp),
                                         ) {
                                             Icon(
-                                                Lucide.Sparkles,
+                                                Icons.Default.AutoAwesome,
                                                 contentDescription = "Summarize $dateLabel recordings",
                                                 tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(16.dp),
@@ -303,9 +301,8 @@ fun RecordingsScreen(
                         }
                         item(key = "group_$dateLabel") {
                             Surface(
-                                shape = RoundedCornerShape(VmDimens.RadiusMedium),
+                                shape = MaterialTheme.shapes.medium,
                                 color = MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(VmDimens.HairlineBorder, MaterialTheme.colorScheme.outline),
                             ) {
                                 Column {
                                     recordings.forEachIndexed { index, recording ->
@@ -356,7 +353,7 @@ fun RecordingsScreen(
                                             HorizontalDivider(
                                                 modifier = Modifier.padding(start = 56.dp),
                                                 thickness = VmDimens.HairlineBorder,
-                                                color = IosSeparator,
+                                                color = MaterialTheme.colorScheme.outlineVariant,
                                             )
                                         }
                                     }
@@ -439,7 +436,7 @@ fun RecordingsScreen(
 
         RecordFab(
             onStartRecording = { recordingViewModel.startRecording() },
-            modifier = Modifier.align(Alignment.BottomEnd),
+            modifier = Modifier.align(Alignment.BottomCenter),
         )
 
         if (recState.showSheet) {
@@ -607,7 +604,7 @@ private fun SummarizationPopup(onHide: () -> Unit) {
                 modifier = Modifier.size(28.dp),
             ) {
                 Icon(
-                    Lucide.X,
+                    Icons.Default.Close,
                     contentDescription = "Hide",
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -676,7 +673,7 @@ private fun PulseRingIcon() {
                 .background(color = ShimmerPurple.copy(alpha = 0.4f), shape = CircleShape),
         )
         Icon(
-            Lucide.Sparkles,
+            Icons.Default.AutoAwesome,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
             tint = ShimmerBlue,
@@ -688,8 +685,8 @@ private fun PulseRingIcon() {
 private fun CompletionToast(onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(VmDimens.RadiusMedium),
-        colors = CardDefaults.cardColors(containerColor = IosAccent),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -700,16 +697,16 @@ private fun CompletionToast(onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Lucide.Sparkles,
+                Icons.Default.AutoAwesome,
                 contentDescription = null,
-                tint = IosWhite,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = "Summary ready. Tap to view",
                 style = MaterialTheme.typography.bodyMedium,
-                color = IosWhite,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -734,27 +731,27 @@ private fun MultiSelectTopBar(
         title = { Text("$selectedCount selected", style = MaterialTheme.typography.titleSmall) },
         navigationIcon = {
             IconButton(onClick = onClose) {
-                Icon(Lucide.X, contentDescription = "Exit selection")
+                Icon(Icons.Default.Close, contentDescription = "Exit selection")
             }
         },
         actions = {
             IconButton(onClick = onSelectAll) {
                 Icon(
-                    if (isAllSelected) Lucide.CircleDot else Lucide.Circle,
+                    if (isAllSelected) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
                     contentDescription = if (isAllSelected) "Deselect all" else "Select all",
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
             if (hasSelection) {
                 IconButton(onClick = onDelete) {
-                    Icon(Lucide.Trash2, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error)
+                    Icon(Icons.Default.Delete, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error)
                 }
                 IconButton(onClick = onMove) {
-                    Icon(Lucide.FolderInput, contentDescription = "Move selected", tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move selected", tint = MaterialTheme.colorScheme.primary)
                 }
                 if (!isSummarizing) {
                     IconButton(onClick = onSummarize) {
-                        Icon(Lucide.Sparkles, contentDescription = "Summarize selected", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "Summarize selected", tint = MaterialTheme.colorScheme.primary)
                     }
                 } else {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(4.dp), color = MaterialTheme.colorScheme.primary, strokeWidth = 2.dp)
@@ -785,7 +782,7 @@ private fun BulkMoveToFolderDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Icon(Lucide.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(folder.name, color = MaterialTheme.colorScheme.onSurface)
                         }
@@ -813,7 +810,7 @@ private fun MultiSelectHintBanner(onDismiss: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(
-                Lucide.Pointer,
+                Icons.Default.TouchApp,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.primary,
@@ -827,7 +824,7 @@ private fun MultiSelectHintBanner(onDismiss: () -> Unit) {
             )
             IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                 Icon(
-                    Lucide.X,
+                    Icons.Default.Close,
                     contentDescription = "Dismiss",
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -889,21 +886,21 @@ private fun RecordingRow(
                     modifier = Modifier
                         .size(24.dp)
                         .background(
-                            color = if (isSelected) IosAccent else Color.Transparent,
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                             shape = CircleShape,
                         )
                         .border(
                             width = 2.dp,
-                            color = if (isSelected) IosAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                             shape = CircleShape,
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (isSelected) {
                         Icon(
-                            imageVector = Lucide.Check,
+                            imageVector = Icons.Default.Check,
                             contentDescription = null,
-                            tint = IosWhite,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.size(14.dp),
                         )
                     }
@@ -912,7 +909,7 @@ private fun RecordingRow(
         } else {
             IconButton(onClick = onPlayPause, modifier = Modifier.size(48.dp)) {
                 Icon(
-                    if (isPlaying) Lucide.CirclePause else Lucide.CirclePlay,
+                    if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
                     contentDescription = if (isPlaying) "Pause" else "Play",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp),
@@ -944,55 +941,51 @@ private fun RecordingRow(
         if (!isMultiSelectActive) {
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Lucide.EllipsisVertical, contentDescription = "More options")
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
                 }
                 DropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
-                    shape = RoundedCornerShape(VmDimens.RadiusSmall),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 3.dp,
-                    border = BorderStroke(VmDimens.HairlineBorder, MaterialTheme.colorScheme.outline),
+                    shape = MaterialTheme.shapes.extraSmall,
                 ) {
                     if (recording.transcription != null) {
                         DropdownMenuItem(
                             text = { Text("View Transcript") },
                             onClick = { menuExpanded = false; onTranscript() },
-                            leadingIcon = { Icon(Lucide.FileText, null) },
+                            leadingIcon = { Icon(Icons.Default.Description, null) },
                         )
                     }
                     DropdownMenuItem(
                         text = { Text("Rename") },
                         onClick = { menuExpanded = false; onRename() },
-                        leadingIcon = { Icon(Lucide.Pencil, null) },
+                        leadingIcon = { Icon(Icons.Default.Edit, null) },
                     )
                     DropdownMenuItem(
                         text = { Text("Move to Folder") },
                         onClick = { menuExpanded = false; onMove() },
-                        leadingIcon = { Icon(Lucide.FolderInput, null) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.DriveFileMove, null) },
                     )
                     DropdownMenuItem(
                         text = { Text("Share Audio") },
                         onClick = { menuExpanded = false; onShareAudio() },
-                        leadingIcon = { Icon(Lucide.Share, null) },
+                        leadingIcon = { Icon(Icons.Default.Share, null) },
                     )
                     if (recording.transcription != null) {
                         DropdownMenuItem(
                             text = { Text("Copy Transcript") },
                             onClick = { menuExpanded = false; onCopyTranscript() },
-                            leadingIcon = { Icon(Lucide.Copy, null) },
+                            leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
                         )
                         DropdownMenuItem(
                             text = { Text("Share Transcript") },
                             onClick = { menuExpanded = false; onShareTranscript() },
-                            leadingIcon = { Icon(Lucide.Share, null) },
+                            leadingIcon = { Icon(Icons.Default.Share, null) },
                         )
                     }
                     DropdownMenuItem(
                         text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                         onClick = { menuExpanded = false; onDelete() },
-                        leadingIcon = { Icon(Lucide.Trash2, null, tint = MaterialTheme.colorScheme.error) },
+                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
                     )
                 }
             }
