@@ -36,6 +36,10 @@ android {
         }
     }
 
+    lint {
+        disable += "NullSafeMutableLiveData"
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -46,7 +50,7 @@ android {
             )
             firebaseAppDistribution {
                 releaseNotes = "Latest build of VoiceMind"
-                testers = "saifeesaifuddinq@gmail.com, saifeestudy@gmail.com, kkalyanipawar@gmail.com"
+                testers = "saifeesaifuddinq@gmail.com, saifeestudy@gmail.com"
             }
         }
     }

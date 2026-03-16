@@ -3,10 +3,15 @@ package com.voicemind.ui.recording
 import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
+import android.media.PlaybackParams
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.voicemind.service.PlaybackCommand
+import com.voicemind.service.PlaybackCommandRepository
+import com.voicemind.service.PlaybackService
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.CollectiveSummary
 import com.voicemind.data.model.Folder
@@ -64,16 +69,19 @@ data class RecordingsListState(
     val collectiveSummarizeError: String? = null,
     val collectiveSummarizeResult: CollectiveSummary? = null,
     val showMultiSelectHint: Boolean = false,
+    val playbackSpeed: Float = 1.0f,
 )
 
 @HiltViewModel
 class RecordingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val recordingRepository: RecordingRepository,
     private val folderRepository: FolderRepository,
     private val storageRepository: StorageRepository,
     private val actionItemRepository: ActionItemRepository,
     private val collectiveSummaryRepository: CollectiveSummaryRepository,
     private val navPreferenceRepository: NavPreferenceRepository,
+    private val playbackCommandRepository: PlaybackCommandRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecordingsListState())
@@ -85,9 +93,20 @@ class RecordingsViewModel @Inject constructor(
     private var mediaPlayer: MediaPlayer? = null
     private var recordingsJob: Job? = null
     private var positionPollJob: Job? = null
+    private var currentPlayingTitle: String = ""
 
     init {
         observeRecordings()
+        viewModelScope.launch {
+            playbackCommandRepository.commands.collect { cmd ->
+                when (cmd) {
+                    is PlaybackCommand.PlayPause ->
+                        if (_state.value.isPlaybackPaused) resumePlayback() else pausePlayback()
+                    is PlaybackCommand.SkipForward -> skipForward5()
+                    is PlaybackCommand.SkipBackward -> skipBackward5()
+                }
+            }
+        }
         viewModelScope.launch {
             folderRepository.observeFolders().collect { folders ->
                 _state.value = _state.value.copy(folders = folders)
@@ -122,6 +141,7 @@ class RecordingsViewModel @Inject constructor(
 
     fun playAudio(recording: Recording) {
         stopPlayback()
+        currentPlayingTitle = recording.title
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val url = storageRepository.getDownloadUrl(recording.audioPath)
@@ -136,6 +156,9 @@ class RecordingsViewModel @Inject constructor(
                             playbackPositionMs = 0,
                         )}
                         startPositionPolling()
+                        context.startForegroundService(
+                            PlaybackService.buildStartIntent(context, recording.title, isPlaying = true)
+                        )
                     }
                     setOnCompletionListener {
                         positionPollJob?.cancel()
@@ -144,6 +167,7 @@ class RecordingsViewModel @Inject constructor(
                             isPlaybackPaused = false,
                             playbackPositionMs = 0,
                         )}
+                        context.startService(PlaybackService.buildStopIntent(context))
                     }
                     prepareAsync()
                 }
@@ -165,19 +189,27 @@ class RecordingsViewModel @Inject constructor(
             isPlaybackPaused = false,
             playbackPositionMs = 0,
             playbackDurationMs = 0,
+            playbackSpeed = 1.0f,
         )}
+        context.startService(PlaybackService.buildStopIntent(context))
     }
 
     fun pausePlayback() {
         try { mediaPlayer?.pause() } catch (_: Exception) {}
         positionPollJob?.cancel()
         _state.update { it.copy(isPlaybackPaused = true) }
+        context.startService(
+            PlaybackService.buildUpdateIntent(context, currentPlayingTitle, isPlaying = false)
+        )
     }
 
     fun resumePlayback() {
         try { mediaPlayer?.start() } catch (_: Exception) {}
         startPositionPolling()
         _state.update { it.copy(isPlaybackPaused = false) }
+        context.startService(
+            PlaybackService.buildUpdateIntent(context, currentPlayingTitle, isPlaying = true)
+        )
     }
 
     fun seekTo(positionMs: Long) {
@@ -195,6 +227,32 @@ class RecordingsViewModel @Inject constructor(
         val mp = mediaPlayer ?: return
         val newPos = (mp.currentPosition - 15_000).coerceAtLeast(0)
         seekTo(newPos.toLong())
+    }
+
+    fun skipForward5() {
+        val mp = mediaPlayer ?: return
+        seekTo((mp.currentPosition + 5_000L).coerceAtMost(mp.duration.toLong()))
+    }
+
+    fun skipBackward5() {
+        val mp = mediaPlayer ?: return
+        seekTo((mp.currentPosition - 5_000L).coerceAtLeast(0L))
+    }
+
+    private val speedSteps = listOf(0.5f, 1.0f, 1.5f, 2.0f)
+
+    fun cycleSpeed() {
+        val current = _state.value.playbackSpeed
+        val idx = speedSteps.indexOf(current).takeIf { it >= 0 } ?: 1
+        val next = speedSteps[(idx + 1) % speedSteps.size]
+        setSpeed(next)
+    }
+
+    fun setSpeed(speed: Float) {
+        try {
+            mediaPlayer?.playbackParams = PlaybackParams().setSpeed(speed)
+        } catch (_: Exception) {}
+        _state.update { it.copy(playbackSpeed = speed) }
     }
 
     private fun startPositionPolling() {

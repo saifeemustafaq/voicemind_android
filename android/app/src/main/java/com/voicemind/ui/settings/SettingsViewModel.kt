@@ -41,8 +41,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun reorderNavItems(newOrder: List<String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            navPreferenceRepository.setNavOrder(newOrder)
+        }
+    }
+
     val navOrder: StateFlow<List<String>> = navPreferenceRepository.navOrder
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf("recordings", "checklist", "summaries", "folders"))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf("folders", "summaries", "checklist", "recordings"))
 
     fun moveNavItem(route: String, moveUp: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {

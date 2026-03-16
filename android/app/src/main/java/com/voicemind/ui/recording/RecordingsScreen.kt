@@ -113,6 +113,7 @@ import com.voicemind.ui.components.RecordFab
 import com.voicemind.ui.components.RecordingDialogsHost
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.navigation.Routes
+import com.voicemind.ui.navigation.recordingDetailRoute
 import com.voicemind.ui.theme.ShimmerBlue
 import com.voicemind.ui.theme.ShimmerGold
 import com.voicemind.ui.theme.ShimmerPurple
@@ -329,6 +330,7 @@ fun RecordingsScreen(
                                             onSkipForward = { recordingsViewModel.skipForward15() },
                                             onSkipBackward = { recordingsViewModel.skipBackward15() },
                                             onLongPress = { if (folderId == null) recordingsViewModel.enterMultiSelect(recording.id) },
+                                            onTap = { navController?.navigate(recordingDetailRoute(recording.id)) },
                                             onToggleSelect = { recordingsViewModel.toggleSelection(recording.id) },
                                             onTranscript = { showTranscript = recording },
                                             onRename = { showRenameDialog = recording },
@@ -858,6 +860,7 @@ private fun RecordingRow(
     onMove: () -> Unit,
     onDelete: () -> Unit,
     onShareAudio: () -> Unit,
+    onTap: () -> Unit,
     onCopyTranscript: () -> Unit,
     onShareTranscript: () -> Unit,
     modifier: Modifier = Modifier,
@@ -870,7 +873,7 @@ private fun RecordingRow(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = { if (isMultiSelectActive) onToggleSelect() },
+                onClick = { if (isMultiSelectActive) onToggleSelect() else onTap() },
                 onLongClick = { if (!isMultiSelectActive) onLongPress() },
             )
             .padding(12.dp),

@@ -109,8 +109,8 @@ private fun SignedOutContent() {
     Row(
         modifier = GlanceModifier
             .background(WidgetColors.Accent)
-            .cornerRadius(20.dp)
-            .padding(horizontal = 18.dp, vertical = 9.dp)
+            .cornerRadius(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .clickable(
                 actionStartActivity(
                     Intent(context, MainActivity::class.java).apply {
@@ -155,8 +155,8 @@ private fun MicPermissionContent() {
     Row(
         modifier = GlanceModifier
             .background(WidgetColors.Accent)
-            .cornerRadius(20.dp)
-            .padding(horizontal = 18.dp, vertical = 9.dp)
+            .cornerRadius(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .clickable(
                 actionStartActivity(
                     Intent(context, MainActivity::class.java).apply {
@@ -189,7 +189,7 @@ private fun IdleContent() {
             fontSize = 14.sp,
         ),
     )
-    Spacer(modifier = GlanceModifier.height(10.dp))
+    Spacer(modifier = GlanceModifier.height(12.dp))
     Image(
         provider = ImageProvider(R.drawable.ic_mic_widget_btn),
         contentDescription = "Start recording",
@@ -215,12 +215,12 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long) {
         Image(
             provider = ImageProvider(R.drawable.ic_rec_dot),
             contentDescription = null,
-            modifier = GlanceModifier.size(10.dp),
+            modifier = GlanceModifier.size(8.dp),
             colorFilter = ColorFilter.tint(
                 if (isPaused) WidgetColors.Warning else WidgetColors.Destructive
             ),
         )
-        Spacer(modifier = GlanceModifier.width(6.dp))
+        Spacer(modifier = GlanceModifier.width(8.dp))
         Text(
             text = if (isPaused) "Paused" else "Recording",
             style = TextStyle(
@@ -245,7 +245,7 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long) {
         ),
     )
 
-    Spacer(modifier = GlanceModifier.height(10.dp))
+    Spacer(modifier = GlanceModifier.height(12.dp))
 
     Row(
         modifier = GlanceModifier.fillMaxWidth(),

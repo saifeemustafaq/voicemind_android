@@ -43,3 +43,7 @@ fun folderDetailRoute(folderId: String) = "folder_detail/$folderId"
 const val TASK_DETAIL_ROUTE = "task_detail/{itemId}"
 
 fun taskDetailRoute(itemId: String) = "task_detail/$itemId"
+
+const val RECORDING_DETAIL_ROUTE = "recording_detail/{recordingId}"
+
+fun recordingDetailRoute(recordingId: String) = "recording_detail/$recordingId"

@@ -81,7 +81,7 @@ class NavPreferenceRepository @Inject constructor(
     }
 
     private val navOrderKey = stringPreferencesKey("nav_order")
-    private val defaultNavOrder = "recordings,checklist,summaries,folders"
+    private val defaultNavOrder = "folders,summaries,checklist,recordings"
 
     val navOrder: Flow<List<String>> = context.dataStore.data.map { prefs ->
         (prefs[navOrderKey] ?: defaultNavOrder).split(",")

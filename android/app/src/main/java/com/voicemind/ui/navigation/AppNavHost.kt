@@ -21,6 +21,7 @@ import com.voicemind.ui.checklist.ChecklistScreen
 import com.voicemind.ui.checklist.TaskDetailScreen
 import com.voicemind.ui.folders.FolderDetailScreen
 import com.voicemind.ui.folders.FoldersScreen
+import com.voicemind.ui.recording.RecordingDetailScreen
 import com.voicemind.ui.recording.RecordingsScreen
 import com.voicemind.ui.settings.SettingsScreen
 import com.voicemind.ui.summaries.SummariesScreen
@@ -122,6 +123,14 @@ fun AppNavHost(
             composable(FOLDER_DETAIL_ROUTE) { backStackEntry ->
                 val folderId = backStackEntry.arguments?.getString("folderId") ?: return@composable
                 FolderDetailScreen(folderId = folderId, onBack = { navController.popBackStack() })
+            }
+            composable(RECORDING_DETAIL_ROUTE) { backStackEntry ->
+                val recordingId = backStackEntry.arguments?.getString("recordingId") ?: return@composable
+                RecordingDetailScreen(
+                    recordingId = recordingId,
+                    navController = navController,
+                    onBack = { navController.popBackStack() },
+                )
             }
         }
     }

@@ -4,6 +4,8 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,11 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -188,49 +191,66 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(VmDimens.SpaceSm))
 
-                    orderedNavItems.forEachIndexed { index, item ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                imageVector = item.outlinedIcon,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
+                    // Horizontal strip — mirrors the actual bottom bar layout
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                MaterialTheme.colorScheme.surfaceContainerHighest,
+                                RoundedCornerShape(12.dp),
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = item.label,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(
-                                onClick = { settingsViewModel.moveNavItem(item.route, moveUp = true) },
-                                enabled = index > 0,
-                                modifier = Modifier.size(36.dp),
-                            ) {
-                                Icon(
-                                    Icons.Outlined.KeyboardArrowUp,
-                                    contentDescription = "Move up",
-                                    modifier = Modifier.size(20.dp),
-                                    tint = if (index > 0) MaterialTheme.colorScheme.onSurface
-                                           else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                )
-                            }
-                            IconButton(
-                                onClick = { settingsViewModel.moveNavItem(item.route, moveUp = false) },
-                                enabled = index < orderedNavItems.lastIndex,
-                                modifier = Modifier.size(36.dp),
-                            ) {
-                                Icon(
-                                    Icons.Outlined.KeyboardArrowDown,
-                                    contentDescription = "Move down",
-                                    modifier = Modifier.size(20.dp),
-                                    tint = if (index < orderedNavItems.lastIndex) MaterialTheme.colorScheme.onSurface
-                                           else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                )
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            orderedNavItems.forEachIndexed { index, item ->
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    Icon(
+                                        imageVector = item.outlinedIcon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(22.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = item.label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1,
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row {
+                                        IconButton(
+                                            onClick = { settingsViewModel.moveNavItem(item.route, moveUp = true) },
+                                            enabled = index > 0,
+                                            modifier = Modifier.size(28.dp),
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.KeyboardArrowLeft,
+                                                contentDescription = "Move left",
+                                                modifier = Modifier.size(18.dp),
+                                                tint = if (index > 0) MaterialTheme.colorScheme.onSurface
+                                                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { settingsViewModel.moveNavItem(item.route, moveUp = false) },
+                                            enabled = index < orderedNavItems.lastIndex,
+                                            modifier = Modifier.size(28.dp),
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.KeyboardArrowRight,
+                                                contentDescription = "Move right",
+                                                modifier = Modifier.size(18.dp),
+                                                tint = if (index < orderedNavItems.lastIndex) MaterialTheme.colorScheme.onSurface
+                                                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
