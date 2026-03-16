@@ -36,12 +36,22 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             folderRepository.observeFolders().collect { folders ->
-                _uiState.value = _uiState.value.copy(folders = folders, isLoading = false)
+                val latestByFolder = _uiState.value.recentRecordings
+                    .groupBy { it.folderId }
+                    .mapValues { (_, recs) -> recs.mapNotNull { it.createdAt?.seconds }.maxOrNull() ?: 0L }
+                val sortedFolders = folders.sortedByDescending { latestByFolder[it.id] ?: 0L }
+                _uiState.value = _uiState.value.copy(folders = sortedFolders, isLoading = false)
             }
         }
         viewModelScope.launch {
             recordingRepository.observeRecordings().collect { recordings ->
+                val latestByFolder = recordings
+                    .groupBy { it.folderId }
+                    .mapValues { (_, recs) -> recs.mapNotNull { it.createdAt?.seconds }.maxOrNull() ?: 0L }
+                val sortedFolders = _uiState.value.folders
+                    .sortedByDescending { latestByFolder[it.id] ?: 0L }
                 _uiState.value = _uiState.value.copy(
+                    folders = sortedFolders,
                     recentRecordings = recordings.take(4),
                     folderRecordingCounts = recordings.countByFolder(),
                     isLoading = false,

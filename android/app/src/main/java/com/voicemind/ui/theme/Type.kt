@@ -15,68 +15,112 @@ val InterFontFamily = FontFamily(
     Font(R.font.inter_bold, FontWeight.Bold),
 )
 
+// Full M3 type scale — all 15 baseline styles with Inter as the brand typeface.
+// Sizes and line-heights match the Material 3 specification exactly.
 val VmTypography = Typography(
-    // iOS Large Title
+    displayLarge = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 57.sp,
+        lineHeight = 64.sp,
+        letterSpacing = (-0.25).sp,
+    ),
+    displayMedium = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 45.sp,
+        lineHeight = 52.sp,
+        letterSpacing = 0.sp,
+    ),
+    displaySmall = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 36.sp,
+        lineHeight = 44.sp,
+        letterSpacing = 0.sp,
+    ),
     headlineLarge = TextStyle(
         fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 34.sp,
-        lineHeight = 41.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 32.sp,
+        lineHeight = 40.sp,
+        letterSpacing = 0.sp,
     ),
-    // iOS Title 1
+    headlineMedium = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 28.sp,
+        lineHeight = 36.sp,
+        letterSpacing = 0.sp,
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
+        letterSpacing = 0.sp,
+    ),
     titleLarge = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 28.sp,
-        lineHeight = 34.sp,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = 0.sp,
     ),
-    // iOS Title 2
     titleMedium = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.15.sp,
     ),
-    // iOS Headline
     titleSmall = TextStyle(
         fontFamily = InterFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 17.sp,
-        lineHeight = 22.sp,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp,
     ),
-    // iOS Body
     bodyLarge = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 17.sp,
-        lineHeight = 22.sp,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp,
     ),
-    // iOS Callout
     bodyMedium = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 21.sp,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.25.sp,
     ),
-    // iOS Footnote
     bodySmall = TextStyle(
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 13.sp,
-        lineHeight = 18.sp,
-    ),
-    // iOS Caption 1
-    labelMedium = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
+        letterSpacing = 0.4.sp,
     ),
-    // iOS Caption 2
+    labelLarge = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp,
+    ),
+    labelMedium = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp,
+    ),
     labelSmall = TextStyle(
         fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
-        lineHeight = 13.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp,
     ),
 )

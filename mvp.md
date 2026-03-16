@@ -192,7 +192,21 @@ Everything the app can do today.
 - Collective summarization: concatenate transcripts of selected recordings, generate a single combined summary via a new `generateCollectiveSummary` Cloud Function (OpenAI gpt-4o-mini).
 - New Firestore collection `users/{uid}/collectiveSummaries` storing summary text, source recording IDs/titles, and creation timestamp.
 - New **Summaries** screen accessible from bottom nav / sidebar: list of all collective summaries with preview, source recordings, and creation date.
-- Full summary view with source recording links, share, copy to clipboard, and delete actions. 
+- Full summary view with source recording links, share, copy to clipboard, and delete actions.
+
+### Per-Day Combine Summary ([#19](https://github.com/saifeemustafaq/voicemind_android/issues/19))
+
+- Summarize icon (✨) on each date group header in the Recordings list for one-tap collective summarization of all recordings from that day.
+- Hidden when a date group has only 1 recording (nothing to combine).
+- Reuses existing `collectiveSummarize()` flow; navigates to Summaries screen on success.
+- Complements (does not replace) the multi-select summarize workflow.
+
+### Summarization Loading UX ([#21](https://github.com/saifeemustafaq/voicemind_android/issues/21))
+
+- Replace full-screen loading overlay with a non-blocking floating popup displaying "Generating Summary" with a sparkling/shimmering multicolor animation.
+- Popup includes a "Hide" button — dismisses the popup while summarization continues in the background.
+- On completion, show a top slide-down toast ("Summarization complete") instead of auto-navigating; tappable to go to Summaries.
+- User can continue using the app (scroll, interact) while summarization runs.
 
 ### Pagination
 
@@ -215,6 +229,14 @@ Everything the app can do today.
 - Add a Settings gear icon to the right side of `VoiceMindTopAppBar`, visible on all main screens (Home, Recordings, Checklist, Folders).
 - Settings icon hidden during multi-select mode (replaced by `MultiSelectTopBar` actions).
 - Frees a slot in the bottom nav for higher-priority destinations.
+
+### Folder Sorting & Unfiled Row Fix ([#20](https://github.com/saifeemustafaq/voicemind_android/issues/20))
+
+- Two sort toggle buttons in the Folders top bar: sort by most recently used (latest recording timestamp per folder) or sort by recording count (highest first).
+- No visual partition — just seamless reordering.
+- Bug fix: Unfiled folder row height too short (bare `Icon` instead of `IconButton` for trailing element).
+- Bug fix: Unfiled recording count misaligned to the right vs. other folders (same root cause — inconsistent trailing element width).
+- Smooth scroll-to-top animation when sort mode changes so the user sees the new order from the beginning ([#22](https://github.com/saifeemustafaq/voicemind_android/issues/22)).
 
 ### Other
 

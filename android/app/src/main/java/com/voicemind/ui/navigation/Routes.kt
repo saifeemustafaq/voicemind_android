@@ -4,12 +4,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -20,15 +19,20 @@ sealed class Routes(
     val icon: ImageVector,
     val outlinedIcon: ImageVector,
 ) {
-    data object Home : Routes("home", "Home", Icons.Filled.Home, Icons.Outlined.Home)
     data object Recordings : Routes("recordings", "Recordings", Icons.Filled.Mic, Icons.Outlined.Mic)
     data object Checklist : Routes("checklist", "Checklist", Icons.Filled.Checklist, Icons.Outlined.Checklist)
-    data object Summaries : Routes("summaries", "Summaries", Icons.Filled.AutoAwesome, Icons.Filled.AutoAwesome)
+    data object Summaries : Routes("summaries", "Summaries", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome)
     data object Folders : Routes("folders", "Folders", Icons.Filled.Folder, Icons.Outlined.Folder)
     data object Settings : Routes("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 
     companion object {
-        val drawerItems by lazy { listOf(Home, Recordings, Checklist, Summaries, Folders) }
+        val drawerItems by lazy { listOf(Recordings, Checklist, Summaries, Folders) }
+
+        fun orderedItems(order: List<String>): List<Routes> {
+            val mapped = order.mapNotNull { route -> drawerItems.find { it.route == route } }
+            val missing = drawerItems.filter { item -> mapped.none { it.route == item.route } }
+            return mapped + missing
+        }
     }
 }
 
@@ -39,3 +43,7 @@ fun folderDetailRoute(folderId: String) = "folder_detail/$folderId"
 const val TASK_DETAIL_ROUTE = "task_detail/{itemId}"
 
 fun taskDetailRoute(itemId: String) = "task_detail/$itemId"
+
+const val RECORDING_DETAIL_ROUTE = "recording_detail/{recordingId}"
+
+fun recordingDetailRoute(recordingId: String) = "recording_detail/$recordingId"

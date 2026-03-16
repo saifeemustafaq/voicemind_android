@@ -3,10 +3,15 @@ package com.voicemind.ui.recording
 import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
+import android.media.PlaybackParams
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.voicemind.service.PlaybackCommand
+import com.voicemind.service.PlaybackCommandRepository
+import com.voicemind.service.PlaybackService
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.CollectiveSummary
 import com.voicemind.data.model.Folder
@@ -14,6 +19,7 @@ import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.CollectiveSummaryRepository
 import com.voicemind.data.repository.FolderRepository
+import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
 import com.google.firebase.functions.FirebaseFunctionsException
@@ -22,9 +28,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.update
 import timber.log.Timber
 import java.io.File
+import java.util.TimeZone
 import javax.inject.Inject
 
 sealed interface SummaryState {
@@ -38,6 +47,9 @@ data class TranscriptSheetState(
     val summaryState: SummaryState = SummaryState.Idle,
     val actionItems: List<ActionItem> = emptyList(),
     val actionItemsLoaded: Boolean = false,
+    val isGeneratingTasks: Boolean = false,
+    val generateTasksFailed: Boolean = false,
+    val generateTasksNoResults: Boolean = false,
 )
 
 data class RecordingsListState(
@@ -45,6 +57,9 @@ data class RecordingsListState(
     val folders: List<Folder> = emptyList(),
     val isLoading: Boolean = true,
     val playingRecordingId: String? = null,
+    val isPlaybackPaused: Boolean = false,
+    val playbackPositionMs: Long = 0,
+    val playbackDurationMs: Long = 0,
     val filterFolderId: String? = null,
     val isMultiSelectActive: Boolean = false,
     val selectedRecordingIds: Set<String> = emptySet(),
@@ -53,15 +68,20 @@ data class RecordingsListState(
     val isCollectiveSummarizing: Boolean = false,
     val collectiveSummarizeError: String? = null,
     val collectiveSummarizeResult: CollectiveSummary? = null,
+    val showMultiSelectHint: Boolean = false,
+    val playbackSpeed: Float = 1.0f,
 )
 
 @HiltViewModel
 class RecordingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val recordingRepository: RecordingRepository,
     private val folderRepository: FolderRepository,
     private val storageRepository: StorageRepository,
     private val actionItemRepository: ActionItemRepository,
     private val collectiveSummaryRepository: CollectiveSummaryRepository,
+    private val navPreferenceRepository: NavPreferenceRepository,
+    private val playbackCommandRepository: PlaybackCommandRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecordingsListState())
@@ -72,12 +92,30 @@ class RecordingsViewModel @Inject constructor(
 
     private var mediaPlayer: MediaPlayer? = null
     private var recordingsJob: Job? = null
+    private var positionPollJob: Job? = null
+    private var currentPlayingTitle: String = ""
 
     init {
         observeRecordings()
         viewModelScope.launch {
+            playbackCommandRepository.commands.collect { cmd ->
+                when (cmd) {
+                    is PlaybackCommand.PlayPause ->
+                        if (_state.value.isPlaybackPaused) resumePlayback() else pausePlayback()
+                    is PlaybackCommand.SkipForward -> skipForward5()
+                    is PlaybackCommand.SkipBackward -> skipBackward5()
+                }
+            }
+        }
+        viewModelScope.launch {
             folderRepository.observeFolders().collect { folders ->
                 _state.value = _state.value.copy(folders = folders)
+            }
+        }
+        viewModelScope.launch {
+            val dismissCount = navPreferenceRepository.multiSelectHintDismissCount.first()
+            if (dismissCount % 5 == 0) {
+                _state.value = _state.value.copy(showMultiSelectHint = true)
             }
         }
     }
@@ -103,6 +141,7 @@ class RecordingsViewModel @Inject constructor(
 
     fun playAudio(recording: Recording) {
         stopPlayback()
+        currentPlayingTitle = recording.title
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val url = storageRepository.getDownloadUrl(recording.audioPath)
@@ -110,10 +149,25 @@ class RecordingsViewModel @Inject constructor(
                     setDataSource(url.toString())
                     setOnPreparedListener {
                         it.start()
-                        _state.value = _state.value.copy(playingRecordingId = recording.id)
+                        _state.update { s -> s.copy(
+                            playingRecordingId = recording.id,
+                            isPlaybackPaused = false,
+                            playbackDurationMs = it.duration.toLong(),
+                            playbackPositionMs = 0,
+                        )}
+                        startPositionPolling()
+                        context.startForegroundService(
+                            PlaybackService.buildStartIntent(context, recording.title, isPlaying = true)
+                        )
                     }
                     setOnCompletionListener {
-                        _state.value = _state.value.copy(playingRecordingId = null)
+                        positionPollJob?.cancel()
+                        _state.update { it.copy(
+                            playingRecordingId = null,
+                            isPlaybackPaused = false,
+                            playbackPositionMs = 0,
+                        )}
+                        context.startService(PlaybackService.buildStopIntent(context))
                     }
                     prepareAsync()
                 }
@@ -124,12 +178,94 @@ class RecordingsViewModel @Inject constructor(
     }
 
     fun stopPlayback() {
+        positionPollJob?.cancel()
         try {
             mediaPlayer?.stop()
             mediaPlayer?.release()
         } catch (_: Exception) { }
         mediaPlayer = null
-        _state.value = _state.value.copy(playingRecordingId = null)
+        _state.update { it.copy(
+            playingRecordingId = null,
+            isPlaybackPaused = false,
+            playbackPositionMs = 0,
+            playbackDurationMs = 0,
+            playbackSpeed = 1.0f,
+        )}
+        context.startService(PlaybackService.buildStopIntent(context))
+    }
+
+    fun pausePlayback() {
+        try { mediaPlayer?.pause() } catch (_: Exception) {}
+        positionPollJob?.cancel()
+        _state.update { it.copy(isPlaybackPaused = true) }
+        context.startService(
+            PlaybackService.buildUpdateIntent(context, currentPlayingTitle, isPlaying = false)
+        )
+    }
+
+    fun resumePlayback() {
+        try { mediaPlayer?.start() } catch (_: Exception) {}
+        startPositionPolling()
+        _state.update { it.copy(isPlaybackPaused = false) }
+        context.startService(
+            PlaybackService.buildUpdateIntent(context, currentPlayingTitle, isPlaying = true)
+        )
+    }
+
+    fun seekTo(positionMs: Long) {
+        try { mediaPlayer?.seekTo(positionMs.toInt()) } catch (_: Exception) {}
+        _state.update { it.copy(playbackPositionMs = positionMs) }
+    }
+
+    fun skipForward15() {
+        val mp = mediaPlayer ?: return
+        val newPos = (mp.currentPosition + 15_000).coerceAtMost(mp.duration)
+        seekTo(newPos.toLong())
+    }
+
+    fun skipBackward15() {
+        val mp = mediaPlayer ?: return
+        val newPos = (mp.currentPosition - 15_000).coerceAtLeast(0)
+        seekTo(newPos.toLong())
+    }
+
+    fun skipForward5() {
+        val mp = mediaPlayer ?: return
+        seekTo((mp.currentPosition + 5_000L).coerceAtMost(mp.duration.toLong()))
+    }
+
+    fun skipBackward5() {
+        val mp = mediaPlayer ?: return
+        seekTo((mp.currentPosition - 5_000L).coerceAtLeast(0L))
+    }
+
+    private val speedSteps = listOf(0.5f, 1.0f, 1.5f, 2.0f)
+
+    fun cycleSpeed() {
+        val current = _state.value.playbackSpeed
+        val idx = speedSteps.indexOf(current).takeIf { it >= 0 } ?: 1
+        val next = speedSteps[(idx + 1) % speedSteps.size]
+        setSpeed(next)
+    }
+
+    fun setSpeed(speed: Float) {
+        try {
+            mediaPlayer?.playbackParams = PlaybackParams().setSpeed(speed)
+        } catch (_: Exception) {}
+        _state.update { it.copy(playbackSpeed = speed) }
+    }
+
+    private fun startPositionPolling() {
+        positionPollJob?.cancel()
+        positionPollJob = viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(100L)
+                val mp = mediaPlayer ?: break
+                try {
+                    _state.update { it.copy(playbackPositionMs = mp.currentPosition.toLong()) }
+                } catch (_: Exception) { break }
+            }
+        }
     }
 
     fun renameRecording(recordingId: String, newTitle: String) {
@@ -209,6 +345,31 @@ class RecordingsViewModel @Inject constructor(
         }
     }
 
+    fun generateTasks(recording: Recording) {
+        if (_sheetState.value.isGeneratingTasks) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _sheetState.update {
+                it.copy(isGeneratingTasks = true, generateTasksFailed = false, generateTasksNoResults = false)
+            }
+            try {
+                val count = actionItemRepository.retryExtractActionItems(
+                    recording.id, TimeZone.getDefault().id
+                )
+                if (count > 0) {
+                    val items = actionItemRepository.getByRecordingId(recording.id)
+                    _sheetState.update { it.copy(actionItems = items, actionItemsLoaded = true) }
+                } else {
+                    _sheetState.update { it.copy(generateTasksNoResults = true) }
+                }
+            } catch (e: Exception) {
+                Timber.e("generateTasks failed: %s", e.message)
+                _sheetState.update { it.copy(generateTasksFailed = true) }
+            } finally {
+                _sheetState.update { it.copy(isGeneratingTasks = false) }
+            }
+        }
+    }
+
     fun generateSummary(recording: Recording) {
         if (recording.summary != null) {
             _sheetState.value = _sheetState.value.copy(
@@ -238,11 +399,22 @@ class RecordingsViewModel @Inject constructor(
 
     // Multi-select
 
+    fun dismissMultiSelectHint() {
+        _state.value = _state.value.copy(showMultiSelectHint = false)
+        viewModelScope.launch {
+            navPreferenceRepository.incrementMultiSelectHintDismissCount()
+        }
+    }
+
     fun enterMultiSelect(recordingId: String) {
         _state.value = _state.value.copy(
             isMultiSelectActive = true,
             selectedRecordingIds = setOf(recordingId),
+            showMultiSelectHint = false,
         )
+        viewModelScope.launch {
+            navPreferenceRepository.incrementMultiSelectHintDismissCount()
+        }
     }
 
     fun toggleSelection(recordingId: String) {

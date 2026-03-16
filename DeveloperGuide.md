@@ -1,6 +1,6 @@
 # VoiceMind AI -- Android Kotlin/Compose Developer Guidelines
 
-**Use this with:** [Android_Developer_Brief.md](Android_Developer_Brief.md) (what to build, Firebase architecture, data models, flows) and [Style_Guide_Compose.md](Style_Guide_Compose.md) (colors, components, layout, Material Icons, no emoji). This document covers language, architecture, concurrency, Firebase usage, and engineering practices.
+**Use this with:** [Android_Developer_Brief.md](Android_Developer_Brief.md) (what to build, Firebase architecture, data models, flows) and [Style_Guide_Compose.md](Style_Guide_Compose.md) (colors, components, layout, Lucide icons, no emoji). This document covers language, architecture, concurrency, Firebase usage, and engineering practices.
 
 ---
 
@@ -15,7 +15,7 @@
 - **Reuse first, create second:** Always check `ui/components/`, repositories, and utility packages before building something new. Extend or parameterize an existing component rather than creating a near-copy.
 - **Keep it concise:** Leverage Kotlin's expressive features (scope functions, extension functions, default parameters, destructuring) to reduce boilerplate. Fewer lines of clear code is better than many lines of verbose code.
 - **Product alignment:** Feature scope, data models, and Firebase architecture come from **Android_Developer_Brief.md**. Do not invent collections, fields, or flows; use only what the brief defines.
-- **UI alignment:** Follow **Style_Guide_Compose.md**: 48dp minimum touch targets, no emoji in UI or code (use Material Icons), glass-first visuals, stacked panels with no vertical gap where applicable.
+- **UI alignment:** Follow **Style_Guide_Compose.md**: 48dp minimum touch targets, no emoji in UI or code (use Lucide icons), M3 surface-based visuals with `MaterialTheme.colorScheme.*` and `MaterialTheme.shapes.*` throughout.
 
 ---
 
@@ -224,7 +224,7 @@ Before finalizing any change:
 - State ownership is correct (ViewModel owns, Composable reads).
 - Access control is sensible (`private` where possible).
 - No sensitive data in logs.
-- New UI follows **Style_Guide_Compose.md** (colors, touch targets, no emoji, glass where applicable).
+- New UI follows **Style_Guide_Compose.md** (colors, touch targets, no emoji, M3 surface hierarchy).
 - **No duplicated logic.** If similar code exists elsewhere, refactor into a shared function or composable.
 - **Existing components reused.** Check that `ui/components/`, repositories, and utilities were searched before introducing new ones.
 - **Code is concise.** No unnecessary wrapper functions, redundant variables, or verbose patterns that Kotlin can express more cleanly.
@@ -249,7 +249,7 @@ When adding code, include:
 - **Don't invent Firebase collections or fields.** All data shapes are defined in **Android_Developer_Brief.md**. Use those only.
 - Don't ignore Android API level constraints -- if using API 31+ features (e.g. `Modifier.blur`), provide a fallback or call it out.
 - Don't hardcode the OpenAI API key in source code. Use Cloud Functions, Remote Config, or BuildConfig (not checked into VCS).
-- Don't use emoji in UI, copy, or code; use Material Icons per **Style_Guide_Compose.md**.
+- Don't use emoji in UI, copy, or code; use Lucide icons (`com.composables.icons.lucide`) per **Style_Guide_Compose.md**.
 - Don't call Firestore or Storage on the main thread.
 - **Don't copy-paste code across features.** If two features need the same logic, extract it. Copy-pasting is a code smell that leads to divergent bugs.
 - **Don't create a new composable when a shared one already exists** in `ui/components/`. Search first, add parameters if needed, only then create new.

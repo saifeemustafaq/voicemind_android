@@ -3,75 +3,57 @@ package com.voicemind.ui.navigation
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosLabel
-import com.voicemind.ui.theme.IosSecondaryLabel
-import com.voicemind.ui.theme.IosSeparator
-import com.voicemind.ui.theme.IosWhite
 
 @Composable
 fun SidebarDrawer(
     currentRoute: String?,
     onNavigate: (Routes) -> Unit,
+    items: List<Routes> = Routes.drawerItems,
 ) {
     ModalDrawerSheet(
-        drawerContainerColor = IosWhite,
-        modifier = Modifier.width(280.dp),
+        // drawerContainerColor uses M3 default (surfaceContainerLow)
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "VoiceMind AI",
             style = MaterialTheme.typography.titleLarge,
-            color = IosLabel,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
         )
 
-        HorizontalDivider(
-            color = IosSeparator,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Routes.drawerItems.forEach { item ->
+        items.forEach { item ->
             val selected = currentRoute == item.route
             NavigationDrawerItem(
                 icon = {
                     Icon(
-                        imageVector = item.icon,
+                        imageVector = if (selected) item.icon else item.outlinedIcon,
                         contentDescription = item.label,
-                        tint = if (selected) IosAccent else IosSecondaryLabel,
                     )
                 },
                 label = {
                     Text(
                         text = item.label,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = if (selected) IosAccent else IosLabel,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                     )
                 },
                 selected = selected,
                 onClick = { onNavigate(item) },
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
-                colors = NavigationDrawerItemDefaults.colors(
-                    selectedContainerColor = IosAccent.copy(alpha = 0.08f),
-                    unselectedContainerColor = IosWhite,
-                ),
+                // colors use M3 defaults: secondaryContainer for selected, surface for unselected
             )
         }
     }

@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.voicemind.ui.theme.IosSecondaryLabel
 
 @Composable
 fun EmptyStateCard(
@@ -31,13 +30,13 @@ fun EmptyStateCard(
                 icon,
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
-                tint = IosSecondaryLabel,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = IosSecondaryLabel,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             extraContent?.invoke()
         }

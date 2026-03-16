@@ -61,6 +61,7 @@ class RecordingRepository @Inject constructor(
                 "audioPath" to recording.audioPath,
                 "transcription" to recording.transcription,
                 "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                "durationSeconds" to recording.durationSeconds,
             )
         ).await()
         return recording.id

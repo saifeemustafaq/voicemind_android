@@ -2,31 +2,69 @@ package com.voicemind.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// iOS System Backgrounds (grouped style)
-val IosBackground = Color(0xFFF2F2F7)
-val IosSecondaryBackground = Color(0xFFFFFFFF)
-val IosTertiaryBackground = Color(0xFFF2F2F7)
+// ── Shimmer animation colors (standalone, not M3 roles) ──────────────────────
+val ShimmerBlue   = Color(0xFF5E9EFF)
+val ShimmerGold   = Color(0xFFFFD700)
+val ShimmerPurple = Color(0xFFB47FFF)
 
-// Accent
-val IosAccent = Color(0xFF007AFF)
+// ── Fallback M3 light color scheme ────────────────────────────────────────────
+// Generated from brand seed #0061A4 via Material Theme Builder.
+// Used only on Android < 12 where dynamic color is unavailable.
+internal val M3Light_Primary              = Color(0xFF0061A4)
+internal val M3Light_OnPrimary            = Color(0xFFFFFFFF)
+internal val M3Light_PrimaryContainer     = Color(0xFFD1E4FF)
+internal val M3Light_OnPrimaryContainer   = Color(0xFF001D36)
+internal val M3Light_Secondary            = Color(0xFF535F70)
+internal val M3Light_OnSecondary          = Color(0xFFFFFFFF)
+internal val M3Light_SecondaryContainer   = Color(0xFFD7E3F8)
+internal val M3Light_OnSecondaryContainer = Color(0xFF101C2B)
+internal val M3Light_Tertiary             = Color(0xFF006D3C)
+internal val M3Light_OnTertiary           = Color(0xFFFFFFFF)
+internal val M3Light_TertiaryContainer    = Color(0xFF89F8BC)
+internal val M3Light_OnTertiaryContainer  = Color(0xFF002111)
+internal val M3Light_Error                = Color(0xFFBA1A1A)
+internal val M3Light_OnError              = Color(0xFFFFFFFF)
+internal val M3Light_ErrorContainer       = Color(0xFFFFDAD6)
+internal val M3Light_OnErrorContainer     = Color(0xFF410002)
+internal val M3Light_Background           = Color(0xFFFDFCFF)
+internal val M3Light_OnBackground         = Color(0xFF1A1C1E)
+internal val M3Light_Surface              = Color(0xFFFDFCFF)
+internal val M3Light_OnSurface            = Color(0xFF1A1C1E)
+internal val M3Light_SurfaceVariant       = Color(0xFFDFE2EB)
+internal val M3Light_OnSurfaceVariant     = Color(0xFF43474E)
+internal val M3Light_Outline              = Color(0xFF73777F)
+internal val M3Light_OutlineVariant       = Color(0xFFC3C7CF)
+internal val M3Light_InverseSurface       = Color(0xFF2F3033)
+internal val M3Light_InverseOnSurface     = Color(0xFFF1F0F4)
+internal val M3Light_InversePrimary       = Color(0xFF9ECAFF)
+internal val M3Light_SurfaceTint          = Color(0xFF0061A4)
 
-// Semantic
-val IosDestructive = Color(0xFFFF3B30)
-val IosSuccess = Color(0xFF34C759)
-val IosWarning = Color(0xFFFF9500)
-
-// Text
-val IosLabel = Color(0xFF000000)
-val IosSecondaryLabel = Color(0x993C3C43) // 0.6 alpha
-val IosTertiaryLabel = Color(0x4D3C3C43) // 0.3 alpha
-
-// Separators
-val IosSeparator = Color(0x1F3C3C43) // 0.12 alpha
-val IosOpaqueSeparator = Color(0xFFC6C6C8)
-
-// Fills
-val IosTertiaryFill = Color(0x1F787880) // 0.12 alpha
-val IosQuaternaryFill = Color(0x14747480) // 0.08 alpha
-
-// Surface / card
-val IosWhite = Color(0xFFFFFFFF)
+// ── Fallback M3 dark color scheme ─────────────────────────────────────────────
+internal val M3Dark_Primary              = Color(0xFF9ECAFF)
+internal val M3Dark_OnPrimary            = Color(0xFF003258)
+internal val M3Dark_PrimaryContainer     = Color(0xFF00497D)
+internal val M3Dark_OnPrimaryContainer   = Color(0xFFD1E4FF)
+internal val M3Dark_Secondary            = Color(0xFFBBC7DB)
+internal val M3Dark_OnSecondary          = Color(0xFF253140)
+internal val M3Dark_SecondaryContainer   = Color(0xFF3B4858)
+internal val M3Dark_OnSecondaryContainer = Color(0xFFD7E3F8)
+internal val M3Dark_Tertiary             = Color(0xFF6EFCAB)
+internal val M3Dark_OnTertiary           = Color(0xFF003920)
+internal val M3Dark_TertiaryContainer    = Color(0xFF00522E)
+internal val M3Dark_OnTertiaryContainer  = Color(0xFF89F8BC)
+internal val M3Dark_Error                = Color(0xFFFFB4AB)
+internal val M3Dark_OnError              = Color(0xFF690005)
+internal val M3Dark_ErrorContainer       = Color(0xFF93000A)
+internal val M3Dark_OnErrorContainer     = Color(0xFFFFDAD6)
+internal val M3Dark_Background           = Color(0xFF1A1C1E)
+internal val M3Dark_OnBackground         = Color(0xFFE2E2E6)
+internal val M3Dark_Surface              = Color(0xFF1A1C1E)
+internal val M3Dark_OnSurface            = Color(0xFFE2E2E6)
+internal val M3Dark_SurfaceVariant       = Color(0xFF43474E)
+internal val M3Dark_OnSurfaceVariant     = Color(0xFFC3C7CF)
+internal val M3Dark_Outline              = Color(0xFF8D9199)
+internal val M3Dark_OutlineVariant       = Color(0xFF43474E)
+internal val M3Dark_InverseSurface       = Color(0xFFE2E2E6)
+internal val M3Dark_InverseOnSurface     = Color(0xFF2F3033)
+internal val M3Dark_InversePrimary       = Color(0xFF0061A4)
+internal val M3Dark_SurfaceTint          = Color(0xFF9ECAFF)

@@ -12,18 +12,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -45,13 +44,6 @@ import androidx.compose.ui.unit.dp
 import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
-import com.voicemind.ui.theme.IosAccent
-import com.voicemind.ui.theme.IosDestructive
-import com.voicemind.ui.theme.IosLabel
-import com.voicemind.ui.theme.IosSecondaryLabel
-import com.voicemind.ui.theme.IosSuccess
-import com.voicemind.ui.theme.IosTertiaryFill
-import com.voicemind.ui.theme.IosWhite
 
 private enum class TranscriptTab(val label: String) {
     Transcript("Transcript"),
@@ -78,23 +70,27 @@ fun TranscriptSheet(
         if (hasTasks) listOf(TranscriptTab.Tasks) else emptyList()
     if (selectedTab >= tabs.size) selectedTab = 0
 
+    LaunchedEffect(hasTasks) {
+        if (hasTasks) selectedTab = tabs.indexOf(TranscriptTab.Tasks)
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = IosWhite,
-        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+        // shape uses M3 default (extraLarge top corners)
+        // containerColor uses M3 default
     ) {
         Column(
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 24.dp)
         ) {
-            Text(recording.title, style = MaterialTheme.typography.titleSmall)
+            Text(recording.title, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 tabs.forEachIndexed { index, tab ->
                     FilterChip(
@@ -106,20 +102,65 @@ fun TranscriptSheet(
                             }
                         },
                         label = {
-                            Text(
-                                tab.label,
-                                style = MaterialTheme.typography.labelMedium,
-                            )
+                            Text(tab.label, style = MaterialTheme.typography.labelMedium)
                         },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = IosAccent,
-                            selectedLabelColor = IosWhite,
-                            containerColor = IosTertiaryFill,
-                            labelColor = IosLabel,
-                        ),
-                        shape = RoundedCornerShape(20.dp),
-                        border = null,
+                        // colors use M3 defaults: secondaryContainer for selected
                     )
+                }
+
+                if (!hasTasks && !recording.transcription.isNullOrBlank() && sheetState.actionItemsLoaded) {
+                    if (sheetState.isGeneratingTasks) {
+                        FilterChip(
+                            selected = false,
+                            onClick = {},
+                            enabled = false,
+                            label = {
+                                Text("Generating...", style = MaterialTheme.typography.labelMedium)
+                            },
+                            leadingIcon = {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            },
+                        )
+                    } else {
+                        FilterChip(
+                            selected = false,
+                            onClick = { viewModel.generateTasks(recording) },
+                            label = {
+                                Text("Generate Tasks", style = MaterialTheme.typography.labelMedium)
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (!sheetState.isGeneratingTasks) {
+                when {
+                    sheetState.generateTasksNoResults -> {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "No tasks could be identified. Try again or edit the transcript.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    sheetState.generateTasksFailed -> {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "Something went wrong — tap Generate Tasks to try again.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
 
@@ -132,7 +173,7 @@ fun TranscriptSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(rememberScrollState()),
                 ) {
                     when (tab) {
                         TranscriptTab.Transcript -> TranscriptContent(recording)
@@ -153,7 +194,10 @@ private fun TranscriptContent(recording: Recording) {
     Text(
         text = recording.transcription ?: "No transcript",
         style = MaterialTheme.typography.bodyMedium,
-        color = if (recording.transcription != null) IosLabel else IosSecondaryLabel,
+        color = if (recording.transcription != null)
+            MaterialTheme.colorScheme.onSurface
+        else
+            MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
@@ -171,16 +215,12 @@ private fun SummaryContent(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(32.dp),
-                        color = IosAccent,
-                        strokeWidth = 3.dp,
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(32.dp))
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         "Summary is being generated...",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = IosSecondaryLabel,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -189,7 +229,7 @@ private fun SummaryContent(
             Text(
                 text = summaryState.text,
                 style = MaterialTheme.typography.bodyMedium,
-                color = IosLabel,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
         is SummaryState.Error -> {
@@ -206,7 +246,7 @@ private fun SummaryContent(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(onClick = onRetry) {
-                    Text("Retry", color = IosAccent)
+                    Text("Retry")
                 }
             }
         }
@@ -219,7 +259,7 @@ private fun TasksContent(sheetState: TranscriptSheetState) {
         Text(
             "No tasks",
             style = MaterialTheme.typography.bodyMedium,
-            color = IosSecondaryLabel,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -229,10 +269,12 @@ private fun TasksContent(sheetState: TranscriptSheetState) {
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(
-                        imageVector = if (item.completed) Icons.Filled.CheckCircle
-                        else Icons.Outlined.Circle,
+                        imageVector = if (item.completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                         contentDescription = null,
-                        tint = if (item.completed) IosSuccess else IosSecondaryLabel,
+                        tint = if (item.completed)
+                            MaterialTheme.colorScheme.tertiary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .size(20.dp)
                             .padding(top = 2.dp),
@@ -242,7 +284,7 @@ private fun TasksContent(sheetState: TranscriptSheetState) {
                         Text(
                             text = item.title,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = IosLabel,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         TaskDateLabels(item)
                     }
@@ -261,24 +303,23 @@ private fun TaskDateLabels(item: ActionItem) {
         val date = ts.toDate()
         val overdue = isOverdue && date.before(now)
         val formatted = remember(ts) {
-            java.text.SimpleDateFormat("MMM d, h:mm a", java.util.Locale.getDefault())
-                .format(date)
+            java.text.SimpleDateFormat("MMM d, h:mm a", java.util.Locale.getDefault()).format(date)
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(top = 2.dp),
         ) {
             Icon(
-                Icons.Default.AccessTime,
+                Icons.Default.Schedule,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = if (overdue) IosDestructive else IosSecondaryLabel,
+                tint = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = formatted,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (overdue) IosDestructive else IosSecondaryLabel,
+                color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -299,13 +340,13 @@ private fun TaskDateLabels(item: ActionItem) {
                 Icons.Default.Flag,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = if (overdue) IosDestructive else IosSecondaryLabel,
+                tint = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "Deadline: $formatted",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (overdue) IosDestructive else IosSecondaryLabel,
+                color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -324,10 +365,10 @@ fun RenameRecordingDialog(
         text = {
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it.take(25) },
+                onValueChange = { title = it.take(75) },
                 singleLine = true,
                 label = { Text("Title") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
         },
         confirmButton = {
@@ -335,7 +376,7 @@ fun RenameRecordingDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
+        },
     )
 }
 
@@ -353,7 +394,7 @@ fun MoveToFolderDialog(
                 folders.forEach { folder ->
                     TextButton(
                         onClick = { onConfirm(folder.id) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(folder.name, modifier = Modifier.fillMaxWidth())
                     }
@@ -363,7 +404,7 @@ fun MoveToFolderDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
+        },
     )
 }
 
@@ -384,6 +425,6 @@ fun DeleteRecordingDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
+        },
     )
 }

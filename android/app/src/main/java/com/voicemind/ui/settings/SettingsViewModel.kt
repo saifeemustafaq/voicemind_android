@@ -32,6 +32,37 @@ class SettingsViewModel @Inject constructor(
     val useSidebar: StateFlow<Boolean> = navPreferenceRepository.useSidebar
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val defaultLandingPage: StateFlow<String> = navPreferenceRepository.defaultLandingPage
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "recordings")
+
+    fun setDefaultLandingPage(route: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            navPreferenceRepository.setDefaultLandingPage(route)
+        }
+    }
+
+    fun reorderNavItems(newOrder: List<String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            navPreferenceRepository.setNavOrder(newOrder)
+        }
+    }
+
+    val navOrder: StateFlow<List<String>> = navPreferenceRepository.navOrder
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf("folders", "summaries", "checklist", "recordings"))
+
+    fun moveNavItem(route: String, moveUp: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val current = navOrder.value.toMutableList()
+            val index = current.indexOf(route)
+            if (index == -1) return@launch
+            val newIndex = if (moveUp) index - 1 else index + 1
+            if (newIndex < 0 || newIndex >= current.size) return@launch
+            current.removeAt(index)
+            current.add(newIndex, route)
+            navPreferenceRepository.setNavOrder(current)
+        }
+    }
+
     val calendarConnected: StateFlow<Boolean> = googleCalendarRepository.observeCalendarConnected()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 

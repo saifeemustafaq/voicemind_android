@@ -36,6 +36,10 @@ android {
         }
     }
 
+    lint {
+        disable += "NullSafeMutableLiveData"
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -46,7 +50,7 @@ android {
             )
             firebaseAppDistribution {
                 releaseNotes = "Latest build of VoiceMind"
-                testers = "saifeesaifuddinq@gmail.com, saifeestudy@gmail.com, kkalyanipawar@gmail.com"
+                testers = "saifeesaifuddinq@gmail.com, saifeestudy@gmail.com"
             }
         }
     }
@@ -130,6 +134,10 @@ dependencies {
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Markdown rendering
+    implementation("com.halilibo.compose-richtext:richtext-ui-material3:0.20.0")
+    implementation("com.halilibo.compose-richtext:richtext-commonmark:0.20.0")
 
     // Logging
     implementation(libs.timber)

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -16,12 +17,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.voicemind.ui.theme.IosAccent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +32,8 @@ fun VoiceMindTopAppBar(
     onOpenDrawer: (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
+    onInfoClick: (() -> Unit)? = null,
+    extraActions: @Composable RowScope.() -> Unit = {},
 ) {
     TopAppBar(
         title = {
@@ -39,10 +42,20 @@ fun VoiceMindTopAppBar(
                     icon,
                     contentDescription = null,
                     modifier = Modifier.size(22.dp),
-                    tint = IosAccent,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(title, style = MaterialTheme.typography.titleLarge)
+                if (onInfoClick != null) {
+                    IconButton(onClick = onInfoClick) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = "How summaries work",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         },
         navigationIcon = {
@@ -56,6 +69,7 @@ fun VoiceMindTopAppBar(
             }
         },
         actions = {
+            extraActions()
             if (onSettings != null) {
                 IconButton(onClick = onSettings) {
                     Icon(Icons.Default.Settings, contentDescription = "Settings")
