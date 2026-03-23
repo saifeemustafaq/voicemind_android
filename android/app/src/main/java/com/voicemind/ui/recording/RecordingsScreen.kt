@@ -118,6 +118,7 @@ import com.voicemind.ui.theme.ShimmerBlue
 import com.voicemind.ui.theme.ShimmerGold
 import com.voicemind.ui.theme.ShimmerPurple
 import com.voicemind.ui.theme.VmDimens
+import com.voicemind.util.LocalAppTimeZone
 import com.voicemind.util.formatRecordingTime
 import com.voicemind.util.toDateSectionKey
 import com.voicemind.util.toShortDateString
@@ -251,9 +252,10 @@ fun RecordingsScreen(
                     }
                 }
 
-                val grouped = remember(listState.recordings) {
+                val appTz = LocalAppTimeZone.current
+                val grouped = remember(listState.recordings, appTz) {
                     listState.recordings.groupBy { recording ->
-                        recording.createdAt?.toDate()?.toDateSectionKey() ?: "Unknown"
+                        recording.createdAt?.toDate()?.toDateSectionKey(appTz) ?: "Unknown"
                     }
                 }
 
@@ -934,7 +936,7 @@ private fun RecordingRow(
             recording.createdAt?.toDate()?.let { date ->
                 val durationStr = if (recording.durationSeconds > 0) " · ${formatRecordingTime(recording.durationSeconds)}" else ""
                 Text(
-                    text = date.toShortDateString() + durationStr,
+                    text = date.toShortDateString(LocalAppTimeZone.current) + durationStr,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

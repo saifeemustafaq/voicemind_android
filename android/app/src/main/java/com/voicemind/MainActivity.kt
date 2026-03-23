@@ -14,10 +14,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,12 +28,14 @@ import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.service.RecordingService
 import com.voicemind.ui.auth.AuthViewModel
 import com.voicemind.ui.auth.SignInScreen
-import com.voicemind.ui.components.CalendarSyncPromptDialog
+import com.voicemind.ui.components.TasksSyncPromptDialog
 import com.voicemind.ui.components.PermissionRationaleDialog
 import com.voicemind.ui.main.MainViewModel
 import com.voicemind.ui.navigation.AppNavHost
 import com.voicemind.ui.theme.VoiceMindAITheme
+import com.voicemind.util.LocalAppTimeZone
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.TimeZone
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -55,9 +59,9 @@ class MainActivity : ComponentActivity() {
     private var micPermanentlyDenied by mutableStateOf(false)
     private var notificationPermanentlyDenied by mutableStateOf(false)
 
-    // --- Calendar prompt ---
+    // --- Tasks prompt ---
     // Dismissed once per cold start; resets when the Activity is recreated.
-    private var calendarPromptDismissed by mutableStateOf(false)
+    private var tasksPromptDismissed by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,13 +69,18 @@ class MainActivity : ComponentActivity() {
             intent?.getBooleanExtra(RecordingService.EXTRA_OPEN_RECORDINGS, false) == true
         enableEdgeToEdge()
         setContent {
+            val appTzId by navPreferenceRepository.appTimezone
+                .collectAsStateWithLifecycle(initialValue = TimeZone.getDefault().id)
+            val appTz = remember(appTzId) { TimeZone.getTimeZone(appTzId) }
+
             VoiceMindAITheme {
+                CompositionLocalProvider(LocalAppTimeZone provides appTz) {
                 val authViewModel: AuthViewModel = hiltViewModel()
                 val isSignedIn by authViewModel.isSignedIn.collectAsStateWithLifecycle()
 
                 if (isSignedIn) {
                     val mainViewModel: MainViewModel = hiltViewModel()
-                    val calendarConnected by mainViewModel.calendarConnected.collectAsStateWithLifecycle()
+                    val tasksConnected by mainViewModel.tasksConnected.collectAsStateWithLifecycle()
                     val pendingConsent by mainViewModel.pendingConsent.collectAsStateWithLifecycle()
 
                     // ── Permission request launcher ────────────────────────────────────────
@@ -120,7 +129,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // ── Google Calendar consent launcher ──────────────────────────────────
+                    // ── Google Tasks consent launcher ─────────────────────────────────────
                     val consentLauncher = rememberLauncherForActivityResult(
                         ActivityResultContracts.StartIntentSenderForResult()
                     ) { activityResult ->
@@ -139,7 +148,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // ── Dialog priority: permission rationale first, calendar second ──────
+                    // ── Dialog priority: permission rationale first, tasks second ──────────
                     when {
                         showPermissionRationale -> {
                             val allPermanentlyDenied =
@@ -174,14 +183,14 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        calendarConnected == false && !calendarPromptDismissed && !permissionsDismissedThisSession -> {
-                            CalendarSyncPromptDialog(
+                        tasksConnected == false && !tasksPromptDismissed && !permissionsDismissedThisSession -> {
+                            TasksSyncPromptDialog(
                                 onConnect = {
-                                    calendarPromptDismissed = true
-                                    mainViewModel.connectCalendar(this@MainActivity)
+                                    tasksPromptDismissed = true
+                                    mainViewModel.connectTasks(this@MainActivity)
                                 },
                                 onDismiss = {
-                                    calendarPromptDismissed = true
+                                    tasksPromptDismissed = true
                                     permissionsDismissedThisSession = true
                                 },
                             )
@@ -197,6 +206,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     SignInScreen(viewModel = authViewModel)
                 }
+            } // CompositionLocalProvider
             }
         }
     }

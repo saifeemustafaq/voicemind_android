@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
+import com.voicemind.util.LocalAppTimeZone
 
 private enum class TranscriptTab(val label: String) {
     Transcript("Transcript"),
@@ -298,12 +299,15 @@ private fun TasksContent(sheetState: TranscriptSheetState) {
 private fun TaskDateLabels(item: ActionItem) {
     val now = remember { java.util.Date() }
     val isOverdue = !item.completed
+    val appTz = LocalAppTimeZone.current
 
     item.dueDate?.let { ts ->
         val date = ts.toDate()
         val overdue = isOverdue && date.before(now)
-        val formatted = remember(ts) {
-            java.text.SimpleDateFormat("MMM d, h:mm a", java.util.Locale.getDefault()).format(date)
+        val formatted = remember(ts, appTz) {
+            java.text.SimpleDateFormat("MMM d, h:mm a", java.util.Locale.getDefault())
+                .apply { timeZone = appTz }
+                .format(date)
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,

@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -90,6 +91,27 @@ class NavPreferenceRepository @Inject constructor(
     suspend fun setNavOrder(routes: List<String>) {
         context.dataStore.edit { prefs ->
             prefs[navOrderKey] = routes.joinToString(",")
+        }
+    }
+
+    // ── Timezone ─────────────────────────────────────────────────────────────
+
+    private val timezoneKey = stringPreferencesKey("timezone")
+
+    /** IANA timezone ID; falls back to device default when the user hasn't overridden it. */
+    val appTimezone: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[timezoneKey]?.takeIf { it.isNotEmpty() } ?: TimeZone.getDefault().id
+    }
+
+    val isAutoTimezone: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[timezoneKey].isNullOrEmpty()
+    }
+
+    /** Pass `null` to reset to device-automatic. */
+    suspend fun setTimezone(timezoneId: String?) {
+        context.dataStore.edit { prefs ->
+            if (timezoneId == null) prefs.remove(timezoneKey)
+            else prefs[timezoneKey] = timezoneId
         }
     }
 }

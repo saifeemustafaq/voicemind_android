@@ -6,14 +6,17 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
 import com.voicemind.data.model.ActionItem
 import com.voicemind.data.repository.ActionItemRepository
+import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
+import java.util.TimeZone
 import javax.inject.Inject
 
 data class TaskDetailUiState(
@@ -28,6 +31,7 @@ class TaskDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val actionItemRepository: ActionItemRepository,
     private val recordingRepository: RecordingRepository,
+    private val navPreferenceRepository: NavPreferenceRepository,
 ) : ViewModel() {
 
     private val itemId: String = checkNotNull(savedStateHandle["itemId"])
@@ -74,7 +78,8 @@ class TaskDetailViewModel @Inject constructor(
     fun setDueDate(dateMillis: Long?, hour: Int?, minute: Int?) {
         viewModelScope.launch(Dispatchers.IO) {
             val ts = if (dateMillis != null) {
-                val cal = Calendar.getInstance().apply {
+                val tzId = navPreferenceRepository.appTimezone.first()
+                val cal = Calendar.getInstance(TimeZone.getTimeZone(tzId)).apply {
                     timeInMillis = dateMillis
                     set(Calendar.HOUR_OF_DAY, hour ?: 0)
                     set(Calendar.MINUTE, minute ?: 0)

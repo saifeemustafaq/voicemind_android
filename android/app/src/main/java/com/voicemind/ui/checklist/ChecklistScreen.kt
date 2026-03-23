@@ -49,6 +49,7 @@ import com.voicemind.data.model.ActionItem
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.theme.VmDimens
+import com.voicemind.util.LocalAppTimeZone
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -241,12 +242,15 @@ private fun AddTaskDialog(
 private fun DateLabels(item: ActionItem) {
     val now = remember { Date() }
     val isOverdue = !item.completed
+    val appTz = LocalAppTimeZone.current
 
     item.dueDate?.let { ts ->
         val date = ts.toDate()
         val overdue = isOverdue && date.before(now)
-        val formatted = remember(ts) {
-            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(date)
+        val formatted = remember(ts, appTz) {
+            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+                .apply { timeZone = appTz }
+                .format(date)
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,

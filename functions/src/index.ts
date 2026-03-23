@@ -78,8 +78,10 @@ export const processRecording = onCall(
     }
 
     // Step 3: Extract action items (with optional date/deadline)
+    let actionItemCount = 0;
     try {
       const items = await extractActionItems(transcription, tz);
+      actionItemCount = items.length;
       if (items.length > 0) {
         const batch = db.batch();
         const actionItemsRef = db
@@ -120,7 +122,7 @@ export const processRecording = onCall(
       console.error("Action item extraction failed:", err);
     }
 
-    return { success: true };
+    return { success: true, actionItemCount };
   }
 );
 
@@ -399,60 +401,99 @@ interface ExtractedActionItem {
   notes?: string;
 }
 
-function parseActionItems(raw: string): ExtractedActionItem[] {
-  let text = raw.trim();
+// Structured output JSON schema — used in both extraction functions.
+// strict: true guarantees the model always returns this exact shape.
+const ACTION_ITEMS_SCHEMA = {
+  type: "json_schema",
+  json_schema: {
+    name: "action_items",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              notes: { anyOf: [{ type: "string" }, { type: "null" }] },
+              deadline: { anyOf: [{ type: "string" }, { type: "null" }] },
+              dueDate: { anyOf: [{ type: "string" }, { type: "null" }] },
+            },
+            required: ["title", "notes", "deadline", "dueDate"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["items"],
+      additionalProperties: false,
+    },
+  },
+};
 
-  text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
-  text = text.trim();
+const DEADLINE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DUE_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
-  const tryParse = (json: string): ExtractedActionItem[] | null => {
-    try {
-      const parsed = JSON.parse(json);
-      if (!Array.isArray(parsed)) return null;
-      return parsed
-        .map((item: unknown) => {
-          if (typeof item === "string" && item.length > 0) {
-            return { title: item };
-          }
-          if (
-            typeof item === "object" &&
-            item !== null &&
-            typeof (item as Record<string, unknown>).title === "string"
-          ) {
-            const obj = item as Record<string, unknown>;
-            const result: ExtractedActionItem = {
-              title: obj.title as string,
-            };
-            if (typeof obj.dueDate === "string" && obj.dueDate)
-              result.dueDate = obj.dueDate;
-            if (typeof obj.deadline === "string" && obj.deadline)
-              result.deadline = obj.deadline;
-            if (typeof obj.notes === "string" && obj.notes)
-              result.notes = obj.notes;
-            return result;
-          }
-          return null;
-        })
-        .filter((x): x is ExtractedActionItem => x !== null && x.title.length > 0);
-    } catch {
-      return null;
+/**
+ * Parses the structured JSON response `{ items: [...] }` returned by the model.
+ * Validates date formats and logs warnings for malformed values.
+ * @param raw        The raw JSON string from the model.
+ * @param transcriptLen  Used only for the zero-task warning heuristic.
+ */
+function parseActionItems(raw: string, transcriptLen: number): ExtractedActionItem[] {
+  try {
+    const parsed = JSON.parse(raw);
+    const arr = parsed?.items;
+    if (!Array.isArray(arr)) {
+      console.error("Structured output missing items array:", raw.substring(0, 300));
+      return [];
     }
-  };
 
-  if (text.startsWith("[")) {
-    const result = tryParse(text);
-    if (result) return result;
+    const results = arr
+      .map((item: unknown): ExtractedActionItem | null => {
+        if (typeof item !== "object" || item === null) return null;
+        const obj = item as Record<string, unknown>;
+        if (typeof obj.title !== "string" || !obj.title.trim()) return null;
+
+        const result: ExtractedActionItem = { title: obj.title.trim() };
+
+        if (typeof obj.notes === "string" && obj.notes.trim()) {
+          result.notes = obj.notes.trim();
+        }
+
+        if (typeof obj.deadline === "string" && obj.deadline) {
+          if (DEADLINE_RE.test(obj.deadline)) {
+            result.deadline = obj.deadline;
+          } else {
+            console.warn(`Invalid deadline format skipped: "${obj.deadline}"`);
+          }
+        }
+
+        if (typeof obj.dueDate === "string" && obj.dueDate) {
+          if (DUE_DATE_RE.test(obj.dueDate)) {
+            result.dueDate = obj.dueDate;
+          } else {
+            console.warn(`Invalid dueDate format skipped: "${obj.dueDate}"`);
+          }
+        }
+
+        return result;
+      })
+      .filter((x): x is ExtractedActionItem => x !== null);
+
+    if (results.length === 0 && transcriptLen > 100) {
+      console.warn(
+        `Zero tasks extracted from ${transcriptLen}-char transcript. ` +
+        `Raw response snippet: ${raw.substring(0, 500)}`
+      );
+    }
+
+    return results;
+  } catch (err) {
+    console.error("Failed to parse structured action items JSON:", err, raw.substring(0, 300));
+    return [];
   }
-
-  const start = text.indexOf("[");
-  const end = text.lastIndexOf("]");
-  if (start !== -1 && end > start) {
-    const result = tryParse(text.substring(start, end + 1));
-    if (result) return result;
-  }
-
-  console.error("Failed to parse action items JSON:", raw);
-  return [];
 }
 
 /**
@@ -517,61 +558,63 @@ async function extractActionItems(
   transcript: string,
   timezone: string
 ): Promise<ExtractedActionItem[]> {
-  const truncated = transcript.substring(0, 3000);
+  const truncated = transcript.substring(0, 8000);
   const now = new Date();
   const today = now.toLocaleDateString("en-CA", { timeZone: timezone });
   const dayOfWeek = now.toLocaleDateString("en-US", {
     weekday: "long",
     timeZone: timezone,
   });
+  const currentTime = now.toLocaleTimeString("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 
   const systemPrompt = `You are a smart personal assistant that extracts action items from voice transcripts. Think like a human assistant who deeply understands intent.
 
-Today is ${dayOfWeek}, ${today}. The user's timezone is ${timezone}. Use this to resolve relative dates like "this Friday", "next Monday", "tomorrow", "end of week", etc.
+Right now it is ${dayOfWeek}, ${today} at ${currentTime} in the ${timezone} timezone. Use this to resolve relative references like "this Friday", "next Monday", "tomorrow", "in 2 hours", "this afternoon", "later tonight", "end of week", etc.
 
-Respond with ONLY a JSON array of objects. No markdown, no explanation, no code fences.
+TITLE RULES — write imperative, self-contained titles of 5–15 words:
+- Include the WHO, WHAT, and WHERE/WHY when mentioned in the transcript.
+- Preserve specific names, companies, phone numbers, and places from the transcript.
+- Bad: "Call dentist" | Good: "Call Dr. Patel's office to reschedule Thursday cleaning"
+- Bad: "Send report" | Good: "Send Q1 sales report to Sarah by email"
+- Bad: "Buy stuff" | Good: "Buy 2 gallons of milk and eggs from Trader Joe's"
+- The title must make sense standalone without reading the transcript.
 
-Each object has:
-- "title" (string, required): a short phrase describing the task.
-- "notes" (string, optional): 1-3 concise sentences of context from the transcript explaining WHY this task exists — the reason, background, or details behind it. Paraphrase naturally; do not quote verbatim. Omit if there is no meaningful context beyond the title itself.
-- "deadline" (string, optional): ISO 8601 date YYYY-MM-DD. Use when the speaker indicates a task must be COMPLETED, FINISHED, or DELIVERED by a certain date. This is the "finish by" date.
-- "dueDate" (string, optional): Local datetime in format "YYYY-MM-DDTHH:MM:SS" with NO timezone offset (e.g. "2026-02-27T17:00:00"). Use when the speaker indicates they will WORK ON, ATTEND, or DO something at a specific date AND time. Output the clock time the user stated, exactly as a local time — do NOT convert to UTC or append any offset.
+NOTES RULES — capture actionable details that belong in a Google Tasks description:
+- Include phone numbers, addresses, URLs, account numbers, reference codes mentioned.
+- Include the reason/context: why this task exists, what depends on it.
+- Include constraints: budget limits, specific requirements, who to contact.
+- Keep to 1–4 sentences. Paraphrase naturally; do not quote verbatim.
+- Set to null if no meaningful detail exists beyond what the title already says.
 
-DEADLINE — the date something must be finished by. Trigger phrases:
-- "complete this by Friday" → deadline = that Friday
-- "deliver the report by March 10" → deadline = March 10
-- "needs to be done before next Monday" → deadline = next Monday
-- "submit before the 15th" → deadline = the 15th of this/next month
-- "due on Thursday" → deadline = that Thursday
-- "have it ready by end of week" → deadline = that Friday
-- "deadline is March 5" → deadline = March 5
-- "no later than Tuesday" → deadline = that Tuesday
-- "finish by tomorrow" → deadline = tomorrow's date
-- "I need to get this done by next week" → deadline = next Friday
-- Any "by [date]", "before [date]", "due [date]", "no later than [date]" pattern → deadline
+DATE FIELDS:
+- "deadline" (YYYY-MM-DD): the date something must be FINISHED/DELIVERED/COMPLETED by.
+- "dueDate" (YYYY-MM-DDTHH:MM:SS): when you will WORK ON, ATTEND, or DO it — only when a specific clock time is mentioned. Output the user's local time exactly as stated, no UTC conversion, no timezone offset.
 
-DUE DATE — when you will work on it or attend it (requires a specific time). Trigger phrases:
-- "I'll work on this Tuesday at 3pm" → dueDate = that Tuesday 15:00
-- "meeting at 2pm on Wednesday" → dueDate = that Wednesday 14:00
-- "let's do this Monday morning" → dueDate = that Monday 09:00
-- "schedule a call for Friday at 10" → dueDate = that Friday 10:00
-- "working on it this Saturday afternoon" → dueDate = this Saturday 14:00
-- "appointment on March 3rd at 4:30" → dueDate = March 3 16:30
-- "I have a thing at noon tomorrow" → dueDate = tomorrow 12:00
-- Any "on [date] at [time]" or "at [time] on [date]" pattern with a scheduled activity → dueDate
+DEADLINE triggers: "by [date]", "before [date]", "due [date]", "no later than", "deadline is", "finish by", "have it ready by", "needs to be done by"
+
+DUE DATE triggers: "meeting at [time]", "appointment at [time]", "call at [time]", "I'll do it at [time]", "scheduled for [time]", any activity pinned to a specific clock time
+
+DATE RESOLUTION:
+- If today is Tuesday and speaker says "Tuesday", that means TODAY (not next week).
+- "Next [weekday]" always means the upcoming occurrence at least 7 days away.
+- "This [weekday]" means the nearest upcoming occurrence within the current week.
+- "This weekend" = nearest Saturday/Sunday. "This weekend" on Friday = tomorrow.
+- "Morning" = 09:00, "afternoon" = 14:00, "evening" = 19:00, "tonight" = 20:00, "noon" = 12:00.
+- "In X hours" = current time + X hours (current time is ${currentTime}).
+- "End of day" = today at 17:00. "End of week" = this Friday. "End of month" = last day of current month.
 
 KEY RULES:
-1. If the context is about completion/delivery and only a date is mentioned (no specific time), use "deadline" (date-only).
-2. If the context is about scheduling/attending and a specific time is mentioned, use "dueDate" (datetime).
-3. If a date is mentioned but the context is ambiguous, prefer "deadline" since most spoken tasks are about getting things done.
-4. A single task can have BOTH a deadline and a dueDate if the speaker mentions both (e.g., "work on the presentation Tuesday at 2pm, it's due by Friday").
-5. If no date or time is mentioned at all, omit both fields entirely.
-6. Do NOT invent dates that the speaker did not mention or imply.
-7. When the speaker says vague time references like "morning", "afternoon", "evening", map them to 09:00, 14:00, 21:00 respectively.
-8. "End of day" = deadline for today. "End of week" = deadline for this Friday. "End of month" = deadline for the last day of the current month.
-
-Example output:
-[{"title":"Buy groceries","notes":"Need to restock for the dinner party on Saturday.","deadline":"2026-03-01"},{"title":"Call dentist","notes":"Need to reschedule the cleaning appointment that was missed last week.","dueDate":"2026-03-02T14:00:00"},{"title":"Prepare presentation for client meeting","dueDate":"2026-03-04T10:00:00","deadline":"2026-03-05"}]`;
+1. Date-only context (no specific time) → use "deadline".
+2. Specific clock time mentioned → use "dueDate".
+3. Ambiguous date without time → prefer "deadline".
+4. A task can have BOTH (e.g. "work on it Tuesday at 2pm, due Friday").
+5. Set both date fields to null if no date/time is mentioned.
+6. Never invent dates the speaker did not mention or imply.`;
 
   const response = await fetch(
     "https://api.openai.com/v1/chat/completions",
@@ -590,10 +633,11 @@ Example output:
           },
           {
             role: "user",
-            content: `Identify anything the speaker intends to do, needs to do, or wants to remember to do. Use your best judgement — if something sounds like a task, action item, reminder, or to-do, include it even if it is not phrased with exact keywords. Look for intent, not just specific phrases. One short phrase per item. If there are genuinely no tasks, return [].\n\nTranscript:\n\n${truncated}`,
+            content: `Extract every task, action item, reminder, and to-do from this transcript. Include anything the speaker intends to do, needs to do, or wants to remember — even if phrased indirectly. Each task needs a complete, self-contained title (5–15 words). Return an empty items array only if there are genuinely no tasks.\n\nTranscript:\n\n${truncated}`,
           },
         ],
-        max_tokens: 1024,
+        max_tokens: 2048,
+        response_format: ACTION_ITEMS_SCHEMA,
       }),
     }
   );
@@ -611,7 +655,7 @@ Example output:
   const content = data.choices?.[0]?.message?.content?.trim();
   if (!content) return [];
 
-  return parseActionItems(content);
+  return parseActionItems(content, truncated.length);
 }
 
 // ---------------------------------------------------------------------------
@@ -622,44 +666,62 @@ async function extractActionItemsAggressive(
   transcript: string,
   timezone: string
 ): Promise<ExtractedActionItem[]> {
-  const truncated = transcript.substring(0, 3000);
+  const truncated = transcript.substring(0, 8000);
   const now = new Date();
   const today = now.toLocaleDateString("en-CA", { timeZone: timezone });
   const dayOfWeek = now.toLocaleDateString("en-US", {
     weekday: "long",
     timeZone: timezone,
   });
+  const currentTime = now.toLocaleTimeString("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 
-  const systemPrompt = `The user has explicitly requested task extraction from this voice memo. You are a highly inclusive task extractor — err heavily on the side of extracting too many tasks rather than too few. The user can always delete ones they don't want.
+  const systemPrompt = `The user has explicitly requested aggressive task extraction from this voice memo. You are a highly inclusive task extractor — err heavily on the side of capturing too many tasks rather than too few. The user can always delete ones they don't want.
 
-Today is ${dayOfWeek}, ${today}. The user's timezone is ${timezone}. Use this to resolve relative dates like "this Friday", "next Monday", "tomorrow", etc.
+Right now it is ${dayOfWeek}, ${today} at ${currentTime} in the ${timezone} timezone. Use this to resolve "this Friday", "next Monday", "tomorrow", "in 2 hours", "this afternoon", "later tonight", etc.
 
 SPEAKER INTERPRETATION:
-- Treat the speaker as the person responsible for everything discussed.
+- Treat the speaker as responsible for everything discussed.
 - "we need to", "we should", "we want to", "we are doing" → the speaker's personal task.
 - "I", "me", "my" → straightforward personal task.
-- Passive voice ("the report needs to be sent", "this should be fixed") → the speaker will do it.
+- Passive voice ("the report needs to be sent") → the speaker will do it.
 
-WHAT TO EXTRACT — include ALL of these patterns:
+WHAT TO EXTRACT — include ALL of these:
 1. Direct tasks: "call the bank", "send the email", "book the flight"
 2. Implied intentions: "I should probably...", "I need to think about...", "I was thinking of..."
 3. Soft reminders: "don't forget to...", "I want to eventually...", "at some point..."
 4. Future plans: "next week I'll...", "I have to...", "I'm planning to..."
-5. Technical/engineering work: feature descriptions, improvements, bug fixes, implementations
-6. Feature descriptions: "when X happens, Y should occur" → task to implement X and Y
-7. Follow-ups and checks: "I need to check on...", "I should follow up with...", "ask John about..."
-8. Decisions pending: "we haven't decided on X yet" → task to decide on X
+5. Technical/engineering work: features, improvements, bug fixes, implementations
+6. Feature descriptions: "when X happens, Y should occur" → task to implement it
+7. Follow-ups: "I need to check on...", "follow up with...", "ask John about..."
+8. Pending decisions: "we haven't decided on X yet" → task to decide on X
 9. Anything a reasonable person would put on a to-do list
 
-Respond with ONLY a JSON array of objects. No markdown, no explanation, no code fences.
+TITLE RULES — write imperative, self-contained titles of 5–15 words:
+- Include specific names, companies, phone numbers, places from the transcript.
+- Bad: "Call dentist" | Good: "Call Dr. Patel's office to reschedule Thursday cleaning"
+- Bad: "Fix bug" | Good: "Fix null pointer crash on user profile screen for Android"
+- The title must make sense standalone without reading the transcript.
 
-Each object has:
-- "title" (string, required): a short imperative phrase describing the task (e.g. "Add notes to Google Calendar event description").
-- "notes" (string, optional): 1-3 concise sentences of context from the transcript explaining WHY this task exists. Paraphrase naturally; do not quote verbatim. Omit if there is no meaningful context beyond the title itself.
-- "deadline" (string, optional): ISO 8601 date YYYY-MM-DD. Use when the speaker indicates a task must be COMPLETED by a certain date.
-- "dueDate" (string, optional): Local datetime "YYYY-MM-DDTHH:MM:SS" with NO timezone offset. Use when the speaker mentions a specific time to work on or attend something.
+NOTES RULES — capture actionable details useful as a task description:
+- Phone numbers, addresses, URLs, account numbers, reference codes.
+- The reason this task exists and what depends on it.
+- Set to null if no detail exists beyond what the title already says.
 
-If there are genuinely zero actionable items after careful consideration, return [].`;
+DATE FIELDS:
+- "deadline" (YYYY-MM-DD): must be FINISHED/DELIVERED by this date.
+- "dueDate" (YYYY-MM-DDTHH:MM:SS): when you will DO/ATTEND it — only when a specific clock time is mentioned. Local time, no UTC conversion, no offset.
+
+DATE RESOLUTION:
+- If today is ${dayOfWeek} and the speaker says "${dayOfWeek}", that means TODAY.
+- "Next [weekday]" = at least 7 days away. "This [weekday]" = within the current week.
+- "Morning" = 09:00, "afternoon" = 14:00, "evening" = 19:00, "tonight" = 20:00.
+- "In X hours" = current time ${currentTime} + X hours.
+- Set both to null if no date/time is mentioned.`;
 
   const response = await fetch(
     "https://api.openai.com/v1/chat/completions",
@@ -675,10 +737,11 @@ If there are genuinely zero actionable items after careful consideration, return
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: `Extract every task, intention, reminder, feature, improvement, or implementation item mentioned. Treat "we" as the speaker. Treat passive voice and feature descriptions as tasks the speaker will do. Be very inclusive — the user can delete unwanted tasks.\n\nTranscript:\n\n${truncated}`,
+            content: `Extract every task, intention, reminder, feature, improvement, or implementation item. Treat "we" as the speaker. Treat passive voice and feature descriptions as tasks. Be very inclusive — the user can delete unwanted tasks. Write complete, self-contained titles (5–15 words).\n\nTranscript:\n\n${truncated}`,
           },
         ],
-        max_tokens: 1024,
+        max_tokens: 2048,
+        response_format: ACTION_ITEMS_SCHEMA,
       }),
     }
   );
@@ -696,7 +759,7 @@ If there are genuinely zero actionable items after careful consideration, return
   const content = data.choices?.[0]?.message?.content?.trim();
   if (!content) return [];
 
-  return parseActionItems(content);
+  return parseActionItems(content, truncated.length);
 }
 
 export const retryExtractActionItems = onCall(
@@ -773,7 +836,7 @@ export const retryExtractActionItems = onCall(
 );
 
 // ---------------------------------------------------------------------------
-// Google Calendar integration
+// Google Tasks integration
 // ---------------------------------------------------------------------------
 
 function createOAuth2Client(refreshToken?: string) {
@@ -788,15 +851,15 @@ function createOAuth2Client(refreshToken?: string) {
   return client;
 }
 
-interface CalendarAuthRequest {
+interface TasksAuthRequest {
   authCode: string;
 }
 
 /**
- * Exchanges a Google authorization code (with calendar.events scope)
- * for a refresh token and stores it securely for server-side calendar sync.
+ * Exchanges a Google authorization code (with tasks scope)
+ * for a refresh token and stores it securely for server-side Tasks sync.
  */
-export const exchangeCalendarAuthCode = onCall(
+export const exchangeTasksAuthCode = onCall(
   { secrets: [googleClientSecret] },
   async (request) => {
     if (!request.auth) {
@@ -804,7 +867,7 @@ export const exchangeCalendarAuthCode = onCall(
     }
 
     const uid = request.auth.uid;
-    const { authCode } = request.data as CalendarAuthRequest;
+    const { authCode } = request.data as TasksAuthRequest;
 
     if (!authCode) {
       throw new HttpsError("invalid-argument", "authCode is required");
@@ -831,13 +894,13 @@ export const exchangeCalendarAuthCode = onCall(
       );
     }
 
-    await db.collection("calendarTokens").doc(uid).set({
+    await db.collection("tasksTokens").doc(uid).set({
       refreshToken: tokens.refresh_token,
       connectedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     await db.collection("users").doc(uid).set(
-      { calendarConnected: true },
+      { tasksConnected: true },
       { merge: true }
     );
 
@@ -846,9 +909,9 @@ export const exchangeCalendarAuthCode = onCall(
 );
 
 /**
- * Revokes the stored Google Calendar refresh token and cleans up.
+ * Revokes the stored Google Tasks refresh token and cleans up.
  */
-export const disconnectCalendar = onCall(
+export const disconnectTasks = onCall(
   { secrets: [googleClientSecret] },
   async (request) => {
     if (!request.auth) {
@@ -856,7 +919,7 @@ export const disconnectCalendar = onCall(
     }
 
     const uid = request.auth.uid;
-    const tokenDoc = await db.collection("calendarTokens").doc(uid).get();
+    const tokenDoc = await db.collection("tasksTokens").doc(uid).get();
 
     if (tokenDoc.exists) {
       const refreshToken = tokenDoc.data()?.refreshToken as string | undefined;
@@ -868,11 +931,11 @@ export const disconnectCalendar = onCall(
           console.warn("Token revocation failed (may already be revoked):", err);
         }
       }
-      await db.collection("calendarTokens").doc(uid).delete();
+      await db.collection("tasksTokens").doc(uid).delete();
     }
 
     await db.collection("users").doc(uid).set(
-      { calendarConnected: false },
+      { tasksConnected: false },
       { merge: true }
     );
 
@@ -881,10 +944,10 @@ export const disconnectCalendar = onCall(
 );
 
 /**
- * Firestore trigger that syncs actionItem date changes to Google Calendar.
- * Creates, updates, or deletes calendar events when dueDate/deadline changes.
+ * Firestore trigger that syncs actionItem changes to Google Tasks.
+ * Creates, updates, or deletes tasks when title/dueDate/deadline/completed changes.
  */
-export const syncActionItemToCalendar = onDocumentWritten(
+export const syncActionItemToGoogleTasks = onDocumentWritten(
   {
     document: "users/{uid}/actionItems/{itemId}",
     secrets: [googleClientSecret],
@@ -896,10 +959,13 @@ export const syncActionItemToCalendar = onDocumentWritten(
     const before = event.data?.before?.data();
     const after = event.data?.after?.data();
 
-    // Guard: if the document still exists and only calendarEventId changed, skip
+    // Guard: if the document still exists and only googleTaskId/calendarEventId changed, skip
+    // (prevents infinite loop when we write back the task/event ID)
     if (before && after) {
       const beforeCopy = { ...before };
       const afterCopy = { ...after };
+      delete beforeCopy.googleTaskId;
+      delete afterCopy.googleTaskId;
       delete beforeCopy.calendarEventId;
       delete afterCopy.calendarEventId;
       if (JSON.stringify(beforeCopy) === JSON.stringify(afterCopy)) {
@@ -907,23 +973,28 @@ export const syncActionItemToCalendar = onDocumentWritten(
       }
     }
 
-    const tokenDoc = await db.collection("calendarTokens").doc(uid).get();
+    const tokenDoc = await db.collection("tasksTokens").doc(uid).get();
     if (!tokenDoc.exists) return;
 
     const refreshToken = tokenDoc.data()?.refreshToken as string | undefined;
     if (!refreshToken) return;
 
     const oauth2Client = createOAuth2Client(refreshToken);
+    const tasks = google.tasks({ version: "v1", auth: oauth2Client });
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-    const oldEventId = before?.calendarEventId as string | undefined;
-    const newEventId = after?.calendarEventId as string | undefined;
-    const eventId = newEventId || oldEventId;
+    const oldTaskId = before?.googleTaskId as string | undefined;
+    const taskId = (after?.googleTaskId ?? oldTaskId) as string | undefined;
+    const oldCalEventId = before?.calendarEventId as string | undefined;
+    const calEventId = (after?.calendarEventId ?? oldCalEventId) as string | undefined;
 
     // Document deleted
     if (!after) {
-      if (eventId) {
-        await deleteCalendarEvent(calendar, eventId, uid);
+      if (taskId) {
+        await deleteGoogleTask(tasks, taskId, uid);
+      }
+      if (calEventId) {
+        await deleteCalendarEvent(calendar, calEventId, uid);
       }
       return;
     }
@@ -932,90 +1003,198 @@ export const syncActionItemToCalendar = onDocumentWritten(
     const deadline = after.deadline as admin.firestore.Timestamp | undefined;
     const title = (after.title as string) || "VoiceMind Task";
     const notes = (after.notes as string | undefined) || undefined;
+    const completed = !!(after.completed as boolean);
 
-    const hasDate = dueDate || deadline;
+    const hasDate = !!(dueDate || deadline);
 
-    // Date removed -> delete calendar event
-    if (!hasDate && eventId) {
-      await deleteCalendarEvent(calendar, eventId, uid);
-      await event.data?.after?.ref.update({ calendarEventId: admin.firestore.FieldValue.delete() });
+    // Date removed and no existing task -> clean up calendar event if any
+    if (!hasDate && !taskId) {
+      if (calEventId) {
+        await deleteCalendarEvent(calendar, calEventId, uid);
+        await event.data?.after?.ref.update({ calendarEventId: admin.firestore.FieldValue.delete() });
+      }
       return;
     }
 
-    if (!hasDate) return;
+    // Date removed -> delete task and calendar event
+    if (!hasDate && taskId) {
+      await deleteGoogleTask(tasks, taskId, uid);
+      const removals: Record<string, unknown> = { googleTaskId: admin.firestore.FieldValue.delete() };
+      if (calEventId) {
+        await deleteCalendarEvent(calendar, calEventId, uid);
+        removals.calendarEventId = admin.firestore.FieldValue.delete();
+      }
+      await event.data?.after?.ref.update(removals);
+      return;
+    }
 
-    const calendarEvent = buildCalendarEvent(title, dueDate, deadline, notes);
+    // ── Sync to Google Tasks ──────────────────────────────────────────────────
+    const taskBody = buildGoogleTask(title, dueDate, deadline, notes, completed);
 
-    if (eventId) {
-      // Update existing event
+    if (taskId) {
+      // Update existing task
       try {
-        await calendar.events.update({
-          calendarId: "primary",
-          eventId: eventId,
-          requestBody: calendarEvent,
+        await tasks.tasks.update({
+          tasklist: "@default",
+          task: taskId,
+          requestBody: taskBody,
         });
       } catch (err: any) {
         if (err.code === 404 || err.status === 404) {
-          console.warn(`Calendar event ${eventId} not found, creating new one`);
-          await createAndStoreEvent(calendar, calendarEvent, event, itemId);
+          console.warn(`Google Task ${taskId} not found, creating new one`);
+          await createAndStoreTask(tasks, taskBody, event, itemId);
         } else if (err.code === 401 || err.status === 401) {
           await handleTokenExpired(uid);
         } else {
-          console.error("Calendar event update failed:", err);
+          console.error("Google Task update failed:", err);
         }
       }
     } else {
-      // Create new event
-      await createAndStoreEvent(calendar, calendarEvent, event, itemId);
+      // Create new task
+      await createAndStoreTask(tasks, taskBody, event, itemId);
+    }
+
+    // ── Sync to Google Calendar (only for dueDate items — preserves time) ────
+    if (dueDate) {
+      const eventBody = buildCalendarEvent(title, dueDate, notes);
+      if (calEventId) {
+        try {
+          await calendar.events.update({
+            calendarId: "primary",
+            eventId: calEventId,
+            requestBody: eventBody,
+          });
+        } catch (err: any) {
+          if (err.code === 404 || err.status === 404) {
+            await createAndStoreCalendarEvent(calendar, eventBody, event, itemId);
+          } else if (err.code === 401 || err.status === 401 || err.code === 403 || err.status === 403) {
+            console.warn(`Calendar scope not available for user ${uid}, skipping calendar sync`);
+          } else {
+            console.error("Calendar event update failed:", err);
+          }
+        }
+      } else {
+        await createAndStoreCalendarEvent(calendar, eventBody, event, itemId);
+      }
+    } else if (calEventId) {
+      // dueDate was cleared but calendar event remains — delete it
+      await deleteCalendarEvent(calendar, calEventId, uid);
+      await event.data?.after?.ref.update({ calendarEventId: admin.firestore.FieldValue.delete() });
     }
   }
 );
 
-function buildCalendarEvent(
+/**
+ * Builds the Google Tasks requestBody from action item fields.
+ * - deadline takes priority over dueDate for the Tasks due field (date-only).
+ *   The exact time from dueDate is preserved separately via a Calendar event.
+ * - completed maps to status: "completed" | "needsAction".
+ */
+function buildGoogleTask(
   title: string,
   dueDate?: admin.firestore.Timestamp,
   deadline?: admin.firestore.Timestamp,
-  notes?: string
-) {
-  const event: Record<string, unknown> = {
-    summary: title,
-    description: notes || "",
+  notes?: string,
+  completed?: boolean
+): Record<string, unknown> {
+  const task: Record<string, unknown> = {
+    title,
+    notes: notes || "",
+    status: completed ? "completed" : "needsAction",
   };
 
-  if (dueDate) {
-    const start = dueDate.toDate();
-    const end = new Date(start.getTime() + 30 * 60 * 1000); // 30-min duration
-    event.start = { dateTime: start.toISOString() };
-    event.end = { dateTime: end.toISOString() };
-  } else if (deadline) {
+  if (deadline) {
+    // Deadline takes priority — use date at noon UTC so the correct date shows
     const dateStr = deadline.toDate().toISOString().split("T")[0];
-    event.start = { date: dateStr };
-    event.end = { date: dateStr };
+    task.due = `${dateStr}T12:00:00.000Z`;
+  } else if (dueDate) {
+    // No deadline: show dueDate's date in Tasks (time is stored in Calendar)
+    const dateStr = dueDate.toDate().toISOString().split("T")[0];
+    task.due = `${dateStr}T12:00:00.000Z`;
   }
 
-  return event;
+  return task;
 }
 
-async function createAndStoreEvent(
+async function createAndStoreTask(
+  tasks: ReturnType<typeof google.tasks>,
+  taskBody: Record<string, unknown>,
+  event: Parameters<Parameters<typeof onDocumentWritten>[1]>[0],
+  itemId: string
+) {
+  try {
+    const created = await tasks.tasks.insert({
+      tasklist: "@default",
+      requestBody: taskBody,
+    });
+    if (created.data.id) {
+      await event.data?.after?.ref.update({ googleTaskId: created.data.id });
+    }
+  } catch (err: any) {
+    if (err.code === 401 || err.status === 401) {
+      await handleTokenExpired(event.params.uid);
+    } else {
+      console.error(`Failed to create Google Task for item ${itemId}:`, err);
+    }
+  }
+}
+
+async function deleteGoogleTask(
+  tasks: ReturnType<typeof google.tasks>,
+  taskId: string,
+  uid: string
+) {
+  try {
+    await tasks.tasks.delete({ tasklist: "@default", task: taskId });
+  } catch (err: any) {
+    if (err.code === 404 || err.status === 404) {
+      console.warn(`Google Task ${taskId} already deleted`);
+    } else if (err.code === 401 || err.status === 401) {
+      await handleTokenExpired(uid);
+    } else {
+      console.error(`Failed to delete Google Task ${taskId}:`, err);
+    }
+  }
+}
+
+/**
+ * Builds a Google Calendar event body for a dueDate action item.
+ * Creates a 30-minute event at the exact time recorded.
+ */
+function buildCalendarEvent(
+  title: string,
+  dueDate: admin.firestore.Timestamp,
+  notes?: string
+): Record<string, unknown> {
+  const start = dueDate.toDate();
+  const end = new Date(start.getTime() + 30 * 60 * 1000);
+  return {
+    summary: title,
+    description: notes || "",
+    start: { dateTime: start.toISOString() },
+    end: { dateTime: end.toISOString() },
+  };
+}
+
+async function createAndStoreCalendarEvent(
   calendar: ReturnType<typeof google.calendar>,
-  calendarEvent: Record<string, unknown>,
+  eventBody: Record<string, unknown>,
   event: Parameters<Parameters<typeof onDocumentWritten>[1]>[0],
   itemId: string
 ) {
   try {
     const created = await calendar.events.insert({
       calendarId: "primary",
-      requestBody: calendarEvent,
+      requestBody: eventBody,
     });
     if (created.data.id) {
       await event.data?.after?.ref.update({ calendarEventId: created.data.id });
     }
   } catch (err: any) {
-    if (err.code === 401 || err.status === 401) {
-      const uid = event.params.uid;
-      await handleTokenExpired(uid);
+    if (err.code === 401 || err.status === 401 || err.code === 403 || err.status === 403) {
+      console.warn(`Calendar scope not available for user ${event.params.uid}, skipping calendar event creation`);
     } else {
-      console.error(`Failed to create calendar event for item ${itemId}:`, err);
+      console.error(`Failed to create Calendar event for item ${itemId}:`, err);
     }
   }
 }
@@ -1026,26 +1205,23 @@ async function deleteCalendarEvent(
   uid: string
 ) {
   try {
-    await calendar.events.delete({
-      calendarId: "primary",
-      eventId: eventId,
-    });
+    await calendar.events.delete({ calendarId: "primary", eventId });
   } catch (err: any) {
     if (err.code === 404 || err.status === 404) {
       console.warn(`Calendar event ${eventId} already deleted`);
-    } else if (err.code === 401 || err.status === 401) {
-      await handleTokenExpired(uid);
+    } else if (err.code === 401 || err.status === 401 || err.code === 403 || err.status === 403) {
+      console.warn(`Calendar scope not available for user ${uid}, cannot delete calendar event`);
     } else {
-      console.error(`Failed to delete calendar event ${eventId}:`, err);
+      console.error(`Failed to delete Calendar event ${eventId}:`, err);
     }
   }
 }
 
 async function handleTokenExpired(uid: string) {
   console.warn(`Google token expired/revoked for user ${uid}, disconnecting`);
-  await db.collection("calendarTokens").doc(uid).delete();
+  await db.collection("tasksTokens").doc(uid).delete();
   await db.collection("users").doc(uid).set(
-    { calendarConnected: false },
+    { tasksConnected: false },
     { merge: true }
   );
 }

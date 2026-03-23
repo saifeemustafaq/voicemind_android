@@ -17,13 +17,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -59,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicemind.data.model.ActionItem
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
+import com.voicemind.util.LocalAppTimeZone
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -325,6 +326,7 @@ private fun DateDeadlineCard(
     var pickerMode by remember { mutableStateOf(PickerMode.None) }
     var pendingDateMillis by remember { mutableStateOf<Long?>(null) }
     val now = remember { Date() }
+    val appTz = LocalAppTimeZone.current
 
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
@@ -356,8 +358,9 @@ private fun DateDeadlineCard(
                     if (item.dueDate != null) {
                         val date = item.dueDate.toDate()
                         val overdue = !item.completed && date.before(now)
-                        val formatted = remember(item.dueDate) {
+                        val formatted = remember(item.dueDate, appTz) {
                             SimpleDateFormat("MMM d, yyyy 'at' h:mm a", Locale.getDefault())
+                                .apply { timeZone = appTz }
                                 .format(date)
                         }
                         Text(
@@ -448,6 +451,28 @@ private fun DateDeadlineCard(
                 }
             }
 
+            if (item.googleTaskId != null) {
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Synced to Google Tasks",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+            }
             if (item.calendarEventId != null) {
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 Row(
@@ -457,7 +482,7 @@ private fun DateDeadlineCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.CalendarToday,
+                        Icons.Default.CalendarMonth,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(16.dp),

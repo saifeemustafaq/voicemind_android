@@ -33,7 +33,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.update
 import timber.log.Timber
 import java.io.File
-import java.util.TimeZone
 import javax.inject.Inject
 
 sealed interface SummaryState {
@@ -352,8 +351,9 @@ class RecordingsViewModel @Inject constructor(
                 it.copy(isGeneratingTasks = true, generateTasksFailed = false, generateTasksNoResults = false)
             }
             try {
+                val tz = navPreferenceRepository.appTimezone.first()
                 val count = actionItemRepository.retryExtractActionItems(
-                    recording.id, TimeZone.getDefault().id
+                    recording.id, tz
                 )
                 if (count > 0) {
                     val items = actionItemRepository.getByRecordingId(recording.id)

@@ -27,6 +27,7 @@ import com.voicemind.audio.AudioRecorder
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.RecordingRepository
+import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingStateRepository
 import com.voicemind.data.repository.StorageRepository
 import com.voicemind.util.formatRecordingTime
@@ -40,7 +41,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
@@ -55,6 +58,7 @@ class RecordingService : Service() {
     @Inject lateinit var recordingRepository: RecordingRepository
     @Inject lateinit var functions: FirebaseFunctions
     @Inject lateinit var recordingStateRepository: RecordingStateRepository
+    @Inject lateinit var navPreferenceRepository: NavPreferenceRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var timerJob: Job? = null
@@ -197,9 +201,12 @@ class RecordingService : Service() {
         releaseWakeLock()
 
         // Resolve title and folder: explicit extras → pending values from ViewModel → defaults.
+        val fallbackTz = runBlocking {
+            java.util.TimeZone.getTimeZone(navPreferenceRepository.appTimezone.first())
+        }
         val title = titleOverride?.takeIf { it.isNotBlank() }
             ?: recordingStateRepository.pendingTitle.takeIf { it.isNotBlank() }
-            ?: Date().toDefaultTitle()
+            ?: Date().toDefaultTitle(fallbackTz)
         val folderId = folderIdOverride
             ?: recordingStateRepository.pendingFolderId.takeIf { it != Folder.UNFILED_ID }
             ?: Folder.UNFILED_ID
@@ -224,11 +231,12 @@ class RecordingService : Service() {
                     )
                 )
 
+                val userTimezone = navPreferenceRepository.appTimezone.first()
                 functions
                     .getHttpsCallable("processRecording")
                     .call(hashMapOf(
                         "recordingId" to recordingId,
-                        "timezone" to java.util.TimeZone.getDefault().id,
+                        "timezone" to userTimezone,
                     ))
 
                 file.delete()

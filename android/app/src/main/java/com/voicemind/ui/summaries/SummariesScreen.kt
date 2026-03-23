@@ -52,6 +52,7 @@ import com.voicemind.ui.components.EmptyStateCard
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.theme.VmDimens
+import com.voicemind.util.LocalAppTimeZone
 import com.voicemind.util.toShortDateString
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -155,7 +156,7 @@ private fun SummaryRow(
             )
             summary.createdAt?.toDate()?.let { date ->
                 Text(
-                    text = date.toShortDateString(),
+                    text = date.toShortDateString(LocalAppTimeZone.current),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -233,7 +234,7 @@ private fun SummaryDetailSheet(
                 summary.createdAt?.toDate()?.let { date ->
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = date.toShortDateString(),
+                        text = date.toShortDateString(LocalAppTimeZone.current),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

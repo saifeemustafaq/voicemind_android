@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.voicemind.data.repository.AuthRepository
-import com.voicemind.data.repository.CalendarConnectResult
-import com.voicemind.data.repository.GoogleCalendarRepository
+import com.voicemind.data.repository.GoogleTasksRepository
 import com.voicemind.data.repository.NavPreferenceRepository
+import com.voicemind.data.repository.TasksConnectResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,13 +15,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.TimeZone
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val navPreferenceRepository: NavPreferenceRepository,
     private val authRepository: AuthRepository,
-    private val googleCalendarRepository: GoogleCalendarRepository,
+    private val googleTasksRepository: GoogleTasksRepository,
 ) : ViewModel() {
 
     val userDisplayText: String
@@ -63,14 +64,30 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    val calendarConnected: StateFlow<Boolean> = googleCalendarRepository.observeCalendarConnected()
+    // ── Timezone ──────────────────────────────────────────────────────────────
+
+    val appTimezone: StateFlow<String> = navPreferenceRepository.appTimezone
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimeZone.getDefault().id)
+
+    val isAutoTimezone: StateFlow<Boolean> = navPreferenceRepository.isAutoTimezone
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    fun setTimezone(timezoneId: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            navPreferenceRepository.setTimezone(timezoneId)
+        }
+    }
+
+    // ── Integrations ────────────────────────────────────────────────────────
+
+    val tasksConnected: StateFlow<Boolean> = googleTasksRepository.observeTasksConnected()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    private val _calendarLoading = MutableStateFlow(false)
-    val calendarLoading: StateFlow<Boolean> = _calendarLoading
+    private val _tasksLoading = MutableStateFlow(false)
+    val tasksLoading: StateFlow<Boolean> = _tasksLoading
 
-    private val _calendarError = MutableStateFlow<String?>(null)
-    val calendarError: StateFlow<String?> = _calendarError
+    private val _tasksError = MutableStateFlow<String?>(null)
+    val tasksError: StateFlow<String?> = _tasksError
 
     fun toggleNavMode() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -78,20 +95,20 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun connectCalendar(activity: Activity) {
+    fun connectTasks(activity: Activity) {
         viewModelScope.launch(Dispatchers.IO) {
-            _calendarLoading.value = true
-            _calendarError.value = null
-            when (val result = googleCalendarRepository.requestCalendarAccess(activity)) {
-                is CalendarConnectResult.Success -> { /* connected, Firestore listener will update */ }
-                is CalendarConnectResult.NeedsConsent -> {
+            _tasksLoading.value = true
+            _tasksError.value = null
+            when (val result = googleTasksRepository.requestTasksAccess(activity)) {
+                is TasksConnectResult.Success -> { /* connected, Firestore listener will update */ }
+                is TasksConnectResult.NeedsConsent -> {
                     _pendingConsentResult.value = result.result
                 }
-                is CalendarConnectResult.Error -> {
-                    _calendarError.value = result.message
+                is TasksConnectResult.Error -> {
+                    _tasksError.value = result.message
                 }
             }
-            _calendarLoading.value = false
+            _tasksLoading.value = false
         }
     }
 
@@ -100,34 +117,34 @@ class SettingsViewModel @Inject constructor(
 
     fun onConsentResultHandled(result: AuthorizationResult) {
         viewModelScope.launch(Dispatchers.IO) {
-            _calendarLoading.value = true
+            _tasksLoading.value = true
             _pendingConsentResult.value = null
-            when (val connectResult = googleCalendarRepository.handleConsentResult(result)) {
-                is CalendarConnectResult.Success -> { /* connected */ }
-                is CalendarConnectResult.NeedsConsent -> {
-                    _calendarError.value = "Consent still required"
+            when (val connectResult = googleTasksRepository.handleConsentResult(result)) {
+                is TasksConnectResult.Success -> { /* connected */ }
+                is TasksConnectResult.NeedsConsent -> {
+                    _tasksError.value = "Consent still required"
                 }
-                is CalendarConnectResult.Error -> {
-                    _calendarError.value = connectResult.message
+                is TasksConnectResult.Error -> {
+                    _tasksError.value = connectResult.message
                 }
             }
-            _calendarLoading.value = false
+            _tasksLoading.value = false
         }
     }
 
-    fun disconnectCalendar() {
+    fun disconnectTasks() {
         viewModelScope.launch(Dispatchers.IO) {
-            _calendarLoading.value = true
-            _calendarError.value = null
-            val success = googleCalendarRepository.disconnectCalendar()
+            _tasksLoading.value = true
+            _tasksError.value = null
+            val success = googleTasksRepository.disconnectTasks()
             if (!success) {
-                _calendarError.value = "Failed to disconnect. Please try again."
+                _tasksError.value = "Failed to disconnect. Please try again."
             }
-            _calendarLoading.value = false
+            _tasksLoading.value = false
         }
     }
 
-    fun clearCalendarError() {
-        _calendarError.value = null
+    fun clearTasksError() {
+        _tasksError.value = null
     }
 }

@@ -37,8 +37,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +55,7 @@ import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.navigation.Routes
 import com.voicemind.ui.theme.VmDimens
+import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,11 +67,14 @@ fun SettingsScreen(
     val useSidebar by settingsViewModel.useSidebar.collectAsStateWithLifecycle()
     val defaultLandingPage by settingsViewModel.defaultLandingPage.collectAsStateWithLifecycle()
     val navOrder by settingsViewModel.navOrder.collectAsStateWithLifecycle()
-    val calendarConnected by settingsViewModel.calendarConnected.collectAsStateWithLifecycle()
-    val calendarLoading by settingsViewModel.calendarLoading.collectAsStateWithLifecycle()
-    val calendarError by settingsViewModel.calendarError.collectAsStateWithLifecycle()
+    val appTimezone by settingsViewModel.appTimezone.collectAsStateWithLifecycle()
+    val isAutoTimezone by settingsViewModel.isAutoTimezone.collectAsStateWithLifecycle()
+    val tasksConnected by settingsViewModel.tasksConnected.collectAsStateWithLifecycle()
+    val tasksLoading by settingsViewModel.tasksLoading.collectAsStateWithLifecycle()
+    val tasksError by settingsViewModel.tasksError.collectAsStateWithLifecycle()
     val pendingConsent by settingsViewModel.pendingConsentResult.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var showTimeZonePicker by remember { mutableStateOf(false) }
 
     val consentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -257,6 +264,45 @@ fun SettingsScreen(
                 }
             }
 
+            // ── DATE & TIME ──────────────────────────────────────────────
+            SettingsSectionHeader("DATE & TIME")
+
+            GlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { showTimeZonePicker = true },
+            ) {
+                val tz = remember(appTimezone) { TimeZone.getTimeZone(appTimezone) }
+                Column {
+                    Text(
+                        text = "Timezone",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "${tz.getDisplayName(false, TimeZone.LONG)} (${formatGmtOffset(tz)})",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = if (isAutoTimezone) "Auto (device)" else "Manual",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+
+            if (showTimeZonePicker) {
+                TimeZonePickerDialog(
+                    currentTimezoneId = appTimezone,
+                    isAuto = isAutoTimezone,
+                    onSelect = { timezoneId ->
+                        settingsViewModel.setTimezone(timezoneId)
+                        showTimeZonePicker = false
+                    },
+                    onDismiss = { showTimeZonePicker = false },
+                )
+            }
+
             // ── INTEGRATIONS ─────────────────────────────────────────────
             SettingsSectionHeader("INTEGRATIONS")
 
@@ -268,18 +314,18 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Google Calendar",
+                                text = "Google Tasks",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = if (calendarConnected) "Task dates sync to your calendar"
-                                       else "Sync task dates to Google Calendar",
+                                text = if (tasksConnected) "Task dates sync to Google Tasks"
+                                       else "Sync task dates to Google Tasks",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        if (calendarLoading) {
+                        if (tasksLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
                                 color = MaterialTheme.colorScheme.primary,
@@ -287,12 +333,12 @@ fun SettingsScreen(
                             )
                         } else {
                             Switch(
-                                checked = calendarConnected,
+                                checked = tasksConnected,
                                 onCheckedChange = {
                                     if (it) {
-                                        settingsViewModel.connectCalendar(context as Activity)
+                                        settingsViewModel.connectTasks(context as Activity)
                                     } else {
-                                        settingsViewModel.disconnectCalendar()
+                                        settingsViewModel.disconnectTasks()
                                     }
                                 },
                             )
@@ -303,11 +349,11 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(VmDimens.SpaceXl))
 
-            calendarError?.let { error ->
+            tasksError?.let { error ->
                 Snackbar(
                     modifier = Modifier.padding(bottom = 8.dp),
                     action = {
-                        TextButton(onClick = { settingsViewModel.clearCalendarError() }) {
+                        TextButton(onClick = { settingsViewModel.clearTasksError() }) {
                             Text("Dismiss")
                         }
                     },
