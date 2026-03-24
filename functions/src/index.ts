@@ -1,6 +1,9 @@
 import { setGlobalOptions } from "firebase-functions";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import {
+  onDocumentWritten,
+  onDocumentCreated,
+} from "firebase-functions/v2/firestore";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
@@ -959,8 +962,8 @@ export const syncActionItemToGoogleTasks = onDocumentWritten(
     const before = event.data?.before?.data();
     const after = event.data?.after?.data();
 
-    // Guard: if the document still exists and only googleTaskId/calendarEventId changed, skip
-    // (prevents infinite loop when we write back the task/event ID)
+    // Guard: if the document still exists and only metadata fields changed, skip
+    // (prevents infinite loop when we write back the task/event ID or NTS flag)
     if (before && after) {
       const beforeCopy = { ...before };
       const afterCopy = { ...after };
@@ -968,6 +971,8 @@ export const syncActionItemToGoogleTasks = onDocumentWritten(
       delete afterCopy.googleTaskId;
       delete beforeCopy.calendarEventId;
       delete afterCopy.calendarEventId;
+      delete beforeCopy.autoScheduled;
+      delete afterCopy.autoScheduled;
       if (JSON.stringify(beforeCopy) === JSON.stringify(afterCopy)) {
         return;
       }
@@ -1225,3 +1230,153 @@ async function handleTokenExpired(uid: string) {
     { merge: true }
   );
 }
+
+// ── Natural Time Selection ───────────────────────────────────────────────────
+
+/**
+ * Finds the next available time slot for auto-scheduling, starting at the
+ * configured NTS start time and advancing by intervalMinutes. Skips slots
+ * already occupied by other app-created tasks. Rolls to the next day if all
+ * slots through midnight are taken.
+ */
+function findNextAvailableSlot(
+  targetDate: Date,
+  startHour: number,
+  startMinute: number,
+  intervalMinutes: number,
+  occupiedTimestamps: number[]
+): Date {
+  const occupied = new Set(occupiedTimestamps);
+  const slot = new Date(targetDate);
+  slot.setHours(startHour, startMinute, 0, 0);
+
+  const maxIterations = Math.ceil((24 * 60) / intervalMinutes);
+  for (let i = 0; i < maxIterations; i++) {
+    if (!occupied.has(slot.getTime())) {
+      return slot;
+    }
+    slot.setMinutes(slot.getMinutes() + intervalMinutes);
+  }
+
+  // All slots for this day exhausted — move to next day at start time
+  const nextDay = new Date(targetDate);
+  nextDay.setDate(nextDay.getDate() + 1);
+  nextDay.setHours(startHour, startMinute, 0, 0);
+  return nextDay;
+}
+
+/**
+ * Converts a Date to the wall-clock date components in a given IANA timezone,
+ * returning a new Date set to that wall-clock date at a specified time in UTC
+ * terms (accounting for the timezone offset).
+ */
+function toLocalDate(utcDate: Date, tz: string): Date {
+  const local = new Date(
+    utcDate.toLocaleString("en-US", { timeZone: tz })
+  );
+  return local;
+}
+
+/**
+ * Firestore trigger that auto-assigns a dueDate to newly created action items
+ * that have no date, when the user has Natural Time Selection enabled.
+ */
+export const autoScheduleActionItem = onDocumentCreated(
+  { document: "users/{uid}/actionItems/{itemId}" },
+  async (event) => {
+    const uid = event.params.uid;
+    const itemId = event.params.itemId;
+    const data = event.data?.data();
+
+    if (!data) return;
+
+    if (data.dueDate || data.deadline) return;
+
+    const userDoc = await db.collection("users").doc(uid).get();
+    const userData = userDoc.data();
+    if (!userData) return;
+
+    const ntsEnabled = userData.ntsEnabled === true;
+    if (!ntsEnabled) return;
+
+    const startHour: number = typeof userData.ntsStartHour === "number"
+      ? userData.ntsStartHour : 22;
+    const startMinute: number = typeof userData.ntsStartMinute === "number"
+      ? userData.ntsStartMinute : 0;
+    const intervalMinutes: number = typeof userData.ntsIntervalMinutes === "number"
+      ? userData.ntsIntervalMinutes : 30;
+    const tz: string = (userData.timezone as string) || "UTC";
+
+    const now = new Date();
+    const localNow = toLocalDate(now, tz);
+
+    // Determine target date: today if before start time, tomorrow otherwise
+    const startTimeToday = new Date(localNow);
+    startTimeToday.setHours(startHour, startMinute, 0, 0);
+
+    let targetDate: Date;
+    if (localNow >= startTimeToday) {
+      targetDate = new Date(localNow);
+      targetDate.setDate(targetDate.getDate() + 1);
+    } else {
+      targetDate = new Date(localNow);
+    }
+
+    // Build the scheduling window in UTC for querying Firestore.
+    // Window: target date at startHour:startMinute → target date + 1 at startHour:startMinute
+    const windowStart = new Date(targetDate);
+    windowStart.setHours(startHour, startMinute, 0, 0);
+
+    const windowEnd = new Date(windowStart);
+    windowEnd.setDate(windowEnd.getDate() + 1);
+
+    // Convert local window boundaries back to UTC for Firestore query.
+    // We approximate by computing the offset between local and UTC.
+    const refUtc = now.getTime();
+    const refLocal = localNow.getTime();
+    const offsetMs = refLocal - refUtc;
+
+    const windowStartUtc = new Date(windowStart.getTime() - offsetMs);
+    const windowEndUtc = new Date(windowEnd.getTime() - offsetMs);
+
+    const windowStartTs = admin.firestore.Timestamp.fromDate(windowStartUtc);
+    const windowEndTs = admin.firestore.Timestamp.fromDate(windowEndUtc);
+
+    // Query existing tasks in the scheduling window
+    const existingSnap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("actionItems")
+      .where("dueDate", ">=", windowStartTs)
+      .where("dueDate", "<", windowEndTs)
+      .get();
+
+    const occupiedTimestamps: number[] = [];
+    for (const doc of existingSnap.docs) {
+      if (doc.id === itemId) continue;
+      const dd = doc.data().dueDate as admin.firestore.Timestamp | undefined;
+      if (dd) {
+        // Convert to local time for slot comparison
+        const localTime = new Date(dd.toDate().getTime() + offsetMs);
+        occupiedTimestamps.push(localTime.getTime());
+      }
+    }
+
+    const assignedLocal = findNextAvailableSlot(
+      windowStart, startHour, startMinute, intervalMinutes, occupiedTimestamps
+    );
+
+    // Convert assigned local time back to UTC
+    const assignedUtc = new Date(assignedLocal.getTime() - offsetMs);
+    const assignedTs = admin.firestore.Timestamp.fromDate(assignedUtc);
+
+    await event.data?.ref.update({
+      dueDate: assignedTs,
+      autoScheduled: true,
+    });
+
+    console.log(
+      `NTS: auto-scheduled item ${itemId} for user ${uid} at ${assignedUtc.toISOString()}`
+    );
+  }
+);

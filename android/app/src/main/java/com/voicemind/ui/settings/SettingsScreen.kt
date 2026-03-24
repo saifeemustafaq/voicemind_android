@@ -4,7 +4,9 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,8 +24,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +39,8 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +61,7 @@ import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.navigation.Routes
 import com.voicemind.ui.theme.VmDimens
+import java.util.Locale
 import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,8 +80,10 @@ fun SettingsScreen(
     val tasksLoading by settingsViewModel.tasksLoading.collectAsStateWithLifecycle()
     val tasksError by settingsViewModel.tasksError.collectAsStateWithLifecycle()
     val pendingConsent by settingsViewModel.pendingConsentResult.collectAsStateWithLifecycle()
+    val ntsSettings by settingsViewModel.ntsSettings.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showTimeZonePicker by remember { mutableStateOf(false) }
+    var showNtsTimePicker by remember { mutableStateOf(false) }
 
     val consentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -303,6 +312,108 @@ fun SettingsScreen(
                 )
             }
 
+            // ── TASK SCHEDULING ───────────────────────────────────────────
+            SettingsSectionHeader("TASK SCHEDULING")
+
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Natural Time Selection",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = if (ntsSettings.enabled)
+                                    "Tasks without a date are auto-scheduled"
+                                else
+                                    "Auto-schedule tasks that have no date set",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = ntsSettings.enabled,
+                            onCheckedChange = { settingsViewModel.setNtsEnabled(it) },
+                        )
+                    }
+
+                    AnimatedVisibility(visible = ntsSettings.enabled) {
+                        Column {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = VmDimens.SpaceMd))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Default start time",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        text = "First auto-scheduled task starts at this time",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                TextButton(onClick = { showNtsTimePicker = true }) {
+                                    Text(
+                                        text = formatTime(ntsSettings.startHour, ntsSettings.startMinute),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = VmDimens.SpaceMd))
+
+                            Text(
+                                text = "Interval between tasks",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Time gap between sequentially scheduled tasks",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(VmDimens.SpaceSm))
+
+                            val intervalOptions = listOf(15, 30, 45, 60)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(VmDimens.SpaceSm),
+                            ) {
+                                intervalOptions.forEach { minutes ->
+                                    FilterChip(
+                                        selected = ntsSettings.intervalMinutes == minutes,
+                                        onClick = { settingsViewModel.setNtsIntervalMinutes(minutes) },
+                                        label = { Text("${minutes}m") },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (showNtsTimePicker) {
+                NtsTimePickerDialog(
+                    initialHour = ntsSettings.startHour,
+                    initialMinute = ntsSettings.startMinute,
+                    onConfirm = { hour, minute ->
+                        settingsViewModel.setNtsStartTime(hour, minute)
+                        showNtsTimePicker = false
+                    },
+                    onDismiss = { showNtsTimePicker = false },
+                )
+            }
+
             // ── INTEGRATIONS ─────────────────────────────────────────────
             SettingsSectionHeader("INTEGRATIONS")
 
@@ -387,5 +498,46 @@ private fun SettingsSectionHeader(title: String) {
             top = VmDimens.SpaceLg,
             bottom = VmDimens.SpaceXs,
         ),
+    )
+}
+
+private fun formatTime(hour: Int, minute: Int): String {
+    val amPm = if (hour < 12) "AM" else "PM"
+    val displayHour = when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+    }
+    return String.format(Locale.US, "%d:%02d %s", displayHour, minute, amPm)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NtsTimePickerDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onConfirm: (hour: Int, minute: Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val state = rememberTimePickerState(
+        initialHour = initialHour,
+        initialMinute = initialMinute,
+        is24Hour = false,
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onConfirm(state.hour, state.minute) }) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        title = { Text("Default start time") },
+        text = { TimePicker(state = state) },
     )
 }

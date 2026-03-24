@@ -7,12 +7,15 @@ import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.voicemind.data.repository.AuthRepository
 import com.voicemind.data.repository.GoogleTasksRepository
 import com.voicemind.data.repository.NavPreferenceRepository
+import com.voicemind.data.repository.NtsSettings
 import com.voicemind.data.repository.TasksConnectResult
+import com.voicemind.data.repository.UserSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.TimeZone
@@ -23,6 +26,7 @@ class SettingsViewModel @Inject constructor(
     private val navPreferenceRepository: NavPreferenceRepository,
     private val authRepository: AuthRepository,
     private val googleTasksRepository: GoogleTasksRepository,
+    private val userSettingsRepository: UserSettingsRepository,
 ) : ViewModel() {
 
     val userDisplayText: String
@@ -75,6 +79,35 @@ class SettingsViewModel @Inject constructor(
     fun setTimezone(timezoneId: String?) {
         viewModelScope.launch(Dispatchers.IO) {
             navPreferenceRepository.setTimezone(timezoneId)
+            val resolved = timezoneId ?: TimeZone.getDefault().id
+            userSettingsRepository.syncTimezoneToFirestore(resolved)
+        }
+    }
+
+    // ── Natural Time Selection ────────────────────────────────────────────
+
+    val ntsSettings: StateFlow<NtsSettings> = userSettingsRepository.observeNtsSettings()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NtsSettings())
+
+    fun setNtsEnabled(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userSettingsRepository.setNtsEnabled(enabled)
+            if (enabled) {
+                val tz = navPreferenceRepository.appTimezone.first()
+                userSettingsRepository.syncTimezoneToFirestore(tz)
+            }
+        }
+    }
+
+    fun setNtsStartTime(hour: Int, minute: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userSettingsRepository.setNtsStartTime(hour, minute)
+        }
+    }
+
+    fun setNtsIntervalMinutes(interval: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userSettingsRepository.setNtsIntervalMinutes(interval)
         }
     }
 

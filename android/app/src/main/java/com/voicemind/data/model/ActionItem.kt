@@ -15,4 +15,5 @@ data class ActionItem(
     val notes: String? = null,
     val googleTaskId: String? = null,
     val calendarEventId: String? = null,
+    val autoScheduled: Boolean = false,
 )
