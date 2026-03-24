@@ -481,6 +481,13 @@ function parseActionItems(raw: string, transcriptLen: number): ExtractedActionIt
           }
         }
 
+        // Safety guard: drop deadline if it's the same date as dueDate
+        // (AI hallucination — treating appointment time as both dueDate and deadline)
+        if (result.deadline && result.dueDate && result.dueDate.startsWith(result.deadline)) {
+          console.warn(`Dropping redundant same-day deadline "${result.deadline}" (equals dueDate date)`);
+          delete result.deadline;
+        }
+
         return result;
       })
       .filter((x): x is ExtractedActionItem => x !== null);
@@ -615,9 +622,11 @@ KEY RULES:
 1. Date-only context (no specific time) → use "deadline".
 2. Specific clock time mentioned → use "dueDate".
 3. Ambiguous date without time → prefer "deadline".
-4. A task can have BOTH (e.g. "work on it Tuesday at 2pm, due Friday").
-5. Set both date fields to null if no date/time is mentioned.
-6. Never invent dates the speaker did not mention or imply.`;
+4. One topic, both fields: when a SINGLE topic mentions a scheduled work time AND a separate final due date, output ONE task with both dueDate and deadline. Do NOT split into two tasks.
+5. NEVER set deadline to the same date as dueDate. deadline must be a DIFFERENT, LATER date explicitly stated using trigger words ("by", "before", "due", "deadline is", "needs to be done by", "have it ready by"). A clock time alone never creates a deadline.
+6. Appointments, meetings, and calls never have a deadline unless separately stated. "Dentist at 2:30 PM" → dueDate only, deadline null.
+7. Set both date fields to null if no date/time is mentioned.
+8. Never invent dates the speaker did not mention or imply.`;
 
   const response = await fetch(
     "https://api.openai.com/v1/chat/completions",
@@ -719,12 +728,17 @@ DATE FIELDS:
 - "deadline" (YYYY-MM-DD): must be FINISHED/DELIVERED by this date.
 - "dueDate" (YYYY-MM-DDTHH:MM:SS): when you will DO/ATTEND it — only when a specific clock time is mentioned. Local time, no UTC conversion, no offset.
 
+DATE RULES:
+- NEVER set deadline to the same date as dueDate. deadline is only for a SEPARATELY stated final due date using trigger words ("by [date]", "before [date]", "due [date]", "deadline is", "needs to be done by"). A clock time alone never creates a deadline.
+- When one topic has both a work time ("Saturday at 9 AM") AND a deadline ("by Wednesday"), output ONE task with both fields — do NOT split into two tasks.
+- Appointments, meetings, and calls only get dueDate (the scheduled time). Never add a deadline unless explicitly stated in the transcript.
+- Set both to null if no date/time is mentioned.
+
 DATE RESOLUTION:
 - If today is ${dayOfWeek} and the speaker says "${dayOfWeek}", that means TODAY.
 - "Next [weekday]" = at least 7 days away. "This [weekday]" = within the current week.
 - "Morning" = 09:00, "afternoon" = 14:00, "evening" = 19:00, "tonight" = 20:00.
-- "In X hours" = current time ${currentTime} + X hours.
-- Set both to null if no date/time is mentioned.`;
+- "In X hours" = current time ${currentTime} + X hours.`;
 
   const response = await fetch(
     "https://api.openai.com/v1/chat/completions",
@@ -1234,47 +1248,54 @@ async function handleTokenExpired(uid: string) {
 // ── Natural Time Selection ───────────────────────────────────────────────────
 
 /**
- * Finds the next available time slot for auto-scheduling, starting at the
- * configured NTS start time and advancing by intervalMinutes. Skips slots
- * already occupied by other app-created tasks. Rolls to the next day if all
- * slots through midnight are taken.
+ * Returns local wall-clock components for a UTC Date in the given IANA timezone.
+ * Uses Intl.DateTimeFormat.formatToParts() — the only correct zero-dep approach.
  */
-function findNextAvailableSlot(
-  targetDate: Date,
-  startHour: number,
-  startMinute: number,
-  intervalMinutes: number,
-  occupiedTimestamps: number[]
-): Date {
-  const occupied = new Set(occupiedTimestamps);
-  const slot = new Date(targetDate);
-  slot.setHours(startHour, startMinute, 0, 0);
-
-  const maxIterations = Math.ceil((24 * 60) / intervalMinutes);
-  for (let i = 0; i < maxIterations; i++) {
-    if (!occupied.has(slot.getTime())) {
-      return slot;
-    }
-    slot.setMinutes(slot.getMinutes() + intervalMinutes);
-  }
-
-  // All slots for this day exhausted — move to next day at start time
-  const nextDay = new Date(targetDate);
-  nextDay.setDate(nextDay.getDate() + 1);
-  nextDay.setHours(startHour, startMinute, 0, 0);
-  return nextDay;
+function getLocalComponents(
+  utcDate: Date,
+  tz: string
+): { year: number; month: number; day: number; hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(utcDate);
+  const get = (type: string) =>
+    parseInt(parts.find((p) => p.type === type)?.value ?? "0");
+  return {
+    year: get("year"),
+    month: get("month") - 1, // 0-indexed for Date.UTC()
+    day: get("day"),
+    hour: get("hour") % 24, // Intl can return 24 for midnight in some locales
+    minute: get("minute"),
+  };
 }
 
 /**
- * Converts a Date to the wall-clock date components in a given IANA timezone,
- * returning a new Date set to that wall-clock date at a specified time in UTC
- * terms (accounting for the timezone offset).
+ * Converts a wall-clock datetime in the given IANA timezone to a UTC Date.
+ * Handles DST transitions by correcting the naive UTC guess.
  */
-function toLocalDate(utcDate: Date, tz: string): Date {
-  const local = new Date(
-    utcDate.toLocaleString("en-US", { timeZone: tz })
-  );
-  return local;
+function localToUtc(
+  year: number,
+  month0: number,
+  day: number,
+  hour: number,
+  minute: number,
+  tz: string
+): Date {
+  // Treat the local time as if it were UTC (naive guess)
+  const guess = new Date(Date.UTC(year, month0, day, hour, minute, 0));
+  // Check what local wall-clock time this UTC instant actually maps to
+  const check = getLocalComponents(guess, tz);
+  // Compute the correction in minutes
+  let diffMin = hour * 60 + minute - (check.hour * 60 + check.minute);
+  if (diffMin > 720) diffMin -= 1440;
+  if (diffMin < -720) diffMin += 1440;
+  return new Date(guess.getTime() + diffMin * 60_000);
 }
 
 /**
@@ -1289,60 +1310,59 @@ export const autoScheduleActionItem = onDocumentCreated(
     const data = event.data?.data();
 
     if (!data) return;
-
     if (data.dueDate || data.deadline) return;
 
     const userDoc = await db.collection("users").doc(uid).get();
     const userData = userDoc.data();
-    if (!userData) return;
+    if (!userData || userData.ntsEnabled !== true) return;
 
-    const ntsEnabled = userData.ntsEnabled === true;
-    if (!ntsEnabled) return;
-
-    const startHour: number = typeof userData.ntsStartHour === "number"
-      ? userData.ntsStartHour : 22;
-    const startMinute: number = typeof userData.ntsStartMinute === "number"
-      ? userData.ntsStartMinute : 0;
-    const intervalMinutes: number = typeof userData.ntsIntervalMinutes === "number"
-      ? userData.ntsIntervalMinutes : 30;
+    const startHour: number =
+      typeof userData.ntsStartHour === "number" ? userData.ntsStartHour : 22;
+    const startMinute: number =
+      typeof userData.ntsStartMinute === "number" ? userData.ntsStartMinute : 0;
+    const intervalMinutes: number =
+      typeof userData.ntsIntervalMinutes === "number"
+        ? userData.ntsIntervalMinutes
+        : 30;
     const tz: string = (userData.timezone as string) || "UTC";
 
+    // Read the user's current local wall-clock time
     const now = new Date();
-    const localNow = toLocalDate(now, tz);
+    const local = getLocalComponents(now, tz);
 
-    // Determine target date: today if before start time, tomorrow otherwise
-    const startTimeToday = new Date(localNow);
-    startTimeToday.setHours(startHour, startMinute, 0, 0);
+    // Decide target date: today if before start time, tomorrow otherwise
+    const currentMinuteOfDay = local.hour * 60 + local.minute;
+    const startMinuteOfDay = startHour * 60 + startMinute;
 
-    let targetDate: Date;
-    if (localNow >= startTimeToday) {
-      targetDate = new Date(localNow);
-      targetDate.setDate(targetDate.getDate() + 1);
-    } else {
-      targetDate = new Date(localNow);
+    let targetYear = local.year;
+    let targetMonth = local.month;
+    let targetDay = local.day;
+
+    if (currentMinuteOfDay >= startMinuteOfDay) {
+      // Already past the start time — advance target to tomorrow in local TZ
+      const nextDayUtc = new Date(
+        Date.UTC(local.year, local.month, local.day + 1)
+      );
+      const nextLocal = getLocalComponents(nextDayUtc, tz);
+      targetYear = nextLocal.year;
+      targetMonth = nextLocal.month;
+      targetDay = nextLocal.day;
     }
 
-    // Build the scheduling window in UTC for querying Firestore.
-    // Window: target date at startHour:startMinute → target date + 1 at startHour:startMinute
-    const windowStart = new Date(targetDate);
-    windowStart.setHours(startHour, startMinute, 0, 0);
-
-    const windowEnd = new Date(windowStart);
-    windowEnd.setDate(windowEnd.getDate() + 1);
-
-    // Convert local window boundaries back to UTC for Firestore query.
-    // We approximate by computing the offset between local and UTC.
-    const refUtc = now.getTime();
-    const refLocal = localNow.getTime();
-    const offsetMs = refLocal - refUtc;
-
-    const windowStartUtc = new Date(windowStart.getTime() - offsetMs);
-    const windowEndUtc = new Date(windowEnd.getTime() - offsetMs);
+    // Build UTC window boundaries.
+    // Window: target day at startHour:startMinute → next day at startHour:startMinute
+    // Passing day+1 is safe — Date.UTC normalises month/day overflow.
+    const windowStartUtc = localToUtc(
+      targetYear, targetMonth, targetDay, startHour, startMinute, tz
+    );
+    const windowEndUtc = localToUtc(
+      targetYear, targetMonth, targetDay + 1, startHour, startMinute, tz
+    );
 
     const windowStartTs = admin.firestore.Timestamp.fromDate(windowStartUtc);
     const windowEndTs = admin.firestore.Timestamp.fromDate(windowEndUtc);
 
-    // Query existing tasks in the scheduling window
+    // Query existing tasks in the UTC window
     const existingSnap = await db
       .collection("users")
       .doc(uid)
@@ -1351,32 +1371,36 @@ export const autoScheduleActionItem = onDocumentCreated(
       .where("dueDate", "<", windowEndTs)
       .get();
 
-    const occupiedTimestamps: number[] = [];
+    // Collect occupied UTC ms values (rounded to minute boundary)
+    const occupiedUtcMs = new Set<number>();
     for (const doc of existingSnap.docs) {
       if (doc.id === itemId) continue;
       const dd = doc.data().dueDate as admin.firestore.Timestamp | undefined;
       if (dd) {
-        // Convert to local time for slot comparison
-        const localTime = new Date(dd.toDate().getTime() + offsetMs);
-        occupiedTimestamps.push(localTime.getTime());
+        occupiedUtcMs.add(
+          Math.round(dd.toDate().getTime() / 60_000) * 60_000
+        );
       }
     }
 
-    const assignedLocal = findNextAvailableSlot(
-      windowStart, startHour, startMinute, intervalMinutes, occupiedTimestamps
-    );
+    // Find first free slot starting at windowStartUtc, stepping by interval
+    const intervalMs = intervalMinutes * 60_000;
+    const maxSlots = Math.ceil((24 * 60) / intervalMinutes) + 1;
+    let slotUtc = windowStartUtc;
 
-    // Convert assigned local time back to UTC
-    const assignedUtc = new Date(assignedLocal.getTime() - offsetMs);
-    const assignedTs = admin.firestore.Timestamp.fromDate(assignedUtc);
+    for (let i = 0; i < maxSlots; i++) {
+      const slotMs = Math.round(slotUtc.getTime() / 60_000) * 60_000;
+      if (!occupiedUtcMs.has(slotMs)) break;
+      slotUtc = new Date(slotUtc.getTime() + intervalMs);
+    }
 
-    await event.data?.ref.update({
-      dueDate: assignedTs,
-      autoScheduled: true,
-    });
+    // All slots exhausted — fall back to window end (start of next day's window)
+    if (slotUtc >= windowEndUtc) slotUtc = windowEndUtc;
 
+    const assignedTs = admin.firestore.Timestamp.fromDate(slotUtc);
+    await event.data?.ref.update({ dueDate: assignedTs, autoScheduled: true });
     console.log(
-      `NTS: auto-scheduled item ${itemId} for user ${uid} at ${assignedUtc.toISOString()}`
+      `NTS: auto-scheduled item ${itemId} for user ${uid} at ${slotUtc.toISOString()}`
     );
   }
 );

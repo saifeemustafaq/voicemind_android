@@ -91,11 +91,8 @@ class SettingsViewModel @Inject constructor(
 
     fun setNtsEnabled(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            userSettingsRepository.setNtsEnabled(enabled)
-            if (enabled) {
-                val tz = navPreferenceRepository.appTimezone.first()
-                userSettingsRepository.syncTimezoneToFirestore(tz)
-            }
+            val tz = navPreferenceRepository.appTimezone.first()
+            userSettingsRepository.setNtsEnabledWithTimezone(enabled, tz)
         }
     }
 

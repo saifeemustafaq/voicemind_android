@@ -48,6 +48,16 @@ class UserSettingsRepository @Inject constructor(
         userDoc().update("ntsEnabled", enabled).await()
     }
 
+    /** Atomically writes ntsEnabled and timezone in one update to avoid race conditions. */
+    suspend fun setNtsEnabledWithTimezone(enabled: Boolean, timezoneId: String) {
+        userDoc().update(
+            mapOf(
+                "ntsEnabled" to enabled,
+                "timezone" to timezoneId,
+            )
+        ).await()
+    }
+
     suspend fun setNtsStartTime(hour: Int, minute: Int) {
         userDoc().update(
             mapOf(
