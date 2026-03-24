@@ -4,10 +4,10 @@ overview: Add HorizontalPager-based swipe navigation between the 4 bottom naviga
 todos:
   - id: refactor-appnavhost
     content: "Refactor AppNavHost.kt: extract detailRoutes(), split sidebar/bottom-bar branches, add HorizontalPager in bottom-bar mode with bidirectional sync to BottomNavBar"
-    status: pending
+    status: completed
   - id: verify-no-regressions
     content: Verify no lint errors and that all screen composable signatures, detail navigation, and sidebar mode remain unchanged
-    status: pending
+    status: completed
 isProject: false
 ---
 
