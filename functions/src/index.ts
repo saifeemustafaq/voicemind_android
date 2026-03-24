@@ -1359,40 +1359,23 @@ export const autoScheduleActionItem = onDocumentCreated(
       targetYear, targetMonth, targetDay + 1, startHour, startMinute, tz
     );
 
-    const windowStartTs = admin.firestore.Timestamp.fromDate(windowStartUtc);
-    const windowEndTs = admin.firestore.Timestamp.fromDate(windowEndUtc);
+    // Atomically claim the next sequential slot index for this target date.
+    // This prevents the race condition where concurrent triggers all query the
+    // same occupied set and land on the same slot.
+    const targetDateStr = `${targetYear}-${String(targetMonth + 1).padStart(2, "0")}-${String(targetDay).padStart(2, "0")}`;
+    const counterRef = db
+      .collection("users").doc(uid)
+      .collection("ntsCounters").doc(targetDateStr);
 
-    // Query existing tasks in the UTC window
-    const existingSnap = await db
-      .collection("users")
-      .doc(uid)
-      .collection("actionItems")
-      .where("dueDate", ">=", windowStartTs)
-      .where("dueDate", "<", windowEndTs)
-      .get();
+    let slotIndex = 0;
+    await db.runTransaction(async (tx) => {
+      const counterDoc = await tx.get(counterRef);
+      slotIndex = counterDoc.exists ? (counterDoc.data()?.nextIndex ?? 0) : 0;
+      tx.set(counterRef, { nextIndex: slotIndex + 1 }, { merge: true });
+    });
 
-    // Collect occupied UTC ms values (rounded to minute boundary)
-    const occupiedUtcMs = new Set<number>();
-    for (const doc of existingSnap.docs) {
-      if (doc.id === itemId) continue;
-      const dd = doc.data().dueDate as admin.firestore.Timestamp | undefined;
-      if (dd) {
-        occupiedUtcMs.add(
-          Math.round(dd.toDate().getTime() / 60_000) * 60_000
-        );
-      }
-    }
-
-    // Find first free slot starting at windowStartUtc, stepping by interval
     const intervalMs = intervalMinutes * 60_000;
-    const maxSlots = Math.ceil((24 * 60) / intervalMinutes) + 1;
-    let slotUtc = windowStartUtc;
-
-    for (let i = 0; i < maxSlots; i++) {
-      const slotMs = Math.round(slotUtc.getTime() / 60_000) * 60_000;
-      if (!occupiedUtcMs.has(slotMs)) break;
-      slotUtc = new Date(slotUtc.getTime() + intervalMs);
-    }
+    let slotUtc = new Date(windowStartUtc.getTime() + slotIndex * intervalMs);
 
     // All slots exhausted — fall back to window end (start of next day's window)
     if (slotUtc >= windowEndUtc) slotUtc = windowEndUtc;

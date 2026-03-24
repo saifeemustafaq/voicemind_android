@@ -44,6 +44,20 @@ class ActionItemRepository @Inject constructor(
         collection().document(itemId).delete().await()
     }
 
+    suspend fun deleteItems(itemIds: List<String>) {
+        val batch = firestore.batch()
+        itemIds.forEach { id -> batch.delete(collection().document(id)) }
+        batch.commit().await()
+    }
+
+    suspend fun markCompleted(itemIds: List<String>, completed: Boolean) {
+        val batch = firestore.batch()
+        itemIds.forEach { id ->
+            batch.update(collection().document(id), "completed", completed)
+        }
+        batch.commit().await()
+    }
+
     fun observeActionItem(itemId: String): Flow<ActionItem?> = callbackFlow {
         val registration = collection().document(itemId)
             .addSnapshotListener { snapshot, error ->
