@@ -9,29 +9,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import com.voicemind.ui.components.GlassCard
+import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.theme.VmDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SharedItemsScreen(
     onBack: () -> Unit,
+    onRecordingClick: (ownerUid: String, recordingId: String) -> Unit = { _, _ -> },
 ) {
     // Hardcoded empty state for now — will be wired to SharingRepository in Phase 4
     val hasRecordings = false
@@ -41,34 +36,10 @@ fun SharedItemsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "Shared Items",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
-                },
-                actions = {
-                    Icon(
-                        Icons.Default.FolderShared,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(end = VmDimens.SpaceLg),
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                ),
+            VoiceMindTopAppBar(
+                title = "Shared Items",
+                icon = Icons.Default.FolderShared,
+                onBack = onBack,
             )
         },
     ) { innerPadding ->
@@ -99,6 +70,7 @@ fun SharedItemsScreen(
                 if (hasRecordings) {
                     item { SectionHeader("RECORDINGS") }
                     // Recording items will be populated here in Phase 4
+                    // Each item will call: onRecordingClick(ownerUid, recordingId)
                 }
                 if (hasTasks) {
                     item { SectionHeader("TASKS") }

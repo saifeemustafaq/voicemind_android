@@ -238,7 +238,12 @@ private fun NavGraphBuilder.detailRoutes(
         )
     }
     composable(SHARED_ITEMS_ROUTE) {
-        SharedItemsScreen(onBack = { navController.popBackStack() })
+        SharedItemsScreen(
+            onBack = { navController.popBackStack() },
+            onRecordingClick = { ownerUid, recordingId ->
+                navController.navigate(sharedRecordingDetailRoute(ownerUid, recordingId))
+            },
+        )
     }
     composable(SHARED_RECORDING_DETAIL_ROUTE) { backStackEntry ->
         val ownerUid = backStackEntry.arguments?.getString("ownerUid") ?: return@composable

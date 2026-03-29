@@ -39,6 +39,8 @@ private enum class LookupState { Idle, Loading, Found, NotFound, AlreadyShared }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareDialog(
+    recordingId: String,
+    itemType: String = "recording",
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

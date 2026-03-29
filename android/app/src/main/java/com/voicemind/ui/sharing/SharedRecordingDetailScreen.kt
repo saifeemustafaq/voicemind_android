@@ -1,6 +1,7 @@
 package com.voicemind.ui.sharing
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +15,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.FileCopy
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -38,7 +43,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.theme.VmDimens
 
@@ -51,6 +55,7 @@ fun SharedRecordingDetailScreen(
 ) {
     // All state is hardcoded/placeholder — wired to SharedRecordingDetailViewModel in Phase 6
     var isPlaying by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -75,6 +80,26 @@ fun SharedRecordingDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                            shape = MaterialTheme.shapes.extraSmall,
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Duplicate") },
+                                leadingIcon = { Icon(Icons.Default.FileCopy, null) },
+                                // No-op: will call duplicateSharedRecording Cloud Function in Phase 8
+                                onClick = { menuExpanded = false },
+                                enabled = false,
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                 ),
@@ -90,24 +115,6 @@ fun SharedRecordingDetailScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(VmDimens.SpaceLg))
-
-            // ── Attribution ──────────────────────────────────────────────
-            Text(
-                text = "Shared Recording",
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                text = "Shared by Someone",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-
-            Spacer(Modifier.height(VmDimens.SpaceXl))
 
             // ── Time display (placeholder) ───────────────────────────────
             Text(
@@ -130,7 +137,7 @@ fun SharedRecordingDetailScreen(
             GlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp),
+                    .height(VmDimens.SpaceXxxl + VmDimens.SpaceXxl),
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -155,7 +162,7 @@ fun SharedRecordingDetailScreen(
             ) {
                 FilledTonalIconButton(
                     onClick = { /* no-op: skip backward — wired in Phase 6 */ },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(VmDimens.TouchTarget),
                     enabled = false,
                 ) {
                     Text(
@@ -165,8 +172,8 @@ fun SharedRecordingDetailScreen(
                 }
 
                 FilledIconButton(
-                    onClick = { isPlaying = !isPlaying },
-                    modifier = Modifier.size(72.dp),
+                    onClick = { /* no-op: play — wired in Phase 6 */ },
+                    modifier = Modifier.size(VmDimens.IconXl + VmDimens.SpaceXl),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -176,13 +183,13 @@ fun SharedRecordingDetailScreen(
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play",
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(VmDimens.IconLg + VmDimens.SpaceXs),
                     )
                 }
 
                 FilledTonalIconButton(
                     onClick = { /* no-op: skip forward — wired in Phase 6 */ },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(VmDimens.TouchTarget),
                     enabled = false,
                 ) {
                     Text(

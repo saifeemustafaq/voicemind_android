@@ -468,8 +468,12 @@ fun RecordingsScreen(
         onDismissDelete = { showDeleteConfirm = null },
     )
 
-    if (showShareDialog != null) {
-        ShareDialog(onDismiss = { showShareDialog = null })
+    showShareDialog?.let { recording ->
+        ShareDialog(
+            recordingId = recording.id,
+            itemType = "recording",
+            onDismiss = { showShareDialog = null },
+        )
     }
 
     // Bulk delete confirmation

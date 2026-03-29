@@ -488,6 +488,10 @@ fun RecordingDetailScreen(
     }
 
     if (showShareDialog) {
-        ShareDialog(onDismiss = { showShareDialog = false })
+        ShareDialog(
+            recordingId = recordingId,
+            itemType = "recording",
+            onDismiss = { showShareDialog = false },
+        )
     }
 }
