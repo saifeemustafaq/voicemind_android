@@ -58,7 +58,7 @@ class VoiceMindApp : Application() {
      *  - any other permission change made in system Settings
      *
      * onActivityResumed is the right hook because it fires the moment the activity window
-     * is interactive again — which is exactly when the permission state is finalised after
+     * is interactive again — which is exactly when the permission state is finalized after
      * the system permission dialog is dismissed.
      */
     private fun observeAppForegroundForWidget() {

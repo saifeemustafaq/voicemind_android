@@ -373,7 +373,7 @@ private fun DateDeadlineCard(
     onSetDeadline: (dateMillis: Long?) -> Unit,
 ) {
     var pickerMode by remember { mutableStateOf(PickerMode.None) }
-    var pendingDateMillis by remember { mutableStateOf<Long?>(null) }
+    var pendingDateMillis: Long? by remember { mutableStateOf(null) }
     val now = remember { Date() }
     val appTz = LocalAppTimeZone.current
 
