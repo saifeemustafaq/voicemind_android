@@ -50,7 +50,7 @@ android {
             )
             firebaseAppDistribution {
                 releaseNotes = "Latest build of VoiceMind"
-                testers = "saifeesaifuddinq@gmail.com, saifeestudy@gmail.com"
+                testers = "saifeesaifuddinq@gmail.com, saifeestudy@gmail.com, studykalyani@gmail.com, kkalyanipawar@gmail.com"
             }
         }
     }

@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "./lib/config.js";
 import { db, storage } from "./lib/firestore.js";
@@ -298,3 +299,60 @@ export const getSharedAudioUrl = onCall(async (request) => {
 
   return { url };
 });
+
+// ── Firestore trigger: recording deletion cascade ─────────────────────────────
+
+/**
+ * When an owner deletes a recording, clean up all sharing references so the
+ * item disappears from every recipient's Shared Items list in real time.
+ *
+ * Steps:
+ *  1. Read the deleted document's sharedWith array — return early if empty.
+ *  2. Query myShares for this recording and delete both myShares and
+ *     sharedWithMe inbox entries in batches of 250 shares (= 500 ops/batch).
+ *  3. Remove the sharedWith field from all linked actionItems.
+ */
+export const onRecordingDeleted = onDocumentDeleted(
+  { document: "users/{uid}/recordings/{recordingId}" },
+  async (event) => {
+    const uid = event.params.uid;
+    const recordingId = event.params.recordingId;
+    const data = event.data?.data();
+
+    if (!data) return;
+
+    const sharedWith = (data.sharedWith as string[] | undefined) ?? [];
+    if (sharedWith.length === 0) return;
+
+    // Delete myShares + sharedWithMe entries in batches (2 deletes per share)
+    const mySharesSnap = await db
+      .collection(`users/${uid}/myShares`)
+      .where("itemId", "==", recordingId)
+      .where("itemType", "==", "recording")
+      .get();
+
+    for (let i = 0; i < mySharesSnap.docs.length; i += 250) {
+      const batch = db.batch();
+      mySharesSnap.docs.slice(i, i + 250).forEach((shareDoc) => {
+        const { recipientUid } = shareDoc.data() as { recipientUid: string };
+        batch.delete(db.doc(`users/${recipientUid}/sharedWithMe/${shareDoc.id}`));
+        batch.delete(shareDoc.ref);
+      });
+      await batch.commit();
+    }
+
+    // Remove sharedWith field from linked actionItems (field no longer needed)
+    const actionItemsSnap = await db
+      .collection(`users/${uid}/actionItems`)
+      .where("recordingId", "==", recordingId)
+      .get();
+
+    for (let i = 0; i < actionItemsSnap.docs.length; i += 500) {
+      const batch = db.batch();
+      actionItemsSnap.docs.slice(i, i + 500).forEach((doc) => {
+        batch.update(doc.ref, { sharedWith: admin.firestore.FieldValue.delete() });
+      });
+      await batch.commit();
+    }
+  }
+);

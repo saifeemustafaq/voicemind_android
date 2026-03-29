@@ -114,6 +114,14 @@ class SharingRepository @Inject constructor(
             ?: throw Exception("getSharedAudioUrl returned no url")
     }
 
+    suspend fun getSharedItemForRecording(itemId: String): SharedItem? =
+        sharedWithMeCollection()
+            .whereEqualTo("itemId", itemId)
+            .limit(1)
+            .get().await()
+            .toObjects(SharedItem::class.java)
+            .firstOrNull()
+
     suspend fun markAsRead(shareId: String) {
         sharedWithMeCollection().document(shareId).update("isRead", true).await()
     }

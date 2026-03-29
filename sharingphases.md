@@ -286,7 +286,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
       "shared_recording/$ownerUid/$recordingId"
   ```
 - [x] Add `composable(SHARED_RECORDING_DETAIL_ROUTE)` in `AppNavHost.kt` `detailRoutes`
-- [ ] Wire navigation from `SharedItemsScreen`: tapping a recording item navigates to `sharedRecordingDetailRoute(ownerUid, recordingId)` (deferred to Phase 4 when real data exists)
+- [x] Wire navigation from `SharedItemsScreen`: tapping a recording item navigates to `sharedRecordingDetailRoute(ownerUid, recordingId)` (deferred to Phase 4 when real data exists)
 
 ### Shared Recording Detail Screen
 
@@ -301,7 +301,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
   - **No edit actions**: no rename, no delete, no move, no re-share
   - **URL expiry handling**: if playback exceeds 1 hour, request a new signed URL
 
-- [ ] Create `ui/sharing/SharedRecordingDetailViewModel.kt`
+- [x] Create `ui/sharing/SharedRecordingDetailViewModel.kt`
   - Takes `ownerUid` and `recordingId` from SavedStateHandle
   - Observes recording via `RecordingRepository.observeSharedRecording(ownerUid, recordingId)`
   - Fetches signed audio URL via `SharingRepository.getSharedAudioUrl`
@@ -324,15 +324,15 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Cloud Function
 
-- [ ] Create `onRecordingDeleted` Firestore trigger in `functions/src/sharing.ts`
+- [x] Create `onRecordingDeleted` Firestore trigger in `functions/src/sharing.ts`
   - Trigger path: `users/{uid}/recordings/{recordingId}` — on delete
-  - Reads the deleted document's data from `event.data.before`
+  - Reads the deleted document's data from `event.data.data()` (v2 API)
   - If `sharedWith` array is empty or absent → return early
   - Queries `users/{uid}/myShares` where `itemId == recordingId && itemType == "recording"`
-  - For each share entry:
+  - For each share entry (batched 250/batch = 500 ops max):
     - Deletes `users/{recipientUid}/sharedWithMe/{shareId}`
     - Deletes the `myShares` entry itself
-  - Also removes `sharedWith` arrays from any linked `actionItems` (where `recordingId == deletedRecordingId`) — though these may also be deleted by existing app logic
+  - Also removes `sharedWith` field from linked `actionItems` via `FieldValue.delete()` (batched 500/batch)
 
 ### Verification
 
