@@ -31,6 +31,8 @@ import com.voicemind.ui.folders.FoldersScreen
 import com.voicemind.ui.recording.RecordingDetailScreen
 import com.voicemind.ui.recording.RecordingsScreen
 import com.voicemind.ui.settings.SettingsScreen
+import com.voicemind.ui.sharing.SharedItemsScreen
+import com.voicemind.ui.sharing.SharedRecordingDetailScreen
 import com.voicemind.ui.summaries.SummariesScreen
 import kotlinx.coroutines.launch
 
@@ -126,6 +128,7 @@ fun AppNavHost(
                     composable(Routes.Folders.route) {
                         FoldersScreen(
                             onFolderClick = { folderId -> navController.navigate(folderDetailRoute(folderId)) },
+                            onSharedItemsClick = { navController.navigate(SHARED_ITEMS_ROUTE) },
                             onOpenDrawer = onOpenDrawer,
                             onSettings = onSettings,
                         )
@@ -198,6 +201,7 @@ fun AppNavHost(
                             )
                             Routes.Folders -> FoldersScreen(
                                 onFolderClick = { folderId -> navController.navigate(folderDetailRoute(folderId)) },
+                                onSharedItemsClick = { navController.navigate(SHARED_ITEMS_ROUTE) },
                                 onSettings = onSettings,
                             )
                             else -> {}
@@ -230,6 +234,18 @@ private fun NavGraphBuilder.detailRoutes(
         RecordingDetailScreen(
             recordingId = recordingId,
             navController = navController,
+            onBack = { navController.popBackStack() },
+        )
+    }
+    composable(SHARED_ITEMS_ROUTE) {
+        SharedItemsScreen(onBack = { navController.popBackStack() })
+    }
+    composable(SHARED_RECORDING_DETAIL_ROUTE) { backStackEntry ->
+        val ownerUid = backStackEntry.arguments?.getString("ownerUid") ?: return@composable
+        val recordingId = backStackEntry.arguments?.getString("recordingId") ?: return@composable
+        SharedRecordingDetailScreen(
+            ownerUid = ownerUid,
+            recordingId = recordingId,
             onBack = { navController.popBackStack() },
         )
     }

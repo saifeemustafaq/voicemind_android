@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -59,6 +60,7 @@ import com.voicemind.ui.theme.VmDimens
 @Composable
 fun FoldersScreen(
     onFolderClick: (String) -> Unit,
+    onSharedItemsClick: () -> Unit = {},
     viewModel: FoldersViewModel = hiltViewModel(),
     onOpenDrawer: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
@@ -104,6 +106,9 @@ fun FoldersScreen(
                 listState.animateScrollToItem(0)
             }
             LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    SharedItemsRow(onClick = onSharedItemsClick)
+                }
                 items(state.folders, key = { it.id }) { folder ->
                     FolderRow(
                         folder = folder,
@@ -255,6 +260,39 @@ private fun FolderRow(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SharedItemsRow(onClick: () -> Unit) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), innerPadding = 0.dp, onClick = onClick) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.FolderShared,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp),
+            )
+            Text(
+                text = "Shared Items",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
+            )
+            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
@@ -113,6 +114,7 @@ import com.voicemind.ui.components.RecordFab
 import com.voicemind.ui.components.RecordingDialogsHost
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.navigation.Routes
+import com.voicemind.ui.sharing.ShareDialog
 import com.voicemind.ui.navigation.recordingDetailRoute
 import com.voicemind.ui.theme.ShimmerBlue
 import com.voicemind.ui.theme.ShimmerGold
@@ -148,6 +150,7 @@ fun RecordingsScreen(
     var showRenameDialog by remember { mutableStateOf<Recording?>(null) }
     var showMoveDialog by remember { mutableStateOf<Recording?>(null) }
     var showDeleteConfirm by remember { mutableStateOf<Recording?>(null) }
+    var showShareDialog by remember { mutableStateOf<Recording?>(null) }
     var showBulkDeleteConfirm by remember { mutableStateOf(false) }
     var showBulkMoveDialog by remember { mutableStateOf(false) }
     var summarizingGroup by remember { mutableStateOf<String?>(null) }
@@ -351,7 +354,8 @@ fun RecordingsScreen(
                                                 recording.transcription?.let { text ->
                                                     recordingsViewModel.shareTranscript(context, text)
                                                 }
-                                            }
+                                            },
+                                            onShareWithUser = { showShareDialog = recording },
                                         )
                                         if (index < recordings.lastIndex) {
                                             HorizontalDivider(
@@ -463,6 +467,10 @@ fun RecordingsScreen(
         onDismissMove = { showMoveDialog = null },
         onDismissDelete = { showDeleteConfirm = null },
     )
+
+    if (showShareDialog != null) {
+        ShareDialog(onDismiss = { showShareDialog = null })
+    }
 
     // Bulk delete confirmation
     if (showBulkDeleteConfirm) {
@@ -865,6 +873,7 @@ private fun RecordingRow(
     onTap: () -> Unit,
     onCopyTranscript: () -> Unit,
     onShareTranscript: () -> Unit,
+    onShareWithUser: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -987,6 +996,11 @@ private fun RecordingRow(
                             leadingIcon = { Icon(Icons.Default.Share, null) },
                         )
                     }
+                    DropdownMenuItem(
+                        text = { Text("Share with User") },
+                        onClick = { menuExpanded = false; onShareWithUser() },
+                        leadingIcon = { Icon(Icons.Default.PersonAdd, null) },
+                    )
                     DropdownMenuItem(
                         text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                         onClick = { menuExpanded = false; onDelete() },

@@ -24,10 +24,10 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Android — UI
 
-- [ ] Update `SettingsScreen.kt`: add a **"PRIVACY"** section between Account and Integrations
+- [x] Update `SettingsScreen.kt`: add a **"PRIVACY"** section between Account and Integrations
   - Label: "Allow others to find me by email"
   - Description: "When enabled, other VoiceMind users can find you by your email address to share recordings with you"
-  - `Switch` bound to `discoverable` state from `UserSettingsRepository`
+  - `Switch` bound to `discoverable` state from `UserSettingsRepository` (local state for now — will be wired in Phase 1 backend)
 - [ ] Update `SettingsViewModel` (or create if needed) to expose discoverable state and toggle action
 
 ### Verification
@@ -183,31 +183,25 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Navigation
 
-- [ ] Add route constant in `Routes.kt`: `const val SHARED_ITEMS_ROUTE = "shared_items"`
-- [ ] Add `composable(SHARED_ITEMS_ROUTE)` in `AppNavHost.kt` `detailRoutes`, navigating to `SharedItemsScreen`
+- [x] Add route constant in `Routes.kt`: `const val SHARED_ITEMS_ROUTE = "shared_items"`
+- [x] Add `composable(SHARED_ITEMS_ROUTE)` in `AppNavHost.kt` `detailRoutes`, navigating to `SharedItemsScreen`
 
 ### Folders Screen
 
-- [ ] Update `FoldersScreen.kt`: add a pinned "Shared Items" row at the very top of the `LazyColumn`, before the `items(state.folders)` block
-  - Uses a distinct icon (e.g., `Icons.Default.PeopleAlt` or `Icons.Default.FolderShared`)
-  - Shows badge count of unread shared items (from `SharedItemsViewModel` or `FoldersViewModel`)
+- [x] Update `FoldersScreen.kt`: add a pinned "Shared Items" row at the very top of the `LazyColumn`, before the `items(state.folders)` block
+  - Uses `Icons.Default.FolderShared` icon
   - Cannot be renamed, deleted, or reordered
   - Tapping navigates to `SHARED_ITEMS_ROUTE`
+  - Badge count hardcoded hidden for now (will use `SharingRepository.getUnreadCount()` in Phase 4)
 - [ ] Update `FoldersViewModel.kt`: expose `sharedItemsUnreadCount: StateFlow<Int>` sourced from `SharingRepository.getUnreadCount()`
 
 ### Shared Items Screen
 
-- [ ] Create `ui/sharing/SharedItemsScreen.kt`
-  - Top app bar: "Shared Items" title, back button
-  - **Empty state**: centered text "Items shared with you by other VoiceMind users will appear here" when no items exist
-  - **Populated state**: group `SharedItem` list by `itemType`, show subsections with headers:
-    - "Recordings" — for `itemType == "recording"`
-    - "Summaries" — for `itemType == "collectiveSummary"` (will be populated in Phase 10)
-  - Only show subsection headers when items exist for that type
-  - Each item row shows: item title (fetched from owner's document), "Shared by [ownerName]", relative time from `sharedAt`
-  - Sorted by `sharedAt` descending within each subsection
-  - Swipe-to-dismiss or context menu with "Remove from Shared Items" action → calls `SharingRepository.dismissSharedItem(shareId)`
-  - Mark items as read when screen is opened: call `markAsRead` for all unread items
+- [x] Create `ui/sharing/SharedItemsScreen.kt`
+  - Top app bar: "Shared Items" title, `FolderShared` icon, back button
+  - **Empty state**: centered `GlassCard` with text "Items shared with you by other VoiceMind users will appear here"
+  - Section headers for RECORDINGS, TASKS, SUMMARIES (hidden when empty — empty state only shown for now)
+  - Backend wiring (ViewModel, real data) deferred to Phase 4
 
 - [ ] Create `ui/sharing/SharedItemsViewModel.kt`
   - Observes `SharingRepository.observeSharedWithMe()`
@@ -234,19 +228,20 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Recording Share Action
 
-- [ ] Update recording context menu / overflow menu (in `RecordingsScreen.kt` or `RecordingDetailScreen.kt`): add "Share" action
-- [ ] Tapping "Share" opens `ShareDialog`
+- [x] Update recording context menu / overflow menu (in `RecordingsScreen.kt` and `RecordingDetailScreen.kt`): add "Share with User" action with `PersonAdd` icon
+- [x] Tapping "Share with User" opens `ShareDialog`
 
 ### Share Dialog
 
-- [ ] Create `ui/sharing/ShareDialog.kt`
-  - Modal bottom sheet or dialog
-  - **Email lookup form**: text field for email, "Find" button
-  - **Loading state**: progress indicator while searching
-  - **User found**: shows recipient's `displayName` and `email`, "Share" confirmation button
-  - **User not found**: shows "No user found" message
-  - **Error handling**: network errors, rate limit exceeded
-  - **Already shared**: if item is already shared with this user, show message instead of share button
+- [x] Create `ui/sharing/ShareDialog.kt`
+  - Modal bottom sheet (`ModalBottomSheet`)
+  - **Email lookup form**: `OutlinedTextField` with `voiceMindTextFieldColors()`, "Find" `PrimaryButton`
+  - **Loading state**: `CircularProgressIndicator`
+  - **User found**: `GlassCard` with placeholder name/email + "Share" button (no-op)
+  - **User not found**: "No user found" text
+  - **Already shared**: "Already shared with this user" text
+  - **Shared with section**: placeholder recipient list with `PersonRemove` revoke buttons
+  - All actions are no-ops — wired to `ShareViewModel` in Phase 5
 
 - [ ] Create `ui/sharing/ShareViewModel.kt`
   - `findUser(email: String)` — calls `SharingRepository.findUserByEmail`
@@ -277,18 +272,18 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Navigation
 
-- [ ] Add route constants in `Routes.kt`:
+- [x] Add route constants in `Routes.kt`:
   ```kotlin
   const val SHARED_RECORDING_DETAIL_ROUTE = "shared_recording/{ownerUid}/{recordingId}"
   fun sharedRecordingDetailRoute(ownerUid: String, recordingId: String) =
       "shared_recording/$ownerUid/$recordingId"
   ```
-- [ ] Add `composable(SHARED_RECORDING_DETAIL_ROUTE)` in `AppNavHost.kt` `detailRoutes`
-- [ ] Wire navigation from `SharedItemsScreen`: tapping a recording item navigates to `sharedRecordingDetailRoute(ownerUid, recordingId)`
+- [x] Add `composable(SHARED_RECORDING_DETAIL_ROUTE)` in `AppNavHost.kt` `detailRoutes`
+- [ ] Wire navigation from `SharedItemsScreen`: tapping a recording item navigates to `sharedRecordingDetailRoute(ownerUid, recordingId)` (deferred to Phase 4 when real data exists)
 
 ### Shared Recording Detail Screen
 
-- [ ] Create `ui/sharing/SharedRecordingDetailScreen.kt`
+- [x] Create `ui/sharing/SharedRecordingDetailScreen.kt`
   - Top app bar: recording title, back button (no edit/delete/move options)
   - **Attribution**: "Shared by [ownerName]" subtitle below the title
   - **Audio playback**: calls `SharingRepository.getSharedAudioUrl(ownerUid, recordingId)` to get a signed URL, passes to `MediaPlayer`

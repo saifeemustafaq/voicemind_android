@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -72,6 +73,7 @@ import androidx.navigation.NavController
 import com.voicemind.R
 import com.voicemind.ui.components.AudioWaveform
 import com.voicemind.ui.navigation.Routes
+import com.voicemind.ui.sharing.ShareDialog
 import androidx.compose.ui.res.painterResource
 
 private fun formatMmSsDecimal(ms: Long): String {
@@ -239,6 +241,7 @@ fun RecordingDetailScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showMoveDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
     var showSheet by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -287,6 +290,11 @@ fun RecordingDetailScreen(
                                     menuExpanded = false
                                     playbackViewModel.shareAudio(context, recording)
                                 },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Share with User") },
+                                leadingIcon = { Icon(Icons.Default.PersonAdd, null) },
+                                onClick = { menuExpanded = false; showShareDialog = true },
                             )
                             DropdownMenuItem(
                                 text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
@@ -477,5 +485,9 @@ fun RecordingDetailScreen(
                 onBack()
             },
         )
+    }
+
+    if (showShareDialog) {
+        ShareDialog(onDismiss = { showShareDialog = false })
     }
 }

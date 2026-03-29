@@ -414,6 +414,36 @@ fun SettingsScreen(
                 )
             }
 
+            // ── PRIVACY ──────────────────────────────────────────────────
+            SettingsSectionHeader("PRIVACY")
+
+            var discoverable by remember { mutableStateOf(true) }
+
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Allow others to find me by email",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = "When enabled, other VoiceMind users can find you by your email address to share recordings with you",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = discoverable,
+                        onCheckedChange = { discoverable = it },
+                        modifier = Modifier.padding(start = VmDimens.SpaceMd),
+                    )
+                }
+            }
+
             // ── INTEGRATIONS ─────────────────────────────────────────────
             SettingsSectionHeader("INTEGRATIONS")
 
