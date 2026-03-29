@@ -117,4 +117,17 @@ class ActionItemRepository @Inject constructor(
             else -> 0
         }
     }
+
+    fun observeActionItemsForRecording(ownerUid: String, recordingId: String): Flow<List<ActionItem>> = callbackFlow {
+        val registration = firestore.collection("users/$ownerUid/actionItems")
+            .whereEqualTo("recordingId", recordingId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "observeActionItemsForRecording")
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObjects(ActionItem::class.java) ?: emptyList())
+            }
+        awaitClose { registration.remove() }
+    }
 }

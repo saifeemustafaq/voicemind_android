@@ -124,4 +124,16 @@ class RecordingRepository @Inject constructor(
         }
         batch.commit().await()
     }
+
+    fun observeSharedRecording(ownerUid: String, recordingId: String): Flow<Recording?> = callbackFlow {
+        val registration = firestore.document("users/$ownerUid/recordings/$recordingId")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "observeSharedRecording")
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObject(Recording::class.java))
+            }
+        awaitClose { registration.remove() }
+    }
 }
