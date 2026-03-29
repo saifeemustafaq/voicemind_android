@@ -26,5 +26,8 @@ service cloud.firestore {
     match /tasksTokens/{uid} {
       allow read, write: if false;
     }
+    match /rateLimits/{uid} {
+      allow read, write: if false;
+    }
   }
 }

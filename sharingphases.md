@@ -10,7 +10,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Backend
 
-- [x] Create `onUserCreated` Auth `onCreate` trigger in `functions/src/index.ts`
+- [x] Create `onUserCreated` Auth `onCreate` trigger in `functions/src/userProfile.ts`
   - Reads `displayName`, `email`, `photoURL` from the `UserRecord`
   - Writes to `users/{uid}` with `merge: true`
   - Sets `discoverable: true`
@@ -78,7 +78,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
   - If found, reads `users/{uid}` and checks `discoverable` (default `true` when absent)
   - If not discoverable → `{ found: false }`
   - If discoverable → `{ found: true, uid, displayName, email }`
-  - Rate limiting: max 10 lookups per minute per caller (in-memory map, per-instance)
+  - Rate limiting: max 10 lookups per minute per caller (Firestore-based, cross-instance)
 
 - [x] `shareItem` (callable)
   - Input: `{ itemId: string, itemType: "recording" | "collectiveSummary", recipientUid: string }`
@@ -325,7 +325,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Cloud Function
 
-- [ ] Create `onRecordingDeleted` Firestore trigger in `functions/src/index.ts`
+- [ ] Create `onRecordingDeleted` Firestore trigger in `functions/src/sharing.ts`
   - Trigger path: `users/{uid}/recordings/{recordingId}` — on delete
   - Reads the deleted document's data from `event.data.before`
   - If `sharedWith` array is empty or absent → return early
@@ -350,7 +350,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Cloud Function
 
-- [ ] Create `duplicateSharedRecording` callable in `functions/src/index.ts`
+- [ ] Create `duplicateSharedRecording` callable in `functions/src/sharing.ts`
   - Input: `{ ownerUid: string, recordingId: string, destinationFolderId: string }`
   - Verifies the recording is shared with the caller (checks `sharedWith` array)
   - Generates new recording ID: `rec-{timestamp}-{random}`
@@ -405,7 +405,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Independent Task Sharing — Backend
 
-- [ ] Extend `shareItem` Cloud Function (or create a `shareTask` callable) to handle `itemType: "task"`
+- [ ] Extend `shareItem` in `functions/src/sharing.ts` (or create a `shareTask` callable) to handle `itemType: "task"`
   - Instead of reference-based sharing, immediately copies the task to `users/{recipientUid}/actionItems`
   - Copied task includes: title, notes, dueDate, deadline (all from original), plus `sharedFromUid` and `sharedFromName` (from caller's profile)
   - Sets `completed: false`, `recordingId: null`, `googleTaskId: null`, `calendarEventId: null` on the copy
@@ -453,8 +453,8 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Backend
 
-- [ ] Verify `shareItem` Cloud Function already handles `itemType: "collectiveSummary"` (it was designed to in Phase 2 — confirm it works for this item type)
-- [ ] Create `onCollectiveSummaryDeleted` Firestore trigger in `functions/src/index.ts`
+- [ ] Verify `shareItem` in `functions/src/sharing.ts` already handles `itemType: "collectiveSummary"` (it was designed to in Phase 2 — confirm it works for this item type)
+- [ ] Create `onCollectiveSummaryDeleted` Firestore trigger in `functions/src/sharing.ts`
   - Trigger path: `users/{uid}/collectiveSummaries/{summaryId}` — on delete
   - Same cleanup logic as `onRecordingDeleted`: reads `sharedWith`, deletes `myShares` and `sharedWithMe` entries
 
@@ -483,7 +483,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Cloud Function
 
-- [ ] Create `generateTasksFromSharedRecording` callable in `functions/src/index.ts`
+- [ ] Create `generateTasksFromSharedRecording` callable in `functions/src/sharing.ts`
   - Input: `{ ownerUid: string, recordingId: string, timezone: string }`
   - Verifies the recording is shared with the caller (checks `sharedWith` array)
   - Reads transcription from `users/{ownerUid}/recordings/{recordingId}`
@@ -534,7 +534,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Backend — Send Notification
 
-- [ ] Update `shareItem` Cloud Function: after creating the share, query `users/{recipientUid}/deviceTokens` for all registered tokens
+- [ ] Update `shareItem` in `functions/src/sharing.ts`: after creating the share, query `users/{recipientUid}/deviceTokens` for all registered tokens
 - [ ] Send FCM message to each token:
   - Title: "[ownerName] shared a recording with you" (or summary, or task)
   - Body: item title
@@ -557,7 +557,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Cloud Function
 
-- [ ] Create `onUserDeleted` Auth `onDelete` trigger in `functions/src/index.ts`
+- [ ] Create `onUserDeleted` Auth `onDelete` trigger in `functions/src/userProfile.ts`
   - **Outgoing shares cleanup** (items the deleted user shared with others):
     - Query `users/{deletedUid}/myShares`
     - For each entry: delete the corresponding `users/{recipientUid}/sharedWithMe/{shareId}` inbox entry
@@ -634,12 +634,12 @@ Phase 2  ──→  Phase 13  (can be done any time after Phase 2)
 
 | Phase | File | Change Summary |
 |-------|------|----------------|
-| 1 | `functions/src/index.ts` | Add `onUserCreated` trigger |
+| 1 | `functions/src/userProfile.ts` | Add `onUserCreated` trigger |
 | 1 | `firestore.rules` | Add `tasksTokens` deny rule |
 | 1 | `android/.../data/repository/AuthRepository.kt` | Write profile fields on sign-in |
 | 1 | `android/.../data/repository/UserSettingsRepository.kt` | Add discoverable observe/set |
 | 1 | `android/.../ui/settings/SettingsScreen.kt` | Add Privacy section |
-| 2 | `functions/src/index.ts` | Add 5 sharing callables; fix `revokeShare` to validate recipientUid against stored value |
+| 2 | `functions/src/sharing.ts` | Add 5 sharing callables; fix `revokeShare` to validate recipientUid against stored value |
 | 2 | `firestore.rules` | Add cross-user read rules for recordings, collectiveSummaries, and actionItems |
 | 3 | `android/.../data/repository/RecordingRepository.kt` | Add cross-user observe |
 | 3 | `android/.../data/repository/ActionItemRepository.kt` | Add cross-user task observe |
@@ -650,14 +650,14 @@ Phase 2  ──→  Phase 13  (can be done any time after Phase 2)
 | 5 | `android/.../ui/recording/RecordingsScreen.kt` | Add Share action |
 | 6 | `android/.../ui/navigation/Routes.kt` | Add shared_recording route |
 | 6 | `android/.../ui/navigation/AppNavHost.kt` | Add SharedRecordingDetailScreen composable |
-| 7 | `functions/src/index.ts` | Add `onRecordingDeleted` trigger |
-| 8 | `functions/src/index.ts` | Add `duplicateSharedRecording` callable |
+| 7 | `functions/src/sharing.ts` | Add `onRecordingDeleted` trigger |
+| 8 | `functions/src/sharing.ts` | Add `duplicateSharedRecording` callable |
 | 9 | `android/.../data/model/ActionItem.kt` | Add sharedFrom fields |
-| 9 | `functions/src/index.ts` | Extend shareItem for tasks |
+| 9 | `functions/src/sharing.ts` | Extend shareItem for tasks |
 | 10 | `android/.../data/model/CollectiveSummary.kt` | Add sharedWith field |
-| 10 | `functions/src/index.ts` | Add `onCollectiveSummaryDeleted` trigger |
-| 11 | `functions/src/index.ts` | Add `generateTasksFromSharedRecording` callable |
-| 12 | `functions/src/index.ts` | Update `shareItem` to send FCM |
+| 10 | `functions/src/sharing.ts` | Add `onCollectiveSummaryDeleted` trigger |
+| 11 | `functions/src/sharing.ts` | Add `generateTasksFromSharedRecording` callable |
+| 12 | `functions/src/sharing.ts` | Update `shareItem` to send FCM |
 | 12 | `android/app/build.gradle.kts` | Add FCM dependency |
 | 12 | `android/app/src/main/AndroidManifest.xml` | Register messaging service |
-| 13 | `functions/src/index.ts` | Add `onUserDeleted` trigger |
+| 13 | `functions/src/userProfile.ts` | Add `onUserDeleted` trigger |
