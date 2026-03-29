@@ -10,17 +10,17 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Backend
 
-- [ ] Create `onUserCreated` Auth `onCreate` trigger in `functions/src/index.ts`
+- [x] Create `onUserCreated` Auth `onCreate` trigger in `functions/src/index.ts`
   - Reads `displayName`, `email`, `photoURL` from the `UserRecord`
   - Writes to `users/{uid}` with `merge: true`
   - Sets `discoverable: true`
-- [ ] Add `tasksTokens/{uid}` deny rule to `firestore.rules` (currently missing — only `calendarTokens` is denied)
+- [x] Add `tasksTokens/{uid}` deny rule to `firestore.rules` (currently missing — only `calendarTokens` is denied)
 
 ### Android — Data Layer
 
-- [ ] Update `AuthRepository.kt`: after every successful sign-in (email/password and Google), write `displayName` and `email` to `users/{uid}` with `merge: true` using Firestore
-- [ ] Update `UserSettingsRepository.kt`: add `observeDiscoverable(): Flow<Boolean>` (snapshot listener on `users/{uid}`, reads `discoverable` field, defaults to `true` when absent)
-- [ ] Update `UserSettingsRepository.kt`: add `setDiscoverable(enabled: Boolean)` (writes `discoverable` field)
+- [x] Update `AuthRepository.kt`: after every successful sign-in (email/password and Google), write `displayName` and `email` to `users/{uid}` with `merge: true` using Firestore
+- [x] Update `UserSettingsRepository.kt`: add `observeDiscoverable(): Flow<Boolean>` (snapshot listener on `users/{uid}`, reads `discoverable` field, defaults to `true` when absent)
+- [x] Update `UserSettingsRepository.kt`: add `setDiscoverable(enabled: Boolean)` (writes `discoverable` field)
 
 ### Android — UI
 
@@ -28,7 +28,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
   - Label: "Allow others to find me by email"
   - Description: "When enabled, other VoiceMind users can find you by your email address to share recordings with you"
   - `Switch` bound to `discoverable` state from `UserSettingsRepository` (local state for now — will be wired in Phase 1 backend)
-- [ ] Update `SettingsViewModel` (or create if needed) to expose discoverable state and toggle action
+- [x] Update `SettingsViewModel` (or create if needed) to expose discoverable state and toggle action
 
 ### Verification
 

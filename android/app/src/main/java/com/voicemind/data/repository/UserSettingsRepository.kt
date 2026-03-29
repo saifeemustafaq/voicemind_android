@@ -74,4 +74,21 @@ class UserSettingsRepository @Inject constructor(
     suspend fun syncTimezoneToFirestore(timezoneId: String) {
         userDoc().update("timezone", timezoneId).await()
     }
+
+    fun observeDiscoverable(): Flow<Boolean> = callbackFlow {
+        val registration = userDoc().addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Timber.e(error, "observeDiscoverable")
+                trySend(true)
+                return@addSnapshotListener
+            }
+            // Default to true when field is absent (PRD Section 28.3)
+            trySend(snapshot?.getBoolean("discoverable") ?: true)
+        }
+        awaitClose { registration.remove() }
+    }
+
+    suspend fun setDiscoverable(enabled: Boolean) {
+        userDoc().update("discoverable", enabled).await()
+    }
 }

@@ -81,6 +81,7 @@ fun SettingsScreen(
     val tasksError by settingsViewModel.tasksError.collectAsStateWithLifecycle()
     val pendingConsent by settingsViewModel.pendingConsentResult.collectAsStateWithLifecycle()
     val ntsSettings by settingsViewModel.ntsSettings.collectAsStateWithLifecycle()
+    val discoverable by settingsViewModel.discoverable.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showTimeZonePicker by remember { mutableStateOf(false) }
     var showNtsTimePicker by remember { mutableStateOf(false) }
@@ -417,8 +418,6 @@ fun SettingsScreen(
             // ── PRIVACY ──────────────────────────────────────────────────
             SettingsSectionHeader("PRIVACY")
 
-            var discoverable by remember { mutableStateOf(true) }
-
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -438,7 +437,7 @@ fun SettingsScreen(
                     }
                     Switch(
                         checked = discoverable,
-                        onCheckedChange = { discoverable = it },
+                        onCheckedChange = { settingsViewModel.setDiscoverable(it) },
                         modifier = Modifier.padding(start = VmDimens.SpaceMd),
                     )
                 }

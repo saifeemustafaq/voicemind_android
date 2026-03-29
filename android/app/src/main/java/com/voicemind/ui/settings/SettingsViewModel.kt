@@ -108,6 +108,17 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // ── Privacy ──────────────────────────────────────────────────────────────
+
+    val discoverable: StateFlow<Boolean> = userSettingsRepository.observeDiscoverable()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    fun setDiscoverable(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userSettingsRepository.setDiscoverable(enabled)
+        }
+    }
+
     // ── Integrations ────────────────────────────────────────────────────────
 
     val tasksConnected: StateFlow<Boolean> = googleTasksRepository.observeTasksConnected()
