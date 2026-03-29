@@ -3,6 +3,7 @@ package com.voicemind.ui.sharing
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
+import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.SharingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +21,13 @@ import javax.inject.Inject
 
 enum class SharedItemsTab { Recordings, Tasks, Summaries }
 
+data class SharedTaskUiModel(
+    val id: String,
+    val title: String,
+    val sharedFromName: String,
+    val completed: Boolean,
+)
+
 data class SharedItemUiModel(
     val shareId: String,
     val ownerUid: String,
@@ -35,7 +43,7 @@ data class SharedItemUiModel(
 data class SharedItemsUiState(
     val recordings: List<SharedItemUiModel> = emptyList(),
     val summaries: List<SharedItemUiModel> = emptyList(),
-    val tasks: List<SharedItemUiModel> = emptyList(),   // populated in Phase 9
+    val tasks: List<SharedTaskUiModel> = emptyList(),
     val isLoading: Boolean = true,
     val selectedTab: SharedItemsTab = SharedItemsTab.Recordings,
 )
@@ -44,6 +52,7 @@ data class SharedItemsUiState(
 class SharedItemsViewModel @Inject constructor(
     private val sharingRepository: SharingRepository,
     private val recordingRepository: RecordingRepository,
+    private val actionItemRepository: ActionItemRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SharedItemsUiState())
@@ -83,6 +92,21 @@ class SharedItemsViewModel @Inject constructor(
                         isLoading = false,
                     )
                 }
+            }
+        }
+        viewModelScope.launch {
+            actionItemRepository.observeSharedTasks().collect { items ->
+                val taskUiModels = items
+                    .sortedByDescending { it.createdAt }
+                    .map { item ->
+                        SharedTaskUiModel(
+                            id = item.id,
+                            title = item.title,
+                            sharedFromName = item.sharedFromName ?: "",
+                            completed = item.completed,
+                        )
+                    }
+                _uiState.update { it.copy(tasks = taskUiModels) }
             }
         }
         markAllAsRead()

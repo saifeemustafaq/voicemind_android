@@ -349,10 +349,10 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Cloud Function
 
-- [ ] Create `duplicateSharedRecording` callable in `functions/src/sharing.ts`
+- [x] Create `duplicateSharedRecording` callable in `functions/src/sharing.ts`
   - Input: `{ ownerUid: string, recordingId: string, destinationFolderId: string }`
   - Verifies the recording is shared with the caller (checks `sharedWith` array)
-  - Generates new recording ID: `rec-{timestamp}-{random}`
+  - Generates new recording ID: `rec-{timestamp}-{random}` (using `randomBytes`)
   - Reads the owner's recording document
   - Copies to `users/{callerUid}/recordings/{newId}` with:
     - All content fields (title, transcription, summary, durationSeconds)
@@ -362,21 +362,21 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
     - `createdAt` set to server timestamp
   - Copies audio file in Cloud Storage from owner's path to recipient's path
   - Queries owner's `actionItems` where `recordingId == originalRecordingId`
-  - Copies each action item to `users/{callerUid}/actionItems` with new `recordingId`, `sharedWith` removed
+  - Copies each action item to `users/{callerUid}/actionItems` with new `recordingId`, `sharedWith`/`googleTaskId`/`calendarEventId` removed
   - Returns `{ success: true, newRecordingId: newId }`
-  - Error handling: if copy fails mid-operation, clean up partial writes
+  - Error handling: cleans up recording doc, audio file, and copied action items on any failure
 
 ### Android — Data Layer
 
-- [ ] Add `duplicateSharedRecording(ownerUid: String, recordingId: String, destinationFolderId: String)` to `SharingRepository`
+- [x] Add `duplicateSharedRecording(ownerUid: String, recordingId: String, destinationFolderId: String)` to `SharingRepository`
 
 ### Android — UI
 
-- [ ] Add "Duplicate" action to `SharedRecordingDetailScreen` (e.g., in overflow menu or as a prominent button)
-- [ ] Create folder picker dialog: lists user's folders, allows selection of destination
-- [ ] On confirmation: call `SharingRepository.duplicateSharedRecording`, show loading state
-- [ ] On success: navigate to the duplicated recording or show confirmation toast
-- [ ] The original shared reference remains in Shared Items (user can dismiss separately)
+- [x] Add "Duplicate" action to `SharedRecordingDetailScreen` overflow menu (enabled, shows spinner when duplicating)
+- [x] Reuse `MoveToFolderDialog` (with `title = "Duplicate to Folder"`) as folder picker — no new dialog created
+- [x] On confirmation: calls `viewModel.duplicateToFolder(folderId)`, shows loading state in menu item
+- [x] On success: shows Snackbar "Recording duplicated successfully" via `SnackbarHostState`
+- [x] The original shared reference remains in Shared Items (user can dismiss separately)
 
 ### Verification
 
@@ -396,41 +396,32 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Data Model Update
 
-- [ ] Update `ActionItem.kt`: add two nullable fields
-  ```kotlin
-  val sharedFromUid: String? = null,
-  val sharedFromName: String? = null,
-  ```
+- [x] Update `ActionItem.kt`: add two nullable fields — `sharedFromUid` and `sharedFromName`
 
 ### Independent Task Sharing — Backend
 
-- [ ] Extend `shareItem` in `functions/src/sharing.ts` (or create a `shareTask` callable) to handle `itemType: "task"`
-  - Instead of reference-based sharing, immediately copies the task to `users/{recipientUid}/actionItems`
-  - Copied task includes: title, notes, dueDate, deadline (all from original), plus `sharedFromUid` and `sharedFromName` (from caller's profile)
-  - Sets `completed: false`, `recordingId: null`, `googleTaskId: null`, `calendarEventId: null` on the copy
-  - Does NOT create `sharedWithMe`/`myShares` entries (task copies are independent immediately)
+- [x] Create `shareTask` callable in `functions/src/sharing.ts` — copy-based, writes directly to recipient's `actionItems` with `sharedFromUid`/`sharedFromName`; no `sharedWithMe`/`myShares` entries
 
 ### Independent Task Sharing — Android
 
-- [ ] Add "Share" action to task context menu in `ChecklistScreen` or `TaskDetailScreen`
-- [ ] Reuse `ShareDialog` from Phase 5 for email lookup and confirmation
-- [ ] After sharing, show confirmation toast
+- [x] Add overflow menu ("Share with User") to `TaskDetailScreen` via `extraActions` slot of `VoiceMindTopAppBar`
+- [x] Reuse `ShareDialog` with `itemType = "task"` — hides "Shared with" section, routes to `shareTask` callable
+- [x] `ShareDialog` parameter renamed from `recordingId` to `itemId`; callers in `RecordingsScreen` and `RecordingDetailScreen` updated
+- [x] `TaskDetailScreen` shows "Shared by [name]" attribution when `item.sharedFromName != null`
 
 ### "Add to My Checklist" from Shared Recordings
 
-- [ ] In `SharedRecordingDetailScreen`, add an "Add to my checklist" button on each task in the tasks list
-- [ ] Tapping copies that specific task to `users/{myUid}/actionItems` with `sharedFromUid` and `sharedFromName` set
-- [ ] This can be a direct Firestore write (within the user's own collection) or a callable
-- [ ] Disable the button after the task has been added (prevent duplicates)
+- [x] Each task row in `SharedRecordingDetailScreen` has an `AddTask` icon button
+- [x] Tapping copies the task to `users/{myUid}/actionItems` via `ActionItemRepository.addSharedTask()` with deterministic doc ID `shared-{ownerUid}-{originalTaskId}`
+- [x] Button shows `CheckCircle` and is disabled after task has been added (idempotent write)
+- [x] `addedTaskIds` set checked on task list load via parallel `isSharedTaskAdded()` calls
 
 ### Tasks Subsection in Shared Items
 
-- [ ] Populate the **Tasks pill tab** in `SharedItemsScreen.kt` with real data
-  - Shows tasks where `sharedFromUid != null` from the recipient's own `actionItems` collection
-  - This is a filtered view, not a separate data store
-  - Each row shows task title, "Shared by [sharedFromName]", completion status
-  - Tasks are tappable — navigate to the normal `TaskDetailScreen` (they are regular actionItems)
-- [ ] Update `SharedItemsViewModel.kt`: observe `ActionItemRepository` for tasks with `sharedFromUid != null`, populate `tasks` list in `SharedItemsUiState`
+- [x] `ActionItemRepository.observeSharedTasks()` queries `whereNotEqualTo("sharedFromUid", null)` ordered by `createdAt DESC`
+- [x] `SharedItemsViewModel` injects `ActionItemRepository`, maps to `SharedTaskUiModel`, populates `tasks` in state
+- [x] Tasks tab in `SharedItemsScreen` uses `SharedTaskItemRow` (no dismiss button), navigates to `TaskDetailScreen` via `onTaskClick`
+- [x] `AppNavHost` passes `onTaskClick = { taskId -> navController.navigate(taskDetailRoute(taskId)) }` to `SharedItemsScreen`
 
 ### Verification
 

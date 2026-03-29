@@ -470,7 +470,7 @@ fun RecordingsScreen(
 
     showShareDialog?.let { recording ->
         ShareDialog(
-            recordingId = recording.id,
+            itemId = recording.id,
             itemType = "recording",
             onDismiss = { showShareDialog = null },
         )

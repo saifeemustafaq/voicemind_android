@@ -389,10 +389,11 @@ fun MoveToFolderDialog(
     folders: List<Folder>,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
+    title: String = "Move to Folder",
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Move to Folder") },
+        title = { Text(title) },
         text = {
             Column {
                 folders.forEach { folder ->

@@ -60,9 +60,11 @@ class ShareViewModel @Inject constructor(
         this.itemType = itemType
         _uiState.value = ShareUiState()
         observeJob?.cancel()
-        observeJob = viewModelScope.launch {
-            sharingRepository.observeMyShares(itemId).collect { shares ->
-                _uiState.update { it.copy(myShares = shares) }
+        if (itemType != "task") {
+            observeJob = viewModelScope.launch {
+                sharingRepository.observeMyShares(itemId).collect { shares ->
+                    _uiState.update { it.copy(myShares = shares) }
+                }
             }
         }
     }
@@ -116,7 +118,11 @@ class ShareViewModel @Inject constructor(
         _uiState.update { it.copy(isSharing = true, shareError = null) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                sharingRepository.shareItem(itemId, itemType, foundUser.uid)
+                if (itemType == "task") {
+                    sharingRepository.shareTask(itemId, foundUser.uid)
+                } else {
+                    sharingRepository.shareItem(itemId, itemType, foundUser.uid)
+                }
                 _uiState.update { it.copy(isSharing = false, shareSuccess = true, lookupState = LookupState.Idle) }
             } catch (e: FirebaseFunctionsException) {
                 if (e.code == FirebaseFunctionsException.Code.ALREADY_EXISTS) {

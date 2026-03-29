@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -29,6 +31,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,6 +63,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicemind.data.model.ActionItem
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
+import com.voicemind.ui.sharing.ShareDialog
 import com.voicemind.util.LocalAppTimeZone
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -72,9 +77,21 @@ fun TaskDetailScreen(
     viewModel: TaskDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isDeleted) {
         if (state.isDeleted) onBack()
+    }
+
+    if (showShareDialog) {
+        state.item?.let { task ->
+            ShareDialog(
+                itemId = task.id,
+                itemType = "task",
+                onDismiss = { showShareDialog = false },
+            )
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -82,6 +99,28 @@ fun TaskDetailScreen(
             title = "Task",
             icon = Icons.Default.Checklist,
             onBack = onBack,
+            extraActions = {
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        shape = MaterialTheme.shapes.extraSmall,
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Share with User") },
+                            leadingIcon = { Icon(Icons.Default.PersonAdd, null) },
+                            onClick = {
+                                menuExpanded = false
+                                showShareDialog = true
+                            },
+                            enabled = state.item != null,
+                        )
+                    }
+                }
+            },
         )
 
         if (state.isLoading) {
@@ -125,6 +164,16 @@ fun TaskDetailScreen(
             if (state.recordingTitle != null) {
                 Text(
                     text = "From ${state.recordingTitle}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                )
+            }
+
+            // Shared task attribution
+            item.sharedFromName?.let { name ->
+                Text(
+                    text = "Shared by $name",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 16.dp),

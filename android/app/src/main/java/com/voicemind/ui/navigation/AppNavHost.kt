@@ -243,6 +243,7 @@ private fun NavGraphBuilder.detailRoutes(
             onRecordingClick = { ownerUid, recordingId ->
                 navController.navigate(sharedRecordingDetailRoute(ownerUid, recordingId))
             },
+            onTaskClick = { taskId -> navController.navigate(taskDetailRoute(taskId)) },
         )
     }
     composable(SHARED_RECORDING_DETAIL_ROUTE) { backStackEntry ->

@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddTask
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FileCopy
@@ -33,10 +34,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +63,7 @@ import com.voicemind.ui.components.AudioWaveform
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.SpeedBubble
 import com.voicemind.ui.components.formatMmSsDecimal
+import com.voicemind.ui.recording.MoveToFolderDialog
 import com.voicemind.ui.theme.VmDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,12 +77,29 @@ fun SharedRecordingDetailScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val clipboardManager = LocalClipboardManager.current
     var menuExpanded by remember { mutableStateOf(false) }
+    var showFolderPicker by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.duplicateSuccess) {
+        if (state.duplicateSuccess != null) {
+            snackbarHostState.showSnackbar("Recording duplicated successfully")
+            viewModel.clearDuplicateSuccess()
+        }
+    }
+
+    LaunchedEffect(state.addTaskError) {
+        state.addTaskError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearAddTaskError()
+        }
+    }
 
     val progress = if (state.durationMs > 0)
         (state.positionMs.toFloat() / state.durationMs).coerceIn(0f, 1f)
     else 0f
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -115,9 +137,18 @@ fun SharedRecordingDetailScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Duplicate") },
-                                leadingIcon = { Icon(Icons.Default.FileCopy, null) },
-                                onClick = { menuExpanded = false },
-                                enabled = false,
+                                leadingIcon = {
+                                    if (state.isDuplicating) {
+                                        CircularProgressIndicator(modifier = Modifier.size(VmDimens.IconMd))
+                                    } else {
+                                        Icon(Icons.Default.FileCopy, null)
+                                    }
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    showFolderPicker = true
+                                },
+                                enabled = !state.isDuplicating,
                             )
                         }
                     }
@@ -253,11 +284,10 @@ fun SharedRecordingDetailScreen(
                         }
                     }
 
-                    val error = state.error
-                    if (error != null) {
+                    state.error?.let { errorMsg ->
                         Spacer(Modifier.height(VmDimens.SpaceSm))
                         Text(
-                            text = error,
+                            text = errorMsg,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
@@ -291,12 +321,28 @@ fun SharedRecordingDetailScreen(
                     Spacer(Modifier.height(VmDimens.SpaceMd))
 
                     // Tasks
-                    SharedTasksCard(tasks = state.tasks)
+                    SharedTasksCard(
+                        tasks = state.tasks,
+                        addedTaskIds = state.addedTaskIds,
+                        onAddTask = viewModel::addTaskToChecklist,
+                    )
 
                     Spacer(Modifier.height(VmDimens.SpaceXl))
                 }
             }
         }
+    }
+
+    if (showFolderPicker) {
+        MoveToFolderDialog(
+            folders = state.folders,
+            title = "Duplicate to Folder",
+            onConfirm = { folderId ->
+                showFolderPicker = false
+                viewModel.duplicateToFolder(folderId)
+            },
+            onDismiss = { showFolderPicker = false },
+        )
     }
 }
 
@@ -351,7 +397,11 @@ private fun SharedContentCard(
 }
 
 @Composable
-private fun SharedTasksCard(tasks: List<ActionItem>) {
+private fun SharedTasksCard(
+    tasks: List<ActionItem>,
+    addedTaskIds: Set<String>,
+    onAddTask: (ActionItem) -> Unit,
+) {
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Text(
@@ -367,7 +417,11 @@ private fun SharedTasksCard(tasks: List<ActionItem>) {
                 )
             } else {
                 tasks.forEach { task ->
-                    SharedTaskRow(task = task)
+                    SharedTaskRow(
+                        task = task,
+                        isAdded = task.id in addedTaskIds,
+                        onAddTask = { onAddTask(task) },
+                    )
                 }
             }
         }
@@ -375,7 +429,11 @@ private fun SharedTasksCard(tasks: List<ActionItem>) {
 }
 
 @Composable
-private fun SharedTaskRow(task: ActionItem) {
+private fun SharedTaskRow(
+    task: ActionItem,
+    isAdded: Boolean,
+    onAddTask: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -397,5 +455,18 @@ private fun SharedTaskRow(task: ActionItem) {
                     else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
+        IconButton(
+            onClick = onAddTask,
+            enabled = !isAdded,
+            modifier = Modifier.size(VmDimens.TouchTarget),
+        ) {
+            Icon(
+                imageVector = if (isAdded) Icons.Default.CheckCircle else Icons.Default.AddTask,
+                contentDescription = if (isAdded) "Added to checklist" else "Add to checklist",
+                tint = if (isAdded) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(VmDimens.IconMd),
+            )
+        }
     }
 }

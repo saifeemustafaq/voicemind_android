@@ -41,7 +41,7 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareDialog(
-    recordingId: String,
+    itemId: String,
     itemType: String = "recording",
     onDismiss: () -> Unit,
     viewModel: ShareViewModel = hiltViewModel(),
@@ -49,8 +49,8 @@ fun ShareDialog(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    LaunchedEffect(recordingId, itemType) {
-        viewModel.setItem(recordingId, itemType)
+    LaunchedEffect(itemId, itemType) {
+        viewModel.setItem(itemId, itemType)
     }
 
     LaunchedEffect(state.shareSuccess) {
@@ -68,6 +68,7 @@ fun ShareDialog(
     ) {
         ShareDialogContent(
             state = state,
+            itemType = itemType,
             onFind = viewModel::findUser,
             onShare = viewModel::shareItem,
             onRevoke = viewModel::revokeShare,
@@ -79,6 +80,7 @@ fun ShareDialog(
 @Composable
 private fun ShareDialogContent(
     state: ShareUiState,
+    itemType: String,
     onFind: (email: String) -> Unit,
     onShare: () -> Unit,
     onRevoke: (shareId: String, recipientUid: String) -> Unit,
@@ -200,8 +202,8 @@ private fun ShareDialogContent(
             )
         }
 
-        // ── Shared with section ───────────────────────────────────────────
-        if (state.myShares.isNotEmpty()) {
+        // ── Shared with section (recordings/summaries only) ───────────────
+        if (itemType != "task" && state.myShares.isNotEmpty()) {
             Spacer(modifier = Modifier.height(VmDimens.SpaceXl))
             HorizontalDivider()
             Spacer(modifier = Modifier.height(VmDimens.SpaceMd))

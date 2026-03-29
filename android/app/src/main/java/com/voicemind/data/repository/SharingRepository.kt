@@ -122,6 +122,33 @@ class SharingRepository @Inject constructor(
             .toObjects(SharedItem::class.java)
             .firstOrNull()
 
+    @Suppress("UNCHECKED_CAST")
+    suspend fun duplicateSharedRecording(
+        ownerUid: String,
+        recordingId: String,
+        destinationFolderId: String,
+    ): String {
+        val result = functions
+            .getHttpsCallable("duplicateSharedRecording")
+            .call(hashMapOf(
+                "ownerUid" to ownerUid,
+                "recordingId" to recordingId,
+                "destinationFolderId" to destinationFolderId,
+            ))
+            .await()
+        val data = result.getData() as? Map<String, Any>
+            ?: throw Exception("duplicateSharedRecording returned no data")
+        return data["newRecordingId"] as? String
+            ?: throw Exception("duplicateSharedRecording returned no newRecordingId")
+    }
+
+    suspend fun shareTask(taskId: String, recipientUid: String) {
+        functions
+            .getHttpsCallable("shareTask")
+            .call(hashMapOf("taskId" to taskId, "recipientUid" to recipientUid))
+            .await()
+    }
+
     suspend fun markAsRead(shareId: String) {
         sharedWithMeCollection().document(shareId).update("isRead", true).await()
     }

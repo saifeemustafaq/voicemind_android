@@ -130,4 +130,46 @@ class ActionItemRepository @Inject constructor(
             }
         awaitClose { registration.remove() }
     }
+
+    suspend fun addSharedTask(
+        originalTaskId: String,
+        ownerUid: String,
+        ownerName: String,
+        title: String,
+        notes: String?,
+        dueDate: Timestamp?,
+        deadline: Timestamp?,
+        completed: Boolean,
+    ) {
+        val docId = "shared-$ownerUid-$originalTaskId"
+        collection().document(docId).set(mapOf(
+            "title" to title,
+            "notes" to notes,
+            "dueDate" to dueDate,
+            "deadline" to deadline,
+            "completed" to completed,
+            "sharedFromUid" to ownerUid,
+            "sharedFromName" to ownerName,
+            "createdAt" to Timestamp.now(),
+        )).await()
+    }
+
+    suspend fun isSharedTaskAdded(originalTaskId: String, ownerUid: String): Boolean {
+        val docId = "shared-$ownerUid-$originalTaskId"
+        return collection().document(docId).get().await().exists()
+    }
+
+    fun observeSharedTasks(): Flow<List<ActionItem>> = callbackFlow {
+        val registration = collection()
+            .whereNotEqualTo("sharedFromUid", null)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "observeSharedTasks")
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObjects(ActionItem::class.java) ?: emptyList())
+            }
+        awaitClose { registration.remove() }
+    }
 }

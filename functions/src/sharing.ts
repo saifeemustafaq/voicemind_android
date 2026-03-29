@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
+import { randomBytes } from "crypto";
 import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "./lib/config.js";
 import { db, storage } from "./lib/firestore.js";
 
@@ -298,6 +299,154 @@ export const getSharedAudioUrl = onCall(async (request) => {
   });
 
   return { url };
+});
+
+export const duplicateSharedRecording = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be signed in");
+  }
+
+  const callerUid = request.auth.uid;
+  const { ownerUid, recordingId, destinationFolderId } = request.data as {
+    ownerUid?: string;
+    recordingId?: string;
+    destinationFolderId?: string;
+  };
+
+  if (!ownerUid || !recordingId || !destinationFolderId) {
+    throw new HttpsError("invalid-argument", "ownerUid, recordingId, and destinationFolderId are required");
+  }
+
+  // Verify caller has access to the shared recording
+  const recordingDoc = await db.doc(`users/${ownerUid}/recordings/${recordingId}`).get();
+  if (!recordingDoc.exists) {
+    throw new HttpsError("not-found", "Recording not found");
+  }
+
+  const recordingData = recordingDoc.data()!;
+  const sharedWith = (recordingData.sharedWith as string[]) ?? [];
+  if (!sharedWith.includes(callerUid)) {
+    throw new HttpsError("permission-denied", "Not shared with you");
+  }
+
+  const newId = `rec-${Date.now()}-${randomBytes(4).toString("hex")}`;
+  const newAudioPath = `users/${callerUid}/audio/${newId}.m4a`;
+  const originalAudioPath = recordingData.audioPath as string;
+
+  // Copy recording document (no sharedWith, no original folderId)
+  const newRecordingRef = db.doc(`users/${callerUid}/recordings/${newId}`);
+  await newRecordingRef.set({
+    title: recordingData.title ?? "",
+    transcription: recordingData.transcription ?? null,
+    summary: recordingData.summary ?? null,
+    durationSeconds: recordingData.durationSeconds ?? 0,
+    folderId: destinationFolderId,
+    audioPath: newAudioPath,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Copy audio file in Cloud Storage — clean up recording doc on failure
+  try {
+    await storage.bucket().file(originalAudioPath).copy(newAudioPath);
+  } catch (err) {
+    await newRecordingRef.delete();
+    throw new HttpsError("internal", "Failed to copy audio file");
+  }
+
+  // Copy action items; clean up all partial writes on failure
+  const actionItemsSnap = await db
+    .collection(`users/${ownerUid}/actionItems`)
+    .where("recordingId", "==", recordingId)
+    .get();
+
+  const copiedActionItemRefs: admin.firestore.DocumentReference[] = [];
+  try {
+    for (let i = 0; i < actionItemsSnap.docs.length; i += 500) {
+      const batch = db.batch();
+      actionItemsSnap.docs.slice(i, i + 500).forEach((doc) => {
+        const d = doc.data();
+        const newRef = db.collection(`users/${callerUid}/actionItems`).doc();
+        copiedActionItemRefs.push(newRef);
+        batch.set(newRef, {
+          title: d.title ?? "",
+          completed: d.completed ?? false,
+          recordingId: newId,
+          createdAt: d.createdAt ?? admin.firestore.FieldValue.serverTimestamp(),
+          dueDate: d.dueDate ?? null,
+          deadline: d.deadline ?? null,
+          notes: d.notes ?? null,
+          // googleTaskId, calendarEventId, sharedWith intentionally omitted
+        });
+      });
+      await batch.commit();
+    }
+  } catch (err) {
+    await newRecordingRef.delete().catch(() => {});
+    await storage.bucket().file(newAudioPath).delete().catch(() => {});
+    for (let i = 0; i < copiedActionItemRefs.length; i += 500) {
+      const cleanupBatch = db.batch();
+      copiedActionItemRefs.slice(i, i + 500).forEach((ref) => cleanupBatch.delete(ref));
+      await cleanupBatch.commit().catch(() => {});
+    }
+    throw new HttpsError("internal", "Failed to copy action items");
+  }
+
+  return { success: true, newRecordingId: newId };
+});
+
+export const shareTask = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be signed in");
+  }
+
+  const callerUid = request.auth.uid;
+  const { taskId, recipientUid } = request.data as {
+    taskId?: string;
+    recipientUid?: string;
+  };
+
+  if (!taskId || !recipientUid) {
+    throw new HttpsError("invalid-argument", "taskId and recipientUid are required");
+  }
+  if (recipientUid === callerUid) {
+    throw new HttpsError("invalid-argument", "Cannot share with yourself");
+  }
+
+  const taskRef = db.doc(`users/${callerUid}/actionItems/${taskId}`);
+  const taskDoc = await taskRef.get();
+  if (!taskDoc.exists) {
+    throw new HttpsError("not-found", "Task not found");
+  }
+
+  const recipientDoc = await db.doc(`users/${recipientUid}`).get();
+  if (!recipientDoc.exists) {
+    throw new HttpsError("not-found", "Recipient not found");
+  }
+
+  const callerDoc = await db.doc(`users/${callerUid}`).get();
+  const callerDisplayName = callerDoc.data()?.displayName || "";
+
+  const taskData = taskDoc.data()!;
+  const docId = `shared-${callerUid}-${taskId}`;
+  const targetRef = db.doc(`users/${recipientUid}/actionItems/${docId}`);
+
+  const existing = await targetRef.get();
+  if (existing.exists) {
+    throw new HttpsError("already-exists", "Already shared with this user");
+  }
+
+  await targetRef.set({
+    title: taskData.title ?? "",
+    notes: taskData.notes ?? null,
+    dueDate: taskData.dueDate ?? null,
+    deadline: taskData.deadline ?? null,
+    completed: false,
+    sharedFromUid: callerUid,
+    sharedFromName: callerDisplayName,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { success: true };
 });
 
 // ── Firestore trigger: recording deletion cascade ─────────────────────────────

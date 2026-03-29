@@ -9,11 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FolderShared
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -39,6 +43,7 @@ import com.voicemind.ui.theme.VmDimens
 fun SharedItemsScreen(
     onBack: () -> Unit,
     onRecordingClick: (ownerUid: String, recordingId: String) -> Unit = { _, _ -> },
+    onTaskClick: (taskId: String) -> Unit = {},
     viewModel: SharedItemsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -101,11 +106,10 @@ fun SharedItemsScreen(
                         SharedItemsTab.Tasks -> if (state.tasks.isEmpty()) {
                             item { TabEmptyState("No shared tasks yet") }
                         } else {
-                            items(state.tasks, key = { it.shareId }) { item ->
-                                SharedRecordingRow(
-                                    item = item,
-                                    onClick = { },
-                                    onDismiss = { viewModel.dismiss(item.shareId) },
+                            items(state.tasks, key = { it.id }) { task ->
+                                SharedTaskItemRow(
+                                    task = task,
+                                    onClick = { onTaskClick(task.id) },
                                 )
                             }
                         }
@@ -151,6 +155,40 @@ private fun SharedRecordingRow(
             }
             IconButton(onClick = onDismiss) {
                 Icon(Icons.Default.Close, contentDescription = "Dismiss")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SharedTaskItemRow(
+    task: SharedTaskUiModel,
+    onClick: () -> Unit,
+) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), innerPadding = 0.dp, onClick = onClick) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = if (task.completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                contentDescription = null,
+                tint = if (task.completed) MaterialTheme.colorScheme.tertiary
+                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(task.title, style = MaterialTheme.typography.bodyLarge)
+                if (task.sharedFromName.isNotEmpty()) {
+                    Text(
+                        "Shared by ${task.sharedFromName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

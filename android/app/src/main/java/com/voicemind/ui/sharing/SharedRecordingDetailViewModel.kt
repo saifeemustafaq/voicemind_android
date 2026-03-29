@@ -6,10 +6,16 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voicemind.data.model.ActionItem
+import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.ActionItemRepository
+import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.SharingRepository
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import com.voicemind.ui.recording.WaveformExtractor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +32,7 @@ data class SharedRecordingDetailUiState(
     val recording: Recording? = null,
     val ownerName: String = "",
     val tasks: List<ActionItem> = emptyList(),
+    val folders: List<Folder> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
     val audioUrl: String? = null,
@@ -36,6 +43,10 @@ data class SharedRecordingDetailUiState(
     val playbackSpeed: Float = 1.0f,
     val waveformBars: List<Float> = emptyList(),
     val isExtractingWaveform: Boolean = false,
+    val isDuplicating: Boolean = false,
+    val duplicateSuccess: String? = null,
+    val addedTaskIds: Set<String> = emptySet(),
+    val addTaskError: String? = null,
 )
 
 @HiltViewModel
@@ -44,6 +55,7 @@ class SharedRecordingDetailViewModel @Inject constructor(
     private val recordingRepository: RecordingRepository,
     private val sharingRepository: SharingRepository,
     private val actionItemRepository: ActionItemRepository,
+    private val folderRepository: FolderRepository,
 ) : ViewModel() {
 
     private val ownerUid: String = requireNotNull(savedStateHandle["ownerUid"])
@@ -68,7 +80,20 @@ class SharedRecordingDetailViewModel @Inject constructor(
 
         viewModelScope.launch {
             actionItemRepository.observeActionItemsForRecording(ownerUid, recordingId).collect { tasks ->
-                _state.update { it.copy(tasks = tasks) }
+                val alreadyAdded = withContext(Dispatchers.IO) {
+                    coroutineScope {
+                        tasks.map { task ->
+                            async { if (actionItemRepository.isSharedTaskAdded(task.id, ownerUid)) task.id else null }
+                        }.awaitAll().filterNotNull().toSet()
+                    }
+                }
+                _state.update { it.copy(tasks = tasks, addedTaskIds = alreadyAdded) }
+            }
+        }
+
+        viewModelScope.launch {
+            folderRepository.observeFolders().collect { folders ->
+                _state.update { it.copy(folders = folders) }
             }
         }
 
@@ -178,6 +203,48 @@ class SharedRecordingDetailViewModel @Inject constructor(
             mediaPlayer?.playbackParams = PlaybackParams().setSpeed(speed)
         } catch (_: Exception) {}
         _state.update { it.copy(playbackSpeed = speed) }
+    }
+
+    fun duplicateToFolder(folderId: String) {
+        _state.update { it.copy(isDuplicating = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val newRecordingId = sharingRepository.duplicateSharedRecording(ownerUid, recordingId, folderId)
+                _state.update { it.copy(isDuplicating = false, duplicateSuccess = newRecordingId) }
+            } catch (e: Exception) {
+                Timber.e(e, "SharedRecordingDetailVM: duplication failed")
+                _state.update { it.copy(isDuplicating = false, error = "Failed to duplicate recording") }
+            }
+        }
+    }
+
+    fun clearDuplicateSuccess() {
+        _state.update { it.copy(duplicateSuccess = null) }
+    }
+
+    fun addTaskToChecklist(task: ActionItem) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                actionItemRepository.addSharedTask(
+                    originalTaskId = task.id,
+                    ownerUid = ownerUid,
+                    ownerName = _state.value.ownerName,
+                    title = task.title,
+                    notes = task.notes,
+                    dueDate = task.dueDate,
+                    deadline = task.deadline,
+                    completed = task.completed,
+                )
+                _state.update { it.copy(addedTaskIds = it.addedTaskIds + task.id) }
+            } catch (e: Exception) {
+                Timber.e(e, "SharedRecordingDetailVM: addTaskToChecklist failed")
+                _state.update { it.copy(addTaskError = "Failed to add task") }
+            }
+        }
+    }
+
+    fun clearAddTaskError() {
+        _state.update { it.copy(addTaskError = null) }
     }
 
     private suspend fun getAudioUrlRefreshed(): String? {
