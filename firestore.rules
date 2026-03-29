@@ -4,6 +4,22 @@ service cloud.firestore {
     match /users/{uid}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
+
+    match /users/{uid}/recordings/{recordingId} {
+      allow read: if request.auth != null
+        && request.auth.uid in resource.data.sharedWith;
+    }
+
+    match /users/{uid}/collectiveSummaries/{summaryId} {
+      allow read: if request.auth != null
+        && request.auth.uid in resource.data.sharedWith;
+    }
+
+    match /users/{uid}/actionItems/{itemId} {
+      allow read: if request.auth != null
+        && request.auth.uid in resource.data.sharedWith;
+    }
+
     match /calendarTokens/{uid} {
       allow read, write: if false;
     }

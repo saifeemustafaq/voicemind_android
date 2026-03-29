@@ -45,35 +45,42 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Security Rules
 
-- [ ] Update `firestore.rules` — add cross-user read rule for recordings:
+- [x] Update `firestore.rules` — add cross-user read rule for recordings:
   ```
   match /users/{uid}/recordings/{recordingId} {
     allow read: if request.auth != null
       && request.auth.uid in resource.data.sharedWith;
   }
   ```
-- [ ] Update `firestore.rules` — add cross-user read rule for collective summaries:
+- [x] Update `firestore.rules` — add cross-user read rule for collective summaries:
   ```
   match /users/{uid}/collectiveSummaries/{summaryId} {
     allow read: if request.auth != null
       && request.auth.uid in resource.data.sharedWith;
   }
   ```
-- [ ] Keep the existing `users/{uid}/{document=**}` owner rule unchanged (it still grants full access to the owner)
+- [x] Update `firestore.rules` — add cross-user read rule for action items (needed by Phase 3/6 `observeActionItemsForRecording`):
+  ```
+  match /users/{uid}/actionItems/{actionItemId} {
+    allow read: if request.auth != null
+      && request.auth.uid in resource.data.sharedWith;
+  }
+  ```
+- [x] Keep the existing `users/{uid}/{document=**}` owner rule unchanged (it still grants full access to the owner)
 - [ ] Deploy updated rules and verify owner access is unaffected
 
 ### Cloud Functions
 
-- [ ] `findUserByEmail` (callable)
+- [x] `findUserByEmail` (callable)
   - Input: `{ email: string }`
   - Uses Firebase Auth Admin `getUserByEmail(email)`
   - If not found → `{ found: false }`
   - If found, reads `users/{uid}` and checks `discoverable` (default `true` when absent)
   - If not discoverable → `{ found: false }`
   - If discoverable → `{ found: true, uid, displayName, email }`
-  - Rate limiting: max 10 lookups per minute per caller (use in-memory map or Firestore counter)
+  - Rate limiting: max 10 lookups per minute per caller (in-memory map, per-instance)
 
-- [ ] `shareItem` (callable)
+- [x] `shareItem` (callable)
   - Input: `{ itemId: string, itemType: "recording" | "collectiveSummary", recipientUid: string }`
   - Verifies caller owns the item (path check against `request.auth.uid`)
   - Verifies recipient exists (`users/{recipientUid}` doc)
@@ -85,15 +92,16 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
   - If `itemType == "recording"`: also adds `recipientUid` to `sharedWith` on all `actionItems` where `recordingId == itemId`
   - Returns `{ success: true, shareId }`
 
-- [ ] `revokeShare` (callable)
+- [x] `revokeShare` (callable)
   - Input: `{ shareId: string, recipientUid: string }`
-  - Reads `users/{callerUid}/myShares/{shareId}` to get `itemId` and `itemType`
+  - Reads `users/{callerUid}/myShares/{shareId}` to get `itemId`, `itemType`, and `recipientUid`
+  - Validates that request `recipientUid` matches the stored value (security fix — prevents cross-recipient manipulation)
   - Removes `recipientUid` from document's `sharedWith` array via `arrayRemove`
   - Deletes `users/{recipientUid}/sharedWithMe/{shareId}`
   - Deletes `users/{callerUid}/myShares/{shareId}`
   - If recording: also removes from linked actionItems' `sharedWith`
 
-- [ ] `dismissSharedItem` (callable)
+- [x] `dismissSharedItem` (callable)
   - Input: `{ shareId: string }`
   - Reads `users/{callerUid}/sharedWithMe/{shareId}` to get `ownerUid`, `itemId`, `itemType`
   - Removes caller UID from document's `sharedWith` array via `arrayRemove`
@@ -101,7 +109,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
   - Deletes `users/{ownerUid}/myShares/{shareId}`
   - If recording: also removes from linked actionItems' `sharedWith`
 
-- [ ] `getSharedAudioUrl` (callable)
+- [x] `getSharedAudioUrl` (callable)
   - Input: `{ ownerUid: string, recordingId: string }`
   - Verifies `request.auth` exists
   - Reads `users/{ownerUid}/recordings/{recordingId}`
@@ -631,8 +639,8 @@ Phase 2  ──→  Phase 13  (can be done any time after Phase 2)
 | 1 | `android/.../data/repository/AuthRepository.kt` | Write profile fields on sign-in |
 | 1 | `android/.../data/repository/UserSettingsRepository.kt` | Add discoverable observe/set |
 | 1 | `android/.../ui/settings/SettingsScreen.kt` | Add Privacy section |
-| 2 | `functions/src/index.ts` | Add 5 sharing callables |
-| 2 | `firestore.rules` | Add cross-user read rules |
+| 2 | `functions/src/index.ts` | Add 5 sharing callables; fix `revokeShare` to validate recipientUid against stored value |
+| 2 | `firestore.rules` | Add cross-user read rules for recordings, collectiveSummaries, and actionItems |
 | 3 | `android/.../data/repository/RecordingRepository.kt` | Add cross-user observe |
 | 3 | `android/.../data/repository/ActionItemRepository.kt` | Add cross-user task observe |
 | 4 | `android/.../ui/folders/FoldersScreen.kt` | Add Shared Items row |
