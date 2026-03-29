@@ -41,17 +41,9 @@ This feature includes:
 
 ### 3.2 Empty State
 
-When no items are shared:
+### 3.2 Pill Tab Navigation
 
-* Display informational UI
-* Example text:
-
-  > "Items shared with you by other VoiceMind users will appear here"
-* Pill tabs are hidden
-
-### 3.3 Populated State
-
-When any items exist, navigation switches to three pill tabs at the top:
+Three `FilterChip` pill tabs are **always visible** at the top of the screen:
 
 * **Recordings** — recordings shared with the user
 * **Tasks** — tasks shared with the user (Phase 9)
@@ -61,8 +53,8 @@ Rules:
 
 * Default selected tab is **Recordings**
 * Tapping a pill shows only items of that type
-* Each tab has its own per-tab empty state when no items of that type exist
-* All three tabs are always visible once any item is shared (even if some tabs are empty)
+* Each tab has its own per-tab empty state when no items of that type exist (e.g., "No shared recordings yet")
+* All three tabs are always visible, even when no items are shared
 * Items update dynamically as new items are shared or dismissed
 
 ---

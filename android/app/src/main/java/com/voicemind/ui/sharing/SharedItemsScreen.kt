@@ -60,95 +60,68 @@ fun SharedItemsScreen(
                 CircularProgressIndicator()
             }
         } else {
-            val isEmpty = state.recordings.isEmpty() && state.summaries.isEmpty() && state.tasks.isEmpty()
-            if (isEmpty) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(VmDimens.SpaceSm),
+                    modifier = Modifier.padding(
+                        horizontal = VmDimens.ScreenHorizontalPadding,
+                        vertical = VmDimens.SpaceSm,
+                    ),
+                ) {
+                    SharedItemsTab.entries.forEach { tab ->
+                        FilterChip(
+                            selected = state.selectedTab == tab,
+                            onClick = { viewModel.selectTab(tab) },
+                            label = { Text(tab.name, style = MaterialTheme.typography.labelMedium) },
+                        )
+                    }
+                }
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding)
                         .padding(horizontal = VmDimens.ScreenHorizontalPadding),
+                    verticalArrangement = Arrangement.spacedBy(VmDimens.SpaceSm),
                 ) {
-                    item {
-                        Spacer(modifier = Modifier.height(VmDimens.SpaceXl))
-                        GlassCard(modifier = Modifier.fillMaxWidth()) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "Items shared with you by other VoiceMind users will appear here",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
+                    when (state.selectedTab) {
+                        SharedItemsTab.Recordings -> if (state.recordings.isEmpty()) {
+                            item { TabEmptyState("No shared recordings yet") }
+                        } else {
+                            items(state.recordings, key = { it.shareId }) { item ->
+                                SharedRecordingRow(
+                                    item = item,
+                                    onClick = { onRecordingClick(item.ownerUid, item.itemId) },
+                                    onDismiss = { viewModel.dismiss(item.shareId) },
+                                )
+                            }
+                        }
+                        SharedItemsTab.Tasks -> if (state.tasks.isEmpty()) {
+                            item { TabEmptyState("No shared tasks yet") }
+                        } else {
+                            items(state.tasks, key = { it.shareId }) { item ->
+                                SharedRecordingRow(
+                                    item = item,
+                                    onClick = { },
+                                    onDismiss = { viewModel.dismiss(item.shareId) },
+                                )
+                            }
+                        }
+                        SharedItemsTab.Summaries -> if (state.summaries.isEmpty()) {
+                            item { TabEmptyState("No shared summaries yet") }
+                        } else {
+                            items(state.summaries, key = { it.shareId }) { item ->
+                                SharedRecordingRow(
+                                    item = item,
+                                    onClick = { },
+                                    onDismiss = { viewModel.dismiss(item.shareId) },
                                 )
                             }
                         }
                     }
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(VmDimens.SpaceSm),
-                        modifier = Modifier.padding(
-                            horizontal = VmDimens.ScreenHorizontalPadding,
-                            vertical = VmDimens.SpaceSm,
-                        ),
-                    ) {
-                        SharedItemsTab.entries.forEach { tab ->
-                            FilterChip(
-                                selected = state.selectedTab == tab,
-                                onClick = { viewModel.selectTab(tab) },
-                                label = { Text(tab.name, style = MaterialTheme.typography.labelMedium) },
-                            )
-                        }
-                    }
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = VmDimens.ScreenHorizontalPadding),
-                        verticalArrangement = Arrangement.spacedBy(VmDimens.SpaceSm),
-                    ) {
-                        when (state.selectedTab) {
-                            SharedItemsTab.Recordings -> if (state.recordings.isEmpty()) {
-                                item { TabEmptyState("No shared recordings yet") }
-                            } else {
-                                items(state.recordings, key = { it.shareId }) { item ->
-                                    SharedRecordingRow(
-                                        item = item,
-                                        onClick = { onRecordingClick(item.ownerUid, item.itemId) },
-                                        onDismiss = { viewModel.dismiss(item.shareId) },
-                                    )
-                                }
-                            }
-                            SharedItemsTab.Tasks -> if (state.tasks.isEmpty()) {
-                                item { TabEmptyState("No shared tasks yet") }
-                            } else {
-                                items(state.tasks, key = { it.shareId }) { item ->
-                                    SharedRecordingRow(
-                                        item = item,
-                                        onClick = { },
-                                        onDismiss = { viewModel.dismiss(item.shareId) },
-                                    )
-                                }
-                            }
-                            SharedItemsTab.Summaries -> if (state.summaries.isEmpty()) {
-                                item { TabEmptyState("No shared summaries yet") }
-                            } else {
-                                items(state.summaries, key = { it.shareId }) { item ->
-                                    SharedRecordingRow(
-                                        item = item,
-                                        onClick = { },
-                                        onDismiss = { viewModel.dismiss(item.shareId) },
-                                    )
-                                }
-                            }
-                        }
-                        item { Spacer(modifier = Modifier.height(VmDimens.SpaceXl)) }
-                    }
+                    item { Spacer(modifier = Modifier.height(VmDimens.SpaceXl)) }
                 }
             }
         }

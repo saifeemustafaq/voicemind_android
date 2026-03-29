@@ -207,8 +207,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 - [x] Create `ui/sharing/SharedItemsScreen.kt`
   - Top app bar: "Shared Items" title, `FolderShared` icon, back button
-  - **Overall empty state**: centered `GlassCard` with text "Items shared with you by other VoiceMind users will appear here" (no pill tabs shown)
-  - **Populated state**: three `FilterChip` pill tabs (Recordings / Tasks / Summaries) pinned above a `LazyColumn`; tapping a pill shows only that type; each tab has its own per-tab empty state
+  - Three `FilterChip` pill tabs (Recordings / Tasks / Summaries) **always visible** at the top, pinned above a `LazyColumn`; tapping a pill shows only that type; each tab has its own per-tab empty state (e.g., "No shared recordings yet")
   - Default selected tab: Recordings
 
 - [x] Create `ui/sharing/SharedItemsViewModel.kt`
