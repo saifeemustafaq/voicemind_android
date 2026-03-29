@@ -253,10 +253,11 @@ fun SharedRecordingDetailScreen(
                         }
                     }
 
-                    if (state.error != null) {
+                    val error = state.error
+                    if (error != null) {
                         Spacer(Modifier.height(VmDimens.SpaceSm))
                         Text(
-                            text = state.error,
+                            text = error,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
