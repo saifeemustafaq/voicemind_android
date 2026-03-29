@@ -54,6 +54,7 @@ class ShareViewModel @Inject constructor(
     private var observeJob: Job? = null
 
     fun setItem(itemId: String, itemType: String) {
+        _uiState.update { it.copy(lookupState = LookupState.Idle, shareError = null, shareSuccess = false) }
         if (this.itemId == itemId && this.itemType == itemType) return
         this.itemId = itemId
         this.itemType = itemType
@@ -76,8 +77,9 @@ class ShareViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val data = sharingRepository.findUserByEmail(trimmed)
+                val found = data["found"] as? Boolean ?: false
                 val uid = data["uid"] as? String
-                if (uid == null) {
+                if (!found || uid == null) {
                     _uiState.update { it.copy(lookupState = LookupState.NotFound) }
                     return@launch
                 }
@@ -89,7 +91,7 @@ class ShareViewModel @Inject constructor(
                     _uiState.update { it.copy(lookupState = LookupState.AlreadyShared) }
                     return@launch
                 }
-                val displayName = data["displayName"] as? String ?: ""
+                val displayName = (data["displayName"] as? String)?.takeIf { it.isNotBlank() } ?: trimmed
                 _uiState.update {
                     it.copy(lookupState = LookupState.Found(FoundUser(uid = uid, displayName = displayName, email = trimmed)))
                 }

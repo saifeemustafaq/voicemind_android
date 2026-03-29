@@ -72,7 +72,6 @@ fun ShareDialog(
             onShare = viewModel::shareItem,
             onRevoke = viewModel::revokeShare,
             onResetLookup = viewModel::resetLookup,
-            onDismiss = onDismiss,
         )
     }
 }
@@ -84,7 +83,6 @@ private fun ShareDialogContent(
     onShare: () -> Unit,
     onRevoke: (shareId: String, recipientUid: String) -> Unit,
     onResetLookup: () -> Unit,
-    onDismiss: () -> Unit,
 ) {
     var email by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
