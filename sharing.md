@@ -47,22 +47,23 @@ When no items are shared:
 * Example text:
 
   > "Items shared with you by other VoiceMind users will appear here"
-* No subsections are shown
+* Pill tabs are hidden
 
 ### 3.3 Populated State
 
-When items exist, dynamically show subsections:
-
-Sections (only visible if data exists):
+When any items exist, navigation switches to three pill tabs at the top:
 
 * **Recordings** — recordings shared with the user
-* **Tasks** — tasks shared with the user
+* **Tasks** — tasks shared with the user (Phase 9)
 * **Summaries** — shared multi-recording summaries
 
 Rules:
 
-* Sections appear only if at least one item exists
-* Sections update dynamically as new items are shared
+* Default selected tab is **Recordings**
+* Tapping a pill shows only items of that type
+* Each tab has its own per-tab empty state when no items of that type exist
+* All three tabs are always visible once any item is shared (even if some tabs are empty)
+* Items update dynamically as new items are shared or dismissed
 
 ---
 
@@ -676,8 +677,8 @@ The original PRD says tasks become "fully independent copies" but also shows the
 ### 25.4 Where Shared Tasks Appear
 
 * **Regular Checklist:** Yes — they are normal `actionItems` in the recipient's collection. They appear in TO-DO / DONE sections like any other task.
-* **Shared Items folder, Tasks subsection:** Yes — filtered view of `actionItems` where `sharedFromUid != null`. Provides a way to see all tasks that originated from sharing.
-* Both views show the same underlying data. The "Tasks" subsection in Shared Items is purely a filtered query, not a separate data store.
+* **Shared Items folder, Tasks pill tab:** Yes — filtered view of `actionItems` where `sharedFromUid != null`. Provides a way to see all tasks that originated from sharing.
+* Both views show the same underlying data. The Tasks tab in Shared Items is purely a filtered query, not a separate data store.
 
 ---
 
@@ -690,7 +691,7 @@ The original PRD says tasks become "fully independent copies" but also shows the
 
 ### 26.2 Shared Items Folder — Summaries Subsection
 
-The "Summaries" subsection in the Shared Items folder shows **only independently shared Collective Summaries**.
+The Summaries pill tab in the Shared Items folder shows **only independently shared Collective Summaries**.
 
 ### 26.3 Shared Collective Summary Behavior
 
@@ -718,7 +719,7 @@ The sharer's name comes from the denormalized `ownerName` field in the `sharedWi
 
 ### 27.3 Sorting
 
-Items are sorted by `sharedAt` descending (most recently shared first) within each subsection. No grouping by sharer.
+Items are sorted by `sharedAt` descending (most recently shared first) within each tab. No grouping by sharer.
 
 ### 27.4 Denormalization Trade-off
 
@@ -834,7 +835,7 @@ The Shared Items entry is a **UI construct only**. There is no document in `user
 * Define a constant `SHARED_ITEMS_ID = "shared_items"` (similar to `UNFILED_ID`)
 * In `FoldersScreen.kt`, hardcode a "Shared Items" row at the top of the `LazyColumn`, before the real folders list
 * Tapping navigates to a new `SharedItemsScreen` (not `FolderDetailScreen`)
-* `SharedItemsScreen` queries `users/{myUid}/sharedWithMe` and groups results by `itemType` to render subsections
+* `SharedItemsScreen` queries `users/{myUid}/sharedWithMe` and groups results by `itemType` to render pill tab content
 * The badge count for unread items is derived from `sharedWithMe` documents where `isRead == false`
 * `FoldersViewModel` exposes a `sharedItemsCount: StateFlow<Int>` for the badge
 

@@ -21,20 +21,22 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.voiceMindTextFieldColors
 import com.voicemind.ui.theme.VmDimens
-
-// Visual states for the user lookup result
-private enum class LookupState { Idle, Loading, Found, NotFound, AlreadyShared }
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,23 +44,54 @@ fun ShareDialog(
     recordingId: String,
     itemType: String = "recording",
     onDismiss: () -> Unit,
+    viewModel: ShareViewModel = hiltViewModel(),
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    LaunchedEffect(recordingId, itemType) {
+        viewModel.setItem(recordingId, itemType)
+    }
+
+    LaunchedEffect(state.shareSuccess) {
+        if (state.shareSuccess) {
+            delay(1500)
+            viewModel.clearShareSuccess()
+            onDismiss()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = MaterialTheme.shapes.extraLarge,
     ) {
-        ShareDialogContent(onDismiss = onDismiss)
+        ShareDialogContent(
+            state = state,
+            onFind = viewModel::findUser,
+            onShare = viewModel::shareItem,
+            onRevoke = viewModel::revokeShare,
+            onResetLookup = viewModel::resetLookup,
+            onDismiss = onDismiss,
+        )
     }
 }
 
 @Composable
-private fun ShareDialogContent(onDismiss: () -> Unit) {
-    // All state is local and no-op — wired to ShareViewModel in Phase 5
+private fun ShareDialogContent(
+    state: ShareUiState,
+    onFind: (email: String) -> Unit,
+    onShare: () -> Unit,
+    onRevoke: (shareId: String, recipientUid: String) -> Unit,
+    onResetLookup: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     var email by remember { mutableStateOf("") }
-    var lookupState by remember { mutableStateOf(LookupState.Idle) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(state.shareSuccess) {
+        if (state.shareSuccess) email = ""
+    }
 
     Column(
         modifier = Modifier
@@ -75,7 +108,7 @@ private fun ShareDialogContent(onDismiss: () -> Unit) {
         // ── Email lookup ──────────────────────────────────────────────────
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it; lookupState = LookupState.Idle },
+            onValueChange = { email = it; onResetLookup() },
             label = { Text("Recipient email") },
             singleLine = true,
             colors = voiceMindTextFieldColors(),
@@ -86,18 +119,18 @@ private fun ShareDialogContent(onDismiss: () -> Unit) {
 
         PrimaryButton(
             text = "Find",
-            enabled = email.isNotBlank() && lookupState != LookupState.Loading,
+            enabled = email.isNotBlank() && state.lookupState !is LookupState.Loading,
             onClick = {
-                // No-op visual shell — will call ShareViewModel.findUser(email) in Phase 5
-                lookupState = LookupState.NotFound
+                keyboardController?.hide()
+                onFind(email)
             },
         )
 
         Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
 
         // ── Lookup result ─────────────────────────────────────────────────
-        when (lookupState) {
-            LookupState.Loading -> {
+        when (val ls = state.lookupState) {
+            is LookupState.Loading -> {
                 CircularProgressIndicator(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
@@ -105,52 +138,72 @@ private fun ShareDialogContent(onDismiss: () -> Unit) {
                     strokeWidth = 2.dp,
                 )
             }
-            LookupState.Found -> {
+            is LookupState.Found -> {
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         Text(
-                            text = "Jane Smith",
+                            text = ls.user.displayName,
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = email,
+                            text = ls.user.email,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
                         PrimaryButton(
-                            text = "Share",
-                            onClick = {
-                                // No-op — will call ShareViewModel.shareItem() in Phase 5
-                                onDismiss()
-                            },
+                            text = if (state.isSharing) "Sharing..." else "Share",
+                            enabled = !state.isSharing,
+                            onClick = onShare,
                         )
+                        state.shareError?.let { error ->
+                            Spacer(modifier = Modifier.height(VmDimens.SpaceXs))
+                            Text(
+                                text = error,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                     }
                 }
             }
-            LookupState.NotFound -> {
+            is LookupState.NotFound -> {
                 Text(
                     text = "No user found",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            LookupState.AlreadyShared -> {
+            is LookupState.AlreadyShared -> {
                 Text(
                     text = "Already shared with this user",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            LookupState.Idle -> Unit
+            is LookupState.Error -> {
+                Text(
+                    text = ls.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            is LookupState.Idle -> Unit
+        }
+
+        // ── Share success ─────────────────────────────────────────────────
+        if (state.shareSuccess) {
+            Spacer(modifier = Modifier.height(VmDimens.SpaceSm))
+            Text(
+                text = "Shared successfully!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
 
         // ── Shared with section ───────────────────────────────────────────
-        // Placeholder list — will be sourced from SharingRepository.observeMyShares() in Phase 5
-        val placeholderRecipients = emptyList<String>()
-
-        if (placeholderRecipients.isNotEmpty()) {
+        if (state.myShares.isNotEmpty()) {
             Spacer(modifier = Modifier.height(VmDimens.SpaceXl))
             HorizontalDivider()
             Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
@@ -163,7 +216,7 @@ private fun ShareDialogContent(onDismiss: () -> Unit) {
 
             Spacer(modifier = Modifier.height(VmDimens.SpaceSm))
 
-            placeholderRecipients.forEach { recipient ->
+            state.myShares.forEach { share ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -172,21 +225,32 @@ private fun ShareDialogContent(onDismiss: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = recipient,
+                            text = share.recipientName,
                             style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = share.recipientEmail,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Spacer(modifier = Modifier.width(VmDimens.SpaceSm))
                     IconButton(
-                        onClick = {
-                            // No-op — will call ShareViewModel.revokeShare() in Phase 5
-                        },
+                        enabled = !state.isRevoking.contains(share.id),
+                        onClick = { onRevoke(share.id, share.recipientUid) },
                     ) {
-                        Icon(
-                            Icons.Default.PersonRemove,
-                            contentDescription = "Revoke access",
-                            tint = MaterialTheme.colorScheme.error,
-                        )
+                        if (state.isRevoking.contains(share.id)) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.PersonRemove,
+                                contentDescription = "Revoke access",
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
                     }
                 }
             }

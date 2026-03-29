@@ -12,10 +12,13 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
+
+enum class SharedItemsTab { Recordings, Tasks, Summaries }
 
 data class SharedItemUiModel(
     val shareId: String,
@@ -32,7 +35,9 @@ data class SharedItemUiModel(
 data class SharedItemsUiState(
     val recordings: List<SharedItemUiModel> = emptyList(),
     val summaries: List<SharedItemUiModel> = emptyList(),
+    val tasks: List<SharedItemUiModel> = emptyList(),   // populated in Phase 9
     val isLoading: Boolean = true,
+    val selectedTab: SharedItemsTab = SharedItemsTab.Recordings,
 )
 
 @HiltViewModel
@@ -71,14 +76,20 @@ class SharedItemsViewModel @Inject constructor(
                         }
                     }.awaitAll()
                 }
-                _uiState.value = SharedItemsUiState(
-                    recordings = enriched.filter { it.itemType == "recording" },
-                    summaries = enriched.filter { it.itemType == "collectiveSummary" },
-                    isLoading = false,
-                )
+                _uiState.update { current ->
+                    current.copy(
+                        recordings = enriched.filter { it.itemType == "recording" },
+                        summaries = enriched.filter { it.itemType == "collectiveSummary" },
+                        isLoading = false,
+                    )
+                }
             }
         }
         markAllAsRead()
+    }
+
+    fun selectTab(tab: SharedItemsTab) {
+        _uiState.update { it.copy(selectedTab = tab) }
     }
 
     fun dismiss(shareId: String) {

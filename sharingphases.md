@@ -133,7 +133,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Data Models
 
-- [ ] Create `data/model/SharedItem.kt`
+- [x] Create `data/model/SharedItem.kt`
   ```kotlin
   data class SharedItem(
       @DocumentId val id: String = "",
@@ -147,7 +147,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
   )
   ```
 
-- [ ] Create `data/model/MyShare.kt`
+- [x] Create `data/model/MyShare.kt`
   ```kotlin
   data class MyShare(
       @DocumentId val id: String = "",
@@ -162,20 +162,20 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Repository
 
-- [ ] Create `data/repository/SharingRepository.kt` with `@Singleton` and `@Inject constructor`
+- [x] Create `data/repository/SharingRepository.kt` with `@Singleton` and `@Inject constructor`
   - `observeSharedWithMe(): Flow<List<SharedItem>>` — snapshot listener on `users/{uid}/sharedWithMe`, ordered by `sharedAt` descending
   - `observeMyShares(itemId: String): Flow<List<MyShare>>` — snapshot listener on `users/{uid}/myShares` filtered by `itemId`
   - `findUserByEmail(email: String): Task<Map<String, Any>>` — calls `findUserByEmail` callable
-  - `shareItem(itemId: String, itemType: String, recipientUid: String): Task<Map<String, Any>>` — calls `shareItem` callable
+  - `shareItem(itemId: String, itemType: String, recipientUid: String): Task<Map<String, Any>>` — calls `shareItem` callable; returns `shareId`
   - `revokeShare(shareId: String, recipientUid: String): Task<Map<String, Any>>` — calls `revokeShare` callable
   - `dismissSharedItem(shareId: String): Task<Map<String, Any>>` — calls `dismissSharedItem` callable
   - `getSharedAudioUrl(ownerUid: String, recordingId: String): Task<Map<String, Any>>` — calls `getSharedAudioUrl` callable
   - `markAsRead(shareId: String)` — updates `isRead` to `true` on `users/{uid}/sharedWithMe/{shareId}`
   - `getUnreadCount(): Flow<Int>` — snapshot listener filtered by `isRead == false`, emits count
 
-- [ ] Update `RecordingRepository.kt`: add `observeSharedRecording(ownerUid: String, recordingId: String): Flow<Recording?>` — snapshot listener on `users/{ownerUid}/recordings/{recordingId}` (cross-user read, permitted by updated security rules)
+- [x] Update `RecordingRepository.kt`: add `observeSharedRecording(ownerUid: String, recordingId: String): Flow<Recording?>` — snapshot listener on `users/{ownerUid}/recordings/{recordingId}` (cross-user read, permitted by updated security rules)
 
-- [ ] Update `ActionItemRepository.kt`: add `observeActionItemsForRecording(ownerUid: String, recordingId: String): Flow<List<ActionItem>>` — snapshot listener on `users/{ownerUid}/actionItems` where `recordingId == recordingId` (cross-user read for shared recording tasks)
+- [x] Update `ActionItemRepository.kt`: add `observeActionItemsForRecording(ownerUid: String, recordingId: String): Flow<List<ActionItem>>` — snapshot listener on `users/{ownerUid}/actionItems` where `recordingId == recordingId` (cross-user read for shared recording tasks)
 
 ### Verification
 
@@ -201,30 +201,30 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
   - Cannot be renamed, deleted, or reordered
   - Tapping navigates to `SHARED_ITEMS_ROUTE`
   - Badge count hardcoded hidden for now (will use `SharingRepository.getUnreadCount()` in Phase 4)
-- [ ] Update `FoldersViewModel.kt`: expose `sharedItemsUnreadCount: StateFlow<Int>` sourced from `SharingRepository.getUnreadCount()`
+- [x] Update `FoldersViewModel.kt`: expose `sharedItemsUnreadCount: StateFlow<Int>` sourced from `SharingRepository.getUnreadCount()`
 
 ### Shared Items Screen
 
 - [x] Create `ui/sharing/SharedItemsScreen.kt`
   - Top app bar: "Shared Items" title, `FolderShared` icon, back button
-  - **Empty state**: centered `GlassCard` with text "Items shared with you by other VoiceMind users will appear here"
-  - Section headers for RECORDINGS, TASKS, SUMMARIES (hidden when empty — empty state only shown for now)
-  - Backend wiring (ViewModel, real data) deferred to Phase 4
+  - **Overall empty state**: centered `GlassCard` with text "Items shared with you by other VoiceMind users will appear here" (no pill tabs shown)
+  - **Populated state**: three `FilterChip` pill tabs (Recordings / Tasks / Summaries) pinned above a `LazyColumn`; tapping a pill shows only that type; each tab has its own per-tab empty state
+  - Default selected tab: Recordings
 
-- [ ] Create `ui/sharing/SharedItemsViewModel.kt`
+- [x] Create `ui/sharing/SharedItemsViewModel.kt`
   - Observes `SharingRepository.observeSharedWithMe()`
-  - For each `SharedItem` of type "recording", fetches the recording title via cross-user read
-  - Exposes grouped UI state: `recordings: List<SharedItemUiModel>`, `summaries: List<SharedItemUiModel>`
-  - Exposes `unreadCount: StateFlow<Int>`
+  - For each `SharedItem` of type "recording", fetches the recording title via cross-user read (parallel with `async/awaitAll`)
+  - Exposes grouped UI state: `recordings`, `summaries`, `tasks` (placeholder, populated in Phase 9)
+  - Exposes `selectedTab: SharedItemsTab` (Recordings/Tasks/Summaries enum) with `selectTab()` function
   - Handles dismiss action
-  - Handles marking items as read
+  - Handles marking items as read on screen open
 
 ### Verification
 
 - [ ] Shared Items row always appears first in Folders list
 - [ ] Badge shows correct unread count and clears when folder is opened
 - [ ] Empty state shows when no items are shared
-- [ ] Recordings subsection appears when recordings are shared
+- [ ] Recordings tab shows items when recordings are shared
 - [ ] Dismiss removes item from list and cleans up backend via Cloud Function
 - [ ] Real-time updates: new shares appear immediately via snapshot listener
 
@@ -251,17 +251,17 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
   - **Shared with section**: placeholder recipient list with `PersonRemove` revoke buttons
   - All actions are no-ops — wired to `ShareViewModel` in Phase 5
 
-- [ ] Create `ui/sharing/ShareViewModel.kt`
-  - `findUser(email: String)` — calls `SharingRepository.findUserByEmail`
-  - `shareItem(itemId: String, itemType: String, recipientUid: String)` — calls `SharingRepository.shareItem`
-  - `revokeShare(shareId: String, recipientUid: String)` — calls `SharingRepository.revokeShare`
-  - Exposes state: `lookupResult`, `isLoading`, `shareSuccess`, `error`
+- [x] Create `ui/sharing/ShareViewModel.kt`
+  - `findUser(email: String)` — calls `SharingRepository.findUserByEmail`; handles self-share, already-shared, and `FirebaseFunctionsException` error codes
+  - `shareItem()` — calls `SharingRepository.shareItem`; catches `ALREADY_EXISTS` from Cloud Function
+  - `revokeShare(shareId: String, recipientUid: String)` — calls `SharingRepository.revokeShare`; per-button loading via `isRevoking: Set<String>`
+  - Exposes state: `LookupState` sealed interface (Idle/Loading/Found/NotFound/AlreadyShared/Error), `isSharing`, `shareSuccess`, `shareError`, `myShares`, `isRevoking`
 
 ### Manage Shares
 
-- [ ] In `ShareDialog` (or a sub-screen within it): show list of current recipients for this item
+- [x] In `ShareDialog`: show list of current recipients for this item
   - Sourced from `SharingRepository.observeMyShares(itemId)`
-  - Each row shows recipient name, email, "Revoke" button
+  - Each row shows recipient name, email, "Revoke" button with per-button `CircularProgressIndicator`
   - Revoking calls `SharingRepository.revokeShare(shareId, recipientUid)`
 
 ### Verification
@@ -393,7 +393,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ## Phase 9: Task Sharing
 
-**Goal:** Users can share individual tasks (copy-based). Recipients can "Add to my checklist" individual tasks from shared recording detail views. A "Tasks" subsection appears in the Shared Items folder.
+**Goal:** Users can share individual tasks (copy-based). Recipients can "Add to my checklist" individual tasks from shared recording detail views. The Tasks pill tab is populated in the Shared Items folder.
 
 ### Data Model Update
 
@@ -426,17 +426,17 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Tasks Subsection in Shared Items
 
-- [ ] Update `SharedItemsScreen.kt`: add a "Tasks" subsection
+- [ ] Populate the **Tasks pill tab** in `SharedItemsScreen.kt` with real data
   - Shows tasks where `sharedFromUid != null` from the recipient's own `actionItems` collection
   - This is a filtered view, not a separate data store
   - Each row shows task title, "Shared by [sharedFromName]", completion status
   - Tasks are tappable — navigate to the normal `TaskDetailScreen` (they are regular actionItems)
-- [ ] Update `SharedItemsViewModel.kt`: observe `ActionItemRepository` for tasks with `sharedFromUid != null`
+- [ ] Update `SharedItemsViewModel.kt`: observe `ActionItemRepository` for tasks with `sharedFromUid != null`, populate `tasks` list in `SharedItemsUiState`
 
 ### Verification
 
 - [ ] Sharing a task creates an independent copy in recipient's checklist
-- [ ] Shared task appears in recipient's normal TO-DO list and in Shared Items > Tasks subsection
+- [ ] Shared task appears in recipient's normal TO-DO list and in Shared Items > Tasks tab
 - [ ] Editing/completing the shared task only affects the recipient's copy
 - [ ] "Add to my checklist" copies a single task from a shared recording's task list
 - [ ] Cannot add the same task twice (button disabled after adding)
@@ -445,7 +445,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ## Phase 10: Collective Summary Sharing
 
-**Goal:** Users can share collective (multi-recording) summaries. Recipients see them in a "Summaries" subsection in Shared Items. Deletion cascade is handled.
+**Goal:** Users can share collective (multi-recording) summaries. Recipients see them in a Summaries pill tab in Shared Items. Deletion cascade is handled.
 
 ### Data Model Update
 
@@ -462,14 +462,14 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 - [ ] Add "Share" action to collective summary context menu in `SummariesScreen`
 - [ ] Reuse `ShareDialog` from Phase 5
-- [ ] "Summaries" subsection in `SharedItemsScreen` now populates when shared summaries exist
+- [ ] Summaries pill tab in `SharedItemsScreen` now populates when shared summaries exist
 - [ ] Create a read-only shared summary view (can be a simple screen or dialog showing summary text and the list of recording titles it was generated from)
 - [ ] Add duplication support: "Duplicate" action copies the collective summary to `users/{myUid}/collectiveSummaries` as an independent document
 
 ### Verification
 
 - [ ] Sharing a collective summary creates inbox/outbox entries
-- [ ] Recipient sees summary in Shared Items > Summaries subsection
+- [ ] Recipient sees summary in Shared Items > Summaries tab
 - [ ] Summary is read-only for recipient
 - [ ] Recipient does NOT automatically get access to underlying recordings
 - [ ] Owner deleting summary removes it from all recipients
@@ -507,7 +507,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 - [ ] Tasks are generated from the shared recording's transcription and appear in recipient's checklist
 - [ ] Generated tasks have proper attribution (`sharedFromUid`, `sharedFromName`)
-- [ ] Tasks appear in both the normal checklist and the Shared Items > Tasks subsection
+- [ ] Tasks appear in both the normal checklist and the Shared Items > Tasks tab
 - [ ] Cannot generate tasks twice for the same shared recording (guard against duplicates)
 
 ---
