@@ -7,11 +7,13 @@ import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
+import com.voicemind.data.repository.SharingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.voicemind.util.countByFolder
 import javax.inject.Inject
@@ -30,6 +32,7 @@ data class FoldersUiState(
     val folderRecordingCounts: Map<String, Int> = emptyMap(),
     val isLoading: Boolean = true,
     val sort: FolderSort = FolderSort.Recency,
+    val sharedItemsUnreadCount: Int = 0,
 )
 
 @HiltViewModel
@@ -37,6 +40,7 @@ class FoldersViewModel @Inject constructor(
     private val folderRepository: FolderRepository,
     private val recordingRepository: RecordingRepository,
     private val navPreferenceRepository: NavPreferenceRepository,
+    private val sharingRepository: SharingRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FoldersUiState())
@@ -52,12 +56,19 @@ class FoldersViewModel @Inject constructor(
                 Triple(folders, recordings, FolderSort.fromKey(sortKey))
             }.collect { (folders, recordings, sort) ->
                 val counts = recordings.countByFolder()
-                _uiState.value = FoldersUiState(
-                    folders = sortFolders(folders, recordings, counts, sort),
-                    folderRecordingCounts = counts,
-                    isLoading = false,
-                    sort = sort,
-                )
+                _uiState.update { current ->
+                    current.copy(
+                        folders = sortFolders(folders, recordings, counts, sort),
+                        folderRecordingCounts = counts,
+                        isLoading = false,
+                        sort = sort,
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            sharingRepository.getUnreadCount().collect { count ->
+                _uiState.update { it.copy(sharedItemsUnreadCount = count) }
             }
         }
     }

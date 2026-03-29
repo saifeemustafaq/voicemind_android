@@ -34,6 +34,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Badge
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -107,7 +108,7 @@ fun FoldersScreen(
             }
             LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
-                    SharedItemsRow(onClick = onSharedItemsClick)
+                    SharedItemsRow(onClick = onSharedItemsClick, unreadCount = state.sharedItemsUnreadCount)
                 }
                 items(state.folders, key = { it.id }) { folder ->
                     FolderRow(
@@ -266,7 +267,7 @@ private fun FolderRow(
 }
 
 @Composable
-private fun SharedItemsRow(onClick: () -> Unit) {
+private fun SharedItemsRow(onClick: () -> Unit, unreadCount: Int = 0) {
     GlassCard(modifier = Modifier.fillMaxWidth(), innerPadding = 0.dp, onClick = onClick) {
         Row(
             modifier = Modifier
@@ -287,6 +288,9 @@ private fun SharedItemsRow(onClick: () -> Unit) {
                     .weight(1f)
                     .padding(start = 12.dp),
             )
+            if (unreadCount > 0) {
+                Badge { Text(unreadCount.toString()) }
+            }
             Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                 Icon(
                     Icons.Default.ChevronRight,

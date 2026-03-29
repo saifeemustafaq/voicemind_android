@@ -125,6 +125,14 @@ class RecordingRepository @Inject constructor(
         batch.commit().await()
     }
 
+    suspend fun getSharedRecording(ownerUid: String, recordingId: String): Recording? = try {
+        firestore.document("users/$ownerUid/recordings/$recordingId")
+            .get().await().toObject(Recording::class.java)
+    } catch (e: Exception) {
+        Timber.e(e, "getSharedRecording")
+        null
+    }
+
     fun observeSharedRecording(ownerUid: String, recordingId: String): Flow<Recording?> = callbackFlow {
         val registration = firestore.document("users/$ownerUid/recordings/$recordingId")
             .addSnapshotListener { snapshot, error ->

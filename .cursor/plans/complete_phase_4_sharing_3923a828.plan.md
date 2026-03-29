@@ -4,22 +4,22 @@ overview: Wire the existing SharedItemsScreen shell and FoldersScreen badge to l
 todos:
   - id: task-1-get-shared-recording
     content: Add one-shot `getSharedRecording(ownerUid, recordingId)` suspend method to RecordingRepository.kt
-    status: pending
+    status: completed
   - id: task-2-folders-viewmodel
     content: Inject SharingRepository into FoldersViewModel, add `sharedItemsUnreadCount` to FoldersUiState, collect getUnreadCount()
-    status: pending
+    status: completed
   - id: task-3-folders-badge
     content: Add `unreadCount` param to SharedItemsRow in FoldersScreen, display M3 Badge when count > 0
-    status: pending
+    status: completed
   - id: task-4-shared-items-viewmodel
     content: Create SharedItemsViewModel.kt with SharedItemUiModel, SharedItemsUiState, observe/enrich/dismiss/markAsRead logic
-    status: pending
+    status: completed
   - id: task-5-wire-shared-items-screen
     content: "Wire SharedItemsScreen.kt to SharedItemsViewModel: real data, recording rows, dismiss buttons, loading state"
-    status: pending
+    status: completed
   - id: task-6-lint-build-verify
     content: Run lint checks on all modified/created files and verify build compiles
-    status: pending
+    status: completed
 isProject: false
 ---
 
