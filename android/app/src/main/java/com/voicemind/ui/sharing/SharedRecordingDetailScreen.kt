@@ -28,6 +28,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -91,6 +92,13 @@ fun SharedRecordingDetailScreen(
         state.addTaskError?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearAddTaskError()
+        }
+    }
+
+    LaunchedEffect(state.generatedTaskCount) {
+        state.generatedTaskCount?.let { count ->
+            snackbarHostState.showSnackbar("Generated $count task${if (count == 1) "" else "s"}")
+            viewModel.clearGeneratedTaskCount()
         }
     }
 
@@ -326,6 +334,25 @@ fun SharedRecordingDetailScreen(
                         addedTaskIds = state.addedTaskIds,
                         onAddTask = viewModel::addTaskToChecklist,
                     )
+
+                    if (recording.transcription != null && !state.hasGeneratedTasks) {
+                        Spacer(Modifier.height(VmDimens.SpaceMd))
+                        FilledTonalButton(
+                            onClick = viewModel::generateTasks,
+                            enabled = !state.isGeneratingTasks,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            if (state.isGeneratingTasks) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                                Spacer(Modifier.width(VmDimens.SpaceSm))
+                            }
+                            Text(if (state.isGeneratingTasks) "Generating Tasks..." else "Generate Tasks")
+                        }
+                    }
 
                     Spacer(Modifier.height(VmDimens.SpaceXl))
                 }

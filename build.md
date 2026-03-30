@@ -8,6 +8,12 @@ ANd use this for build check:
 ./gradlew compileDebugKotlin 2>&1
 ```
 
+infact do this from the mem_and folder
+
+```
+cd android && ./gradlew compileDebugKotlin 2>&1 && cd ../functions && firebase deploy --only functions,firestore && cd ..
+```
+
 The build number (versionCode) auto-increments every time you run assembleRelease.
 The current version is stored in android/version.properties.
 

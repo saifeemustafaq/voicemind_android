@@ -439,22 +439,32 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Data Model Update
 
-- [ ] Update `CollectiveSummary.kt`: add `sharedWith: List<String> = emptyList()` field (for security rule compatibility — field must exist for the cross-user read rule to work)
+- [x] Updated `CollectiveSummary.kt`: added `sharedWith: List<String> = emptyList()` field
 
 ### Backend
 
-- [ ] Verify `shareItem` in `functions/src/sharing.ts` already handles `itemType: "collectiveSummary"` (it was designed to in Phase 2 — confirm it works for this item type)
-- [ ] Create `onCollectiveSummaryDeleted` Firestore trigger in `functions/src/sharing.ts`
-  - Trigger path: `users/{uid}/collectiveSummaries/{summaryId}` — on delete
-  - Same cleanup logic as `onRecordingDeleted`: reads `sharedWith`, deletes `myShares` and `sharedWithMe` entries
+- [x] Confirmed `shareItem` in `functions/src/sharing.ts` handles `itemType: "collectiveSummary"` via `getItemCollection()` helper
+- [x] Created `onCollectiveSummaryDeleted` Firestore trigger in `functions/src/sharing.ts`
+  - Trigger path: `users/{uid}/collectiveSummaries/{summaryId}`
+  - Reads `sharedWith`, queries `myShares` by `itemId + itemType`, batch-deletes both `myShares` and `sharedWithMe` entries (250-per-batch pattern, no action-items cascade)
+
+### Android — Data Layer
+
+- [x] Added `getSharedSummary(ownerUid, summaryId)` one-shot cross-user read to `CollectiveSummaryRepository`
+- [x] Added `observeSharedSummary(ownerUid, summaryId)` real-time listener to `CollectiveSummaryRepository`
+- [x] Added `duplicateSharedSummary(ownerUid, summaryId)` to `CollectiveSummaryRepository` — copies `summary` + `recordingTitles`, clears `recordingIds`, fresh `createdAt`
+- [x] Renamed `SharingRepository.getSharedItemForRecording` → `getSharedItem` (generic; used by both recording and summary VMs)
 
 ### Android — UI
 
-- [ ] Add "Share" action to collective summary context menu in `SummariesScreen`
-- [ ] Reuse `ShareDialog` from Phase 5
-- [ ] Summaries pill tab in `SharedItemsScreen` now populates when shared summaries exist
-- [ ] Create a read-only shared summary view (can be a simple screen or dialog showing summary text and the list of recording titles it was generated from)
-- [ ] Add duplication support: "Duplicate" action copies the collective summary to `users/{myUid}/collectiveSummaries` as an independent document
+- [x] Added `PersonAdd` icon button to `SummaryDetailSheet` action row in `SummariesScreen.kt`
+- [x] `ShareDialog(itemId = summary.id, itemType = "collectiveSummary")` shown from `SummariesScreen` via `showShareDialog` state
+- [x] `SharedItemsViewModel` injects `CollectiveSummaryRepository`; Summaries tab now fetches real summary title (first non-blank line, markdown headers stripped, ≤60 chars)
+- [x] `SharedItemsScreen` has `onSummaryClick` param; Summaries tab rows navigate to `SharedSummaryDetailScreen`
+- [x] Created `SharedSummaryDetailViewModel.kt` — observes summary, fetches owner name via `getSharedItem`, `duplicateSummary()` action
+- [x] Created `SharedSummaryDetailScreen.kt` — full-screen read-only view with `RichText`/`Markdown`, Sources section, overflow menu (Duplicate + Copy), `SnackbarHost` for success feedback, loading/unavailable states
+- [x] Added `SHARED_SUMMARY_DETAIL_ROUTE` + `sharedSummaryDetailRoute()` helper to `Routes.kt`
+- [x] Wired `SharedSummaryDetailScreen` composable in `AppNavHost.detailRoutes`; passed `onSummaryClick` to `SharedItemsScreen`
 
 ### Verification
 
@@ -473,7 +483,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Cloud Function
 
-- [ ] Create `generateTasksFromSharedRecording` callable in `functions/src/sharing.ts`
+- [x] Create `generateTasksFromSharedRecording` callable in `functions/src/sharing.ts`
   - Input: `{ ownerUid: string, recordingId: string, timezone: string }`
   - Verifies the recording is shared with the caller (checks `sharedWith` array)
   - Reads transcription from `users/{ownerUid}/recordings/{recordingId}`
@@ -485,13 +495,13 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Android — Data Layer
 
-- [ ] Add `generateTasksFromSharedRecording(ownerUid: String, recordingId: String, timezone: String)` to `SharingRepository`
+- [x] Add `generateTasksFromSharedRecording(ownerUid: String, recordingId: String, timezone: String)` to `SharingRepository`
 
 ### Android — UI
 
-- [ ] In `SharedRecordingDetailScreen`, add a "Generate Tasks" button (visible only when the recording has a transcription and tasks haven't already been generated for this user)
-- [ ] On tap: call the Cloud Function, show loading state, display count of generated tasks on completion
-- [ ] After generation, the task list section updates to show the newly generated tasks (they are now in the recipient's own `actionItems`)
+- [x] In `SharedRecordingDetailScreen`, add a "Generate Tasks" button (visible only when the recording has a transcription and tasks haven't already been generated for this user)
+- [x] On tap: call the Cloud Function, show loading state, display count of generated tasks on completion
+- [x] After generation, the task list section updates to show the newly generated tasks (they are now in the recipient's own `actionItems`)
 
 ### Verification
 
@@ -508,28 +518,28 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Android — FCM Setup
 
-- [ ] Add Firebase Cloud Messaging dependency to `build.gradle.kts`
-- [ ] Create `VoiceMindMessagingService` extending `FirebaseMessagingService`
+- [x] Add Firebase Cloud Messaging dependency to `build.gradle.kts`
+- [x] Create `VoiceMindMessagingService` extending `FirebaseMessagingService`
   - `onNewToken(token)`: writes token to `users/{uid}/deviceTokens/{tokenId}` in Firestore
   - `onMessageReceived(message)`: builds and shows notification, navigates to Shared Items on tap
-- [ ] Register the service in `AndroidManifest.xml`
-- [ ] On app start (after auth), register/refresh FCM token and write to Firestore
-- [ ] Handle token refresh: update Firestore when token changes
+- [x] Register the service in `AndroidManifest.xml`
+- [x] On app start (after auth), register/refresh FCM token and write to Firestore
+- [x] Handle token refresh: update Firestore when token changes
 
 ### Android — Permissions
 
-- [ ] For Android 13+ (API 33+): request `POST_NOTIFICATIONS` permission at appropriate time (e.g., after first sign-in or when first share is received)
-- [ ] Handle permission denied gracefully (app still works, just no push notifications)
-- [ ] Create notification channel: "Shared Items" with appropriate importance level
+- [x] For Android 13+ (API 33+): request `POST_NOTIFICATIONS` permission at appropriate time (e.g., after first sign-in or when first share is received)
+- [x] Handle permission denied gracefully (app still works, just no push notifications)
+- [x] Create notification channel: "Shared Items" with appropriate importance level
 
 ### Backend — Send Notification
 
-- [ ] Update `shareItem` in `functions/src/sharing.ts`: after creating the share, query `users/{recipientUid}/deviceTokens` for all registered tokens
-- [ ] Send FCM message to each token:
+- [x] Update `shareItem` in `functions/src/sharing.ts`: after creating the share, query `users/{recipientUid}/deviceTokens` for all registered tokens
+- [x] Send FCM message to each token:
   - Title: "[ownerName] shared a recording with you" (or summary, or task)
   - Body: item title
   - Data payload: `{ type: "shared_item", shareId, itemType }`
-- [ ] Handle invalid/expired tokens: remove from Firestore on `messaging/invalid-registration-token` or `messaging/registration-token-not-registered` errors
+- [x] Handle invalid/expired tokens: remove from Firestore on `messaging/invalid-registration-token` or `messaging/registration-token-not-registered` errors
 
 ### Verification
 
@@ -547,7 +557,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Cloud Function
 
-- [ ] Create `onUserDeleted` Auth `onDelete` trigger in `functions/src/userProfile.ts`
+- [x] Create `onUserDeleted` Auth `onDelete` trigger in `functions/src/userProfile.ts`
   - **Outgoing shares cleanup** (items the deleted user shared with others):
     - Query `users/{deletedUid}/myShares`
     - For each entry: delete the corresponding `users/{recipientUid}/sharedWithMe/{shareId}` inbox entry

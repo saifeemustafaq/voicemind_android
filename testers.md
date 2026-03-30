@@ -1,4 +1,4 @@
-# Adding Testers to Firebase App Distribution
+# Adding Testers to VoiceMind
 
 ## Step 1: Add Testers in `build.gradle.kts` (Code Side)
 
@@ -33,7 +33,25 @@ You can also create **groups** (e.g. "beta-testers") and add testers to groups. 
 
 ---
 
-## Step 3: Build & Upload
+## Step 3: Add Test Users to Google Cloud OAuth Consent Screen
+
+**This step is required** so testers can grant Google Calendar and Tasks permissions. Without this, they will get a `403: access_denied` "Access blocked" error when the app asks for Google permissions.
+
+Since VoiceMind has not completed Google's verification process, the OAuth consent screen is in **Testing** mode — only users explicitly added here can authorize the app.
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Select the VoiceMind project
+3. Navigate to **APIs & Services > OAuth consent screen**
+4. Scroll down to the **Test users** section
+5. Click **Add users**
+6. Enter the tester's email address
+7. Click **Save**
+
+> **Note:** Google allows a maximum of 100 test users while the app is unverified.
+
+---
+
+## Step 4: Build & Upload
 
 Run the build command:
 
@@ -49,7 +67,7 @@ This will:
 
 ---
 
-## Step 4: What the Tester Needs to Do
+## Step 5: What the Tester Needs to Do
 
 Once you upload a build, each tester receives an **email invitation** from Firebase. They need to:
 
@@ -61,7 +79,7 @@ Once you upload a build, each tester receives an **email invitation** from Fireb
 
 ---
 
-## Step 5: (Optional) Add Testers via Firebase CLI
+## Step 6: (Optional) Add Testers via Firebase CLI
 
 You can also manage testers from the command line:
 
@@ -85,7 +103,12 @@ firebase appdistribution:testers:add newfriend@gmail.com --group-alias beta-test
 |---|---|
 | `build.gradle.kts` | Add email to `testers = "..."` comma-separated string |
 | Firebase Console | **Product categories > DevOps and Engagement > Testing > App Distribution > Testers & Groups > Add testers** |
+| Google Cloud Console | **APIs & Services > OAuth consent screen > Test users > Add users** |
 | CLI (optional) | `firebase appdistribution:testers:add email@gmail.com` |
 | Tester's phone | Accept email invite, enable unknown sources, install APK |
 
-The minimum you need to do is add the email to the `testers` string in `build.gradle.kts` and run the build command — Firebase will auto-invite them by email. The console step is optional but useful for managing testers outside of code.
+The minimum required for each new tester:
+1. Add their email to `testers` in `build.gradle.kts` and run the build command
+2. Add their email as a **test user** on the Google Cloud OAuth consent screen
+
+Skipping #1 means they won't receive the build. Skipping #2 means they'll get a `403: access_denied` error when the app requests Google Calendar/Tasks permissions.

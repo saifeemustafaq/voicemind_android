@@ -159,6 +159,13 @@ class ActionItemRepository @Inject constructor(
         return collection().document(docId).get().await().exists()
     }
 
+    suspend fun hasGeneratedTasksForSharedRecording(ownerUid: String, recordingId: String): Boolean =
+        collection()
+            .whereEqualTo("recordingId", "shared:$ownerUid:$recordingId")
+            .limit(1)
+            .get().await()
+            .documents.isNotEmpty()
+
     fun observeSharedTasks(): Flow<List<ActionItem>> = callbackFlow {
         val registration = collection()
             .whereNotEqualTo("sharedFromUid", null)

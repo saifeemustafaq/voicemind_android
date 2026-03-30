@@ -33,6 +33,7 @@ import com.voicemind.ui.recording.RecordingsScreen
 import com.voicemind.ui.settings.SettingsScreen
 import com.voicemind.ui.sharing.SharedItemsScreen
 import com.voicemind.ui.sharing.SharedRecordingDetailScreen
+import com.voicemind.ui.sharing.SharedSummaryDetailScreen
 import com.voicemind.ui.summaries.SummariesScreen
 import kotlinx.coroutines.launch
 
@@ -44,6 +45,8 @@ fun AppNavHost(
     navPreferenceRepository: NavPreferenceRepository,
     openRecordingsOnStart: Boolean = false,
     onRecordingsOpened: () -> Unit = {},
+    openSharedItemsOnStart: Boolean = false,
+    onSharedItemsOpened: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -93,6 +96,13 @@ fun AppNavHost(
             if (openRecordingsOnStart) {
                 navigateTo(Routes.Recordings)
                 onRecordingsOpened()
+            }
+        }
+
+        LaunchedEffect(openSharedItemsOnStart) {
+            if (openSharedItemsOnStart) {
+                navController.navigate(SHARED_ITEMS_ROUTE)
+                onSharedItemsOpened()
             }
         }
 
@@ -155,6 +165,13 @@ fun AppNavHost(
                 val recIndex = orderedNavItems.indexOfFirst { it is Routes.Recordings }
                 if (recIndex >= 0) pagerState.scrollToPage(recIndex)
                 onRecordingsOpened()
+            }
+        }
+
+        LaunchedEffect(openSharedItemsOnStart) {
+            if (openSharedItemsOnStart) {
+                navController.navigate(SHARED_ITEMS_ROUTE)
+                onSharedItemsOpened()
             }
         }
 
@@ -244,6 +261,18 @@ private fun NavGraphBuilder.detailRoutes(
                 navController.navigate(sharedRecordingDetailRoute(ownerUid, recordingId))
             },
             onTaskClick = { taskId -> navController.navigate(taskDetailRoute(taskId)) },
+            onSummaryClick = { ownerUid, summaryId ->
+                navController.navigate(sharedSummaryDetailRoute(ownerUid, summaryId))
+            },
+        )
+    }
+    composable(SHARED_SUMMARY_DETAIL_ROUTE) { backStackEntry ->
+        val ownerUid = backStackEntry.arguments?.getString("ownerUid") ?: return@composable
+        val summaryId = backStackEntry.arguments?.getString("summaryId") ?: return@composable
+        SharedSummaryDetailScreen(
+            ownerUid = ownerUid,
+            summaryId = summaryId,
+            onBack = { navController.popBackStack() },
         )
     }
     composable(SHARED_RECORDING_DETAIL_ROUTE) { backStackEntry ->

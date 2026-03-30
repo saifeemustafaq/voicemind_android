@@ -13,4 +13,7 @@ data class SharedItem(
     val itemId: String = "",
     @ServerTimestamp val sharedAt: Timestamp? = null,
     val isRead: Boolean = false,
+    val isDeleted: Boolean = false,
+    val deletedAt: Timestamp? = null,
+    val ownerItemDeleted: Boolean = false,
 )

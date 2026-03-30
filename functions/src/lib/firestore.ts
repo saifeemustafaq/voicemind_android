@@ -27,7 +27,8 @@ export async function buildAndCommitActionItems(
   uid: string,
   recordingId: string,
   items: ExtractedActionItem[],
-  tz: string
+  tz: string,
+  extraFields?: Record<string, unknown>,
 ): Promise<void> {
   if (items.length === 0) return;
   const batch = db.batch();
@@ -49,6 +50,7 @@ export async function buildAndCommitActionItems(
       const d = parseDateAsNoonUtc(item.deadline);
       if (d && !isNaN(d.getTime())) doc.deadline = admin.firestore.Timestamp.fromDate(d);
     }
+    if (extraFields) Object.assign(doc, extraFields);
     batch.set(docRef, doc);
   }
   await batch.commit();

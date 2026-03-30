@@ -56,14 +56,13 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.NoCredentialException
+import com.voicemind.data.repository.AuthRepository
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.voiceMindTextFieldColors
 import com.voicemind.ui.theme.VmDimens
 import kotlinx.coroutines.launch
 import timber.log.Timber
-
-private const val WEB_CLIENT_ID = "685270102033-tupn4a0mm03k7pdrnd1lhlv53gbq605t.apps.googleusercontent.com"
 
 @Composable
 fun SignInScreen(viewModel: AuthViewModel) {
@@ -216,7 +215,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                             val credentialManager = CredentialManager.create(context)
                             val googleIdOption = GetGoogleIdOption.Builder()
                                 .setFilterByAuthorizedAccounts(false)
-                                .setServerClientId(WEB_CLIENT_ID)
+                                .setServerClientId(AuthRepository.WEB_CLIENT_ID)
                                 .build()
                             val request = GetCredentialRequest.Builder()
                                 .addCredentialOption(googleIdOption)

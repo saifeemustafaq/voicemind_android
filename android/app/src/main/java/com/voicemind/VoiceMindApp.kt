@@ -3,7 +3,10 @@ package com.voicemind
 import android.Manifest
 import android.app.Activity
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
@@ -29,8 +32,22 @@ class VoiceMindApp : Application() {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
+        createNotificationChannels()
         observeAuthForWidget()
         observeAppForegroundForWidget()
+    }
+
+    private fun createNotificationChannels() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "shared_items",
+                "Shared Items",
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "Notifications when someone shares items with you"
+            }
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
     }
 
     /**

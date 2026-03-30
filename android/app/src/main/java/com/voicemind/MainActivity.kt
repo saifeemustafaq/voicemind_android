@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
 
     // --- Notification tap navigation ---
     private var openRecordingsOnStart by mutableStateOf(false)
+    private var openSharedItemsOnStart by mutableStateOf(false)
 
     // --- Permission check ---
     // Incremented in onResume to trigger the permission LaunchedEffect on every foreground.
@@ -67,6 +68,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         openRecordingsOnStart =
             intent?.getBooleanExtra(RecordingService.EXTRA_OPEN_RECORDINGS, false) == true
+        openSharedItemsOnStart =
+            intent?.getBooleanExtra(EXTRA_OPEN_SHARED_ITEMS, false) == true
         enableEdgeToEdge()
         setContent {
             val appTzId by navPreferenceRepository.appTimezone
@@ -82,6 +85,10 @@ class MainActivity : ComponentActivity() {
                     val mainViewModel: MainViewModel = hiltViewModel()
                     val tasksConnected by mainViewModel.tasksConnected.collectAsStateWithLifecycle()
                     val pendingConsent by mainViewModel.pendingConsent.collectAsStateWithLifecycle()
+
+                    LaunchedEffect(Unit) {
+                        authViewModel.registerFcmToken()
+                    }
 
                     // ── Permission request launcher ────────────────────────────────────────
                     val permissionLauncher = rememberLauncherForActivityResult(
@@ -202,6 +209,8 @@ class MainActivity : ComponentActivity() {
                         navPreferenceRepository = navPreferenceRepository,
                         openRecordingsOnStart = openRecordingsOnStart,
                         onRecordingsOpened = { openRecordingsOnStart = false },
+                        openSharedItemsOnStart = openSharedItemsOnStart,
+                        onSharedItemsOpened = { openSharedItemsOnStart = false },
                     )
                 } else {
                     SignInScreen(viewModel = authViewModel)
@@ -220,6 +229,9 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         if (intent.getBooleanExtra(RecordingService.EXTRA_OPEN_RECORDINGS, false)) {
             openRecordingsOnStart = true
+        }
+        if (intent.getBooleanExtra(EXTRA_OPEN_SHARED_ITEMS, false)) {
+            openSharedItemsOnStart = true
         }
         // Widget's "Open App" button on the mic-permission screen: the user explicitly wants
         // to grant the microphone permission, so clear any "dismissed this session" suppression.
@@ -240,5 +252,8 @@ class MainActivity : ComponentActivity() {
         /** Sent by the widget's "Open App" button when mic permission is missing.
          *  Clears any session-level suppression so the permission dialog fires immediately. */
         const val EXTRA_REQUEST_MIC_PERMISSION = "extra_request_mic_permission"
+
+        /** Sent by FCM notification tap to open the Shared Items screen. */
+        const val EXTRA_OPEN_SHARED_ITEMS = "extra_open_shared_items"
     }
 }

@@ -1,5 +1,6 @@
 package com.voicemind.data.repository
 
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
@@ -61,5 +62,37 @@ class CollectiveSummaryRepository @Inject constructor(
 
     suspend fun deleteSummary(summaryId: String) {
         collection().document(summaryId).delete().await()
+    }
+
+    suspend fun getSharedSummary(ownerUid: String, summaryId: String): CollectiveSummary? = try {
+        firestore.document("users/$ownerUid/collectiveSummaries/$summaryId")
+            .get().await().toObject(CollectiveSummary::class.java)
+    } catch (e: Exception) {
+        Timber.e(e, "getSharedSummary")
+        null
+    }
+
+    fun observeSharedSummary(ownerUid: String, summaryId: String): Flow<CollectiveSummary?> = callbackFlow {
+        val registration = firestore
+            .document("users/$ownerUid/collectiveSummaries/$summaryId")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) { Timber.e(error, "observeSharedSummary"); return@addSnapshotListener }
+                trySend(snapshot?.toObject(CollectiveSummary::class.java))
+            }
+        awaitClose { registration.remove() }
+    }
+
+    suspend fun duplicateSharedSummary(ownerUid: String, summaryId: String) {
+        val docId = "shared-$ownerUid-$summaryId"
+        if (collection().document(docId).get().await().exists()) return
+        val source = firestore.document("users/$ownerUid/collectiveSummaries/$summaryId")
+            .get().await().toObject(CollectiveSummary::class.java)
+            ?: throw Exception("Summary not found")
+        collection().document(docId).set(mapOf(
+            "summary" to source.summary,
+            "recordingTitles" to source.recordingTitles,
+            "recordingIds" to emptyList<String>(),
+            "createdAt" to Timestamp.now(),
+        )).await()
     }
 }

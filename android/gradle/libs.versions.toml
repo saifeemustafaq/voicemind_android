@@ -52,6 +52,7 @@ firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" 
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
 firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx" }
 firebase-functions-ktx = { group = "com.google.firebase", name = "firebase-functions-ktx" }
+firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
 
 # Google Sign-In (Credential Manager)
 credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentialManager" }

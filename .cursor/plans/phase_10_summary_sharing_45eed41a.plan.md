@@ -4,40 +4,40 @@ overview: "Implement Phase 10: Collective Summary Sharing — enabling users to 
 todos:
   - id: model-update
     content: Add sharedWith field to CollectiveSummary.kt
-    status: pending
+    status: completed
   - id: backend-trigger
     content: Create onCollectiveSummaryDeleted trigger in sharing.ts (mirrors onRecordingDeleted)
-    status: pending
+    status: completed
   - id: repo-summary
     content: Add getSharedSummary, observeSharedSummary, duplicateSharedSummary to CollectiveSummaryRepository
-    status: pending
+    status: completed
   - id: repo-sharing-rename
     content: Rename getSharedItemForRecording to getSharedItem in SharingRepository + update caller
-    status: pending
+    status: completed
   - id: summaries-share
     content: Add 'Share with User' action to SummaryDetailSheet in SummariesScreen.kt
-    status: pending
+    status: completed
   - id: shared-items-vm
     content: Inject CollectiveSummaryRepository into SharedItemsViewModel, fetch real summary preview title
-    status: pending
+    status: completed
   - id: shared-items-nav
     content: Add onSummaryClick to SharedItemsScreen, wire Summaries tab row onClick
-    status: pending
+    status: completed
   - id: routes
     content: Add SHARED_SUMMARY_DETAIL_ROUTE + helper to Routes.kt
-    status: pending
+    status: completed
   - id: detail-screen
     content: Create SharedSummaryDetailScreen.kt (read-only view with Duplicate/Copy actions)
-    status: pending
+    status: completed
   - id: detail-vm
     content: Create SharedSummaryDetailViewModel.kt (observe shared summary, owner name, duplication)
-    status: pending
+    status: completed
   - id: nav-wiring
     content: Wire SharedSummaryDetailScreen route + onSummaryClick in AppNavHost.kt
-    status: pending
+    status: completed
   - id: sharingphases
     content: Mark all Phase 10 implementation items as done in sharingphases.md
-    status: pending
+    status: completed
 isProject: false
 ---
 

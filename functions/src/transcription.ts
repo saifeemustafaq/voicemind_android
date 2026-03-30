@@ -179,7 +179,7 @@ async function callExtractionModel(
   }
 }
 
-async function extractActionItems(
+export async function extractActionItems(
   transcript: string,
   timezone: string
 ): Promise<ExtractedActionItem[]> {

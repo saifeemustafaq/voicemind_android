@@ -54,3 +54,8 @@ const val SHARED_RECORDING_DETAIL_ROUTE = "shared_recording/{ownerUid}/{recordin
 
 fun sharedRecordingDetailRoute(ownerUid: String, recordingId: String) =
     "shared_recording/$ownerUid/$recordingId"
+
+const val SHARED_SUMMARY_DETAIL_ROUTE = "shared_summary/{ownerUid}/{summaryId}"
+
+fun sharedSummaryDetailRoute(ownerUid: String, summaryId: String) =
+    "shared_summary/$ownerUid/$summaryId"

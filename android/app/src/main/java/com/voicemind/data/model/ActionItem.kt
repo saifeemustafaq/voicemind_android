@@ -18,4 +18,6 @@ data class ActionItem(
     val autoScheduled: Boolean = false,
     val sharedFromUid: String? = null,
     val sharedFromName: String? = null,
+    val isDeleted: Boolean = false,
+    val deletedAt: Timestamp? = null,
 )

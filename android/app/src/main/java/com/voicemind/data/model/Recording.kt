@@ -13,4 +13,6 @@ data class Recording(
     val summary: String? = null,
     val audioPath: String = "",
     val durationSeconds: Long = 0,
+    val isDeleted: Boolean = false,
+    val deletedAt: Timestamp? = null,
 )

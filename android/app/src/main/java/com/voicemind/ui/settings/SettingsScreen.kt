@@ -27,11 +27,13 @@ import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -41,10 +43,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -53,9 +57,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.voicemind.BuildConfig
+import com.voicemind.data.repository.AuthRepository
+import kotlinx.coroutines.launch
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.VoiceMindTopAppBar
@@ -82,9 +93,49 @@ fun SettingsScreen(
     val pendingConsent by settingsViewModel.pendingConsentResult.collectAsStateWithLifecycle()
     val ntsSettings by settingsViewModel.ntsSettings.collectAsStateWithLifecycle()
     val discoverable by settingsViewModel.discoverable.collectAsStateWithLifecycle()
+    val deleteState by settingsViewModel.deleteState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var showTimeZonePicker by remember { mutableStateOf(false) }
     var showNtsTimePicker by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showReAuthDialog by remember { mutableStateOf(false) }
+    var reAuthPassword by remember { mutableStateOf("") }
+    var deleteError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(deleteState) {
+        when (val state = deleteState) {
+            is DeleteAccountState.NeedsReAuth -> {
+                settingsViewModel.clearDeleteState()
+                if (settingsViewModel.isGoogleUser) {
+                    try {
+                        val credentialManager = CredentialManager.create(context)
+                        val googleIdOption = GetGoogleIdOption.Builder()
+                            .setFilterByAuthorizedAccounts(true)
+                            .setServerClientId(AuthRepository.WEB_CLIENT_ID)
+                            .build()
+                        val request = GetCredentialRequest.Builder()
+                            .addCredentialOption(googleIdOption)
+                            .build()
+                        val result = credentialManager.getCredential(context as Activity, request)
+                        val idToken = GoogleIdTokenCredential.createFrom(result.credential.data).idToken
+                        settingsViewModel.reauthAndDeleteWithGoogle(idToken)
+                    } catch (e: GetCredentialCancellationException) {
+                        deleteError = "Account deletion cancelled."
+                    } catch (e: Exception) {
+                        deleteError = "Google re-authentication failed: ${e.message}"
+                    }
+                } else {
+                    showReAuthDialog = true
+                }
+            }
+            is DeleteAccountState.Error -> {
+                deleteError = state.message
+                settingsViewModel.clearDeleteState()
+            }
+            else -> {}
+        }
+    }
 
     val consentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -130,10 +181,43 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
+                    val isDeleting = deleteState is DeleteAccountState.Deleting
                     PrimaryButton(
                         text = "Sign Out",
                         onClick = onSignOut,
+                        enabled = !isDeleting,
                     )
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceSm))
+                    if (isDeleting) {
+                        FilledTonalButton(
+                            onClick = {},
+                            enabled = false,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+                                disabledContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                disabledContentColor = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.5f),
+                            ),
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                            Spacer(modifier = Modifier.width(VmDimens.SpaceSm))
+                            Text("Deleting Account...")
+                        }
+                    } else {
+                        FilledTonalButton(
+                            onClick = { showDeleteConfirmDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            ),
+                        ) {
+                            Text("Delete Account")
+                        }
+                    }
                 }
             }
 
@@ -501,6 +585,103 @@ fun SettingsScreen(
                 ) {
                     Text(error)
                 }
+            }
+
+            deleteError?.let { error ->
+                Snackbar(
+                    modifier = Modifier.padding(bottom = 8.dp),
+                    action = {
+                        TextButton(onClick = { deleteError = null }) {
+                            Text("Dismiss")
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                ) {
+                    Text(error)
+                }
+            }
+
+            if (showDeleteConfirmDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteConfirmDialog = false },
+                    title = { Text("Delete Account") },
+                    text = {
+                        Text(
+                            "This will permanently delete your account and all your data. " +
+                            "Shared copies in other users' accounts will not be affected. " +
+                            "This action cannot be undone."
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showDeleteConfirmDialog = false
+                                settingsViewModel.deleteAccount()
+                            },
+                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                        ) {
+                            Text("Delete")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                            Text("Cancel")
+                        }
+                    },
+                )
+            }
+
+            if (showReAuthDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showReAuthDialog = false
+                        reAuthPassword = ""
+                    },
+                    title = { Text("Re-authenticate Required") },
+                    text = {
+                        Column {
+                            Text(
+                                "For security, please enter your password to confirm account deletion.",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
+                            OutlinedTextField(
+                                value = reAuthPassword,
+                                onValueChange = { reAuthPassword = it },
+                                label = { Text("Password") },
+                                visualTransformation = PasswordVisualTransformation(),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                val email = settingsViewModel.userDisplayText
+                                val password = reAuthPassword
+                                showReAuthDialog = false
+                                reAuthPassword = ""
+                                settingsViewModel.reauthAndDelete(email, password)
+                            },
+                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                        ) {
+                            Text("Delete")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            showReAuthDialog = false
+                            reAuthPassword = ""
+                        }) {
+                            Text("Cancel")
+                        }
+                    },
+                )
             }
 
             Text(

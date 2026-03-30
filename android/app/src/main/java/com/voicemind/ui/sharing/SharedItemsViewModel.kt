@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
 import com.voicemind.data.repository.ActionItemRepository
+import com.voicemind.data.repository.CollectiveSummaryRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.SharingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -53,6 +54,7 @@ class SharedItemsViewModel @Inject constructor(
     private val sharingRepository: SharingRepository,
     private val recordingRepository: RecordingRepository,
     private val actionItemRepository: ActionItemRepository,
+    private val collectiveSummaryRepository: CollectiveSummaryRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SharedItemsUiState())
@@ -68,7 +70,15 @@ class SharedItemsViewModel @Inject constructor(
                                 "recording" -> recordingRepository
                                     .getSharedRecording(item.ownerUid, item.itemId)
                                     ?.title ?: "Untitled Recording"
-                                "collectiveSummary" -> "Collective Summary"
+                                "collectiveSummary" -> collectiveSummaryRepository
+                                    .getSharedSummary(item.ownerUid, item.itemId)
+                                    ?.summary
+                                    ?.lines()
+                                    ?.firstOrNull { it.isNotBlank() }
+                                    ?.replace(Regex("^#{1,6}\\s+"), "")
+                                    ?.trim()
+                                    ?.take(60)
+                                    ?: "Collective Summary"
                                 else -> "Shared Item"
                             }
                             SharedItemUiModel(

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.TimeZone
 import javax.inject.Inject
 
 data class SharedRecordingDetailUiState(
@@ -47,6 +48,9 @@ data class SharedRecordingDetailUiState(
     val duplicateSuccess: String? = null,
     val addedTaskIds: Set<String> = emptySet(),
     val addTaskError: String? = null,
+    val isGeneratingTasks: Boolean = false,
+    val generatedTaskCount: Int? = null,
+    val hasGeneratedTasks: Boolean = false,
 )
 
 @HiltViewModel
@@ -100,12 +104,22 @@ class SharedRecordingDetailViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             // Owner name lookup from sharedWithMe inbox entry
             try {
-                val sharedItem = sharingRepository.getSharedItemForRecording(recordingId)
+                val sharedItem = sharingRepository.getSharedItem(recordingId)
                 if (sharedItem != null) {
                     _state.update { it.copy(ownerName = sharedItem.ownerName) }
                 }
             } catch (e: Exception) {
                 Timber.w(e, "SharedRecordingDetailVM: owner name lookup failed")
+            }
+
+            // Check if tasks have already been generated for this shared recording
+            try {
+                val alreadyGenerated = actionItemRepository.hasGeneratedTasksForSharedRecording(ownerUid, recordingId)
+                if (alreadyGenerated) {
+                    _state.update { it.copy(hasGeneratedTasks = true) }
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "SharedRecordingDetailVM: hasGeneratedTasks check failed")
             }
 
             // Fetch signed audio URL and extract waveform
@@ -245,6 +259,25 @@ class SharedRecordingDetailViewModel @Inject constructor(
 
     fun clearAddTaskError() {
         _state.update { it.copy(addTaskError = null) }
+    }
+
+    fun generateTasks() {
+        _state.update { it.copy(isGeneratingTasks = true, error = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val count = sharingRepository.generateTasksFromSharedRecording(
+                    ownerUid, recordingId, TimeZone.getDefault().id
+                )
+                _state.update { it.copy(isGeneratingTasks = false, hasGeneratedTasks = true, generatedTaskCount = count) }
+            } catch (e: Exception) {
+                Timber.e(e, "SharedRecordingDetailVM: generateTasks failed")
+                _state.update { it.copy(isGeneratingTasks = false, error = "Failed to generate tasks") }
+            }
+        }
+    }
+
+    fun clearGeneratedTaskCount() {
+        _state.update { it.copy(generatedTaskCount = null) }
     }
 
     private suspend fun getAudioUrlRefreshed(): String? {

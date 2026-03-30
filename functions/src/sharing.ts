@@ -2,8 +2,9 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import { randomBytes } from "crypto";
-import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } from "./lib/config.js";
-import { db, storage } from "./lib/firestore.js";
+import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, openaiApiKey } from "./lib/config.js";
+import { db, storage, buildAndCommitActionItems } from "./lib/firestore.js";
+import { extractActionItems } from "./transcription.js";
 
 // ── Rate limiting ────────────────────────────────────────────────────────────
 
@@ -157,6 +158,47 @@ export const shareItem = onCall(async (request) => {
   });
 
   await batch.commit();
+
+  // Send push notification to recipient (fire-and-forget; does not block the share)
+  try {
+    const tokensSnap = await db.collection(`users/${recipientUid}/deviceTokens`).get();
+    if (!tokensSnap.empty) {
+      const tokens = tokensSnap.docs.map((d) => (d.data() as { token: string }).token);
+      const itemData = itemDoc.data() as Record<string, unknown>;
+      const rawTitle =
+        (itemData.title as string | undefined) ||
+        (itemData.summary as string | undefined) ||
+        "";
+      const senderName = (callerData.displayName as string | undefined) || "Someone";
+      const itemLabel = itemType === "collectiveSummary" ? "summary" : itemType!;
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens,
+        data: {
+          title: `${senderName} shared a ${itemLabel} with you`,
+          body: rawTitle.substring(0, 100),
+          type: "shared_item",
+          shareId,
+          itemType: itemType!,
+        },
+      });
+      const invalidIndices = response.responses
+        .map((r, i) =>
+          !r.success &&
+          (r.error?.code === "messaging/invalid-registration-token" ||
+            r.error?.code === "messaging/registration-token-not-registered")
+            ? i
+            : -1
+        )
+        .filter((i) => i >= 0);
+      if (invalidIndices.length > 0) {
+        const cleanBatch = db.batch();
+        invalidIndices.forEach((i) => cleanBatch.delete(tokensSnap.docs[i].ref));
+        await cleanBatch.commit();
+      }
+    }
+  } catch (fcmErr) {
+    console.error("FCM notification failed (non-blocking):", fcmErr);
+  }
 
   if (itemType === "recording") {
     const actionItemsSnap = await db
@@ -448,6 +490,101 @@ export const shareTask = onCall(async (request) => {
 
   return { success: true };
 });
+
+export const generateTasksFromSharedRecording = onCall(
+  { secrets: [openaiApiKey], timeoutSeconds: 120 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "User must be signed in");
+    }
+
+    const callerUid = request.auth.uid;
+    const { ownerUid, recordingId, timezone } = request.data as {
+      ownerUid?: string;
+      recordingId?: string;
+      timezone?: string;
+    };
+
+    if (!ownerUid || !recordingId) {
+      throw new HttpsError("invalid-argument", "ownerUid and recordingId are required");
+    }
+
+    const recordingDoc = await db.doc(`users/${ownerUid}/recordings/${recordingId}`).get();
+    if (!recordingDoc.exists) {
+      throw new HttpsError("not-found", "Recording not found");
+    }
+
+    const recordingData = recordingDoc.data()!;
+    const sharedWith = (recordingData.sharedWith as string[]) ?? [];
+    if (!sharedWith.includes(callerUid)) {
+      throw new HttpsError("permission-denied", "Not shared with you");
+    }
+
+    const transcription = recordingData.transcription as string | undefined;
+    if (!transcription || transcription.trim().length === 0) {
+      throw new HttpsError("invalid-argument", "Recording has no transcription");
+    }
+
+    const syntheticRecordingId = `shared:${ownerUid}:${recordingId}`;
+    const existing = await db
+      .collection(`users/${callerUid}/actionItems`)
+      .where("recordingId", "==", syntheticRecordingId)
+      .limit(1)
+      .get();
+    if (!existing.empty) {
+      return { success: true, count: 0, alreadyGenerated: true };
+    }
+
+    const tz = timezone || "UTC";
+    const items = await extractActionItems(transcription, tz);
+
+    const ownerDoc = await db.doc(`users/${ownerUid}`).get();
+    const ownerName = (ownerDoc.data()?.displayName as string | undefined) || "";
+
+    await buildAndCommitActionItems(callerUid, syntheticRecordingId, items, tz, {
+      sharedFromUid: ownerUid,
+      sharedFromName: ownerName,
+    });
+
+    return { success: true, count: items.length };
+  }
+);
+
+// ── Firestore trigger: collective summary deletion cascade ────────────────────
+
+/**
+ * When an owner deletes a collective summary, clean up all sharing references
+ * so the item disappears from every recipient's Shared Items list in real time.
+ */
+export const onCollectiveSummaryDeleted = onDocumentDeleted(
+  { document: "users/{uid}/collectiveSummaries/{summaryId}" },
+  async (event) => {
+    const uid = event.params.uid;
+    const summaryId = event.params.summaryId;
+    const data = event.data?.data();
+
+    if (!data) return;
+
+    const sharedWith = (data.sharedWith as string[] | undefined) ?? [];
+    if (sharedWith.length === 0) return;
+
+    const mySharesSnap = await db
+      .collection(`users/${uid}/myShares`)
+      .where("itemId", "==", summaryId)
+      .where("itemType", "==", "collectiveSummary")
+      .get();
+
+    for (let i = 0; i < mySharesSnap.docs.length; i += 250) {
+      const batch = db.batch();
+      mySharesSnap.docs.slice(i, i + 250).forEach((shareDoc) => {
+        const { recipientUid } = shareDoc.data() as { recipientUid: string };
+        batch.delete(db.doc(`users/${recipientUid}/sharedWithMe/${shareDoc.id}`));
+        batch.delete(shareDoc.ref);
+      });
+      await batch.commit();
+    }
+  }
+);
 
 // ── Firestore trigger: recording deletion cascade ─────────────────────────────
 

@@ -81,6 +81,8 @@ class AuthViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(error = null)
     }
 
+    fun registerFcmToken() = authRepository.registerFcmToken()
+
     fun signOut() {
         authRepository.signOut()
     }

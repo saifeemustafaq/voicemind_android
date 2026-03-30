@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.identity.AuthorizationResult
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.voicemind.data.repository.AuthRepository
 import com.voicemind.data.repository.GoogleTasksRepository
 import com.voicemind.data.repository.NavPreferenceRepository
@@ -20,6 +21,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.TimeZone
 import javax.inject.Inject
+
+sealed interface DeleteAccountState {
+    data object Idle : DeleteAccountState
+    data object Deleting : DeleteAccountState
+    data object NeedsReAuth : DeleteAccountState
+    data class Error(val message: String) : DeleteAccountState
+    data object Success : DeleteAccountState
+}
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -187,5 +196,65 @@ class SettingsViewModel @Inject constructor(
 
     fun clearTasksError() {
         _tasksError.value = null
+    }
+
+    // ── Account deletion ─────────────────────────────────────────────────────
+
+    private val _deleteState = MutableStateFlow<DeleteAccountState>(DeleteAccountState.Idle)
+    val deleteState: StateFlow<DeleteAccountState> = _deleteState
+
+    fun deleteAccount() {
+        _deleteState.value = DeleteAccountState.Deleting
+        viewModelScope.launch(Dispatchers.IO) {
+            authRepository.deleteAccount()
+                .onSuccess { _deleteState.value = DeleteAccountState.Success }
+                .onFailure { e ->
+                    _deleteState.value = if (e is FirebaseAuthRecentLoginRequiredException) {
+                        DeleteAccountState.NeedsReAuth
+                    } else {
+                        DeleteAccountState.Error(e.message ?: "Failed to delete account")
+                    }
+                }
+        }
+    }
+
+    fun clearDeleteState() {
+        _deleteState.value = DeleteAccountState.Idle
+    }
+
+    val isGoogleUser: Boolean get() = authRepository.isGoogleUser
+
+    fun reauthAndDeleteWithGoogle(idToken: String) {
+        _deleteState.value = DeleteAccountState.Deleting
+        viewModelScope.launch(Dispatchers.IO) {
+            authRepository.reauthenticateWithGoogle(idToken)
+                .onSuccess {
+                    authRepository.deleteAccount()
+                        .onSuccess { _deleteState.value = DeleteAccountState.Success }
+                        .onFailure { e ->
+                            _deleteState.value = DeleteAccountState.Error(e.message ?: "Failed to delete account")
+                        }
+                }
+                .onFailure { e ->
+                    _deleteState.value = DeleteAccountState.Error(e.message ?: "Google re-authentication failed")
+                }
+        }
+    }
+
+    fun reauthAndDelete(email: String, password: String) {
+        _deleteState.value = DeleteAccountState.Deleting
+        viewModelScope.launch(Dispatchers.IO) {
+            authRepository.reauthenticateWithEmail(email, password)
+                .onSuccess {
+                    authRepository.deleteAccount()
+                        .onSuccess { _deleteState.value = DeleteAccountState.Success }
+                        .onFailure { e ->
+                            _deleteState.value = DeleteAccountState.Error(e.message ?: "Failed to delete account")
+                        }
+                }
+                .onFailure { e ->
+                    _deleteState.value = DeleteAccountState.Error(e.message ?: "Re-authentication failed")
+                }
+        }
     }
 }

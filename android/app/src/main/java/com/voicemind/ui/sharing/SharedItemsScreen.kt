@@ -44,6 +44,7 @@ fun SharedItemsScreen(
     onBack: () -> Unit,
     onRecordingClick: (ownerUid: String, recordingId: String) -> Unit = { _, _ -> },
     onTaskClick: (taskId: String) -> Unit = {},
+    onSummaryClick: (ownerUid: String, summaryId: String) -> Unit = { _, _ -> },
     viewModel: SharedItemsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -119,7 +120,7 @@ fun SharedItemsScreen(
                             items(state.summaries, key = { it.shareId }) { item ->
                                 SharedRecordingRow(
                                     item = item,
-                                    onClick = { },
+                                    onClick = { onSummaryClick(item.ownerUid, item.itemId) },
                                     onDismiss = { viewModel.dismiss(item.shareId) },
                                 )
                             }

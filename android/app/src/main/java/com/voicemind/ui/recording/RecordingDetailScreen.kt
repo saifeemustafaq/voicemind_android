@@ -56,7 +56,7 @@ import com.voicemind.R
 import com.voicemind.ui.components.AudioWaveform
 import com.voicemind.ui.components.SpeedBubble
 import com.voicemind.ui.components.formatMmSsDecimal
-import com.voicemind.ui.navigation.Routes
+
 import com.voicemind.ui.sharing.ShareDialog
 import androidx.compose.ui.res.painterResource
 
@@ -67,11 +67,11 @@ fun RecordingDetailScreen(
     navController: NavController,
     onBack: () -> Unit,
 ) {
-    // Share the same RecordingsViewModel instance that RecordingsScreen uses
-    val recordingsEntry = remember(navController) {
-        navController.getBackStackEntry(Routes.Recordings.route)
+    val parentEntry = remember(navController) {
+        navController.previousBackStackEntry
+            ?: throw IllegalStateException("RecordingDetailScreen requires a parent back stack entry")
     }
-    val playbackViewModel: RecordingsViewModel = hiltViewModel(recordingsEntry)
+    val playbackViewModel: RecordingsViewModel = hiltViewModel(parentEntry)
     val detailViewModel: RecordingDetailViewModel = hiltViewModel()
 
     val state by playbackViewModel.state.collectAsStateWithLifecycle()

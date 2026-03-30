@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -48,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.halilibo.richtext.markdown.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import com.voicemind.data.model.CollectiveSummary
+import com.voicemind.ui.sharing.ShareDialog
 import com.voicemind.ui.components.EmptyStateCard
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
@@ -64,6 +66,7 @@ fun SummariesScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var showShareDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         VoiceMindTopAppBar(
@@ -120,7 +123,18 @@ fun SummariesScreen(
             },
             onShare = { viewModel.share(context, summary.summary) },
             onDelete = { viewModel.deleteSummary(summary.id) },
+            onShareWithUser = { showShareDialog = true },
         )
+    }
+
+    if (showShareDialog) {
+        state.selectedSummary?.let { summary ->
+            ShareDialog(
+                itemId = summary.id,
+                itemType = "collectiveSummary",
+                onDismiss = { showShareDialog = false },
+            )
+        }
     }
 
     if (state.showInfoSheet) {
@@ -173,6 +187,7 @@ private fun SummaryDetailSheet(
     onCopy: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
+    onShareWithUser: () -> Unit,
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -199,6 +214,9 @@ private fun SummaryDetailSheet(
                     }
                     IconButton(onClick = onShare) {
                         Icon(Icons.Default.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = onShareWithUser) {
+                        Icon(Icons.Default.PersonAdd, contentDescription = "Share with user", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = { showDeleteConfirm = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)

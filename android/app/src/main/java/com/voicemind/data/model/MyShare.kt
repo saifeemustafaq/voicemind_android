@@ -12,4 +12,6 @@ data class MyShare(
     val itemType: String = "",
     val itemId: String = "",
     @ServerTimestamp val sharedAt: Timestamp? = null,
+    val isDeleted: Boolean = false,
+    val deletedAt: Timestamp? = null,
 )

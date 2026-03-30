@@ -114,7 +114,7 @@ class SharingRepository @Inject constructor(
             ?: throw Exception("getSharedAudioUrl returned no url")
     }
 
-    suspend fun getSharedItemForRecording(itemId: String): SharedItem? =
+    suspend fun getSharedItem(itemId: String): SharedItem? =
         sharedWithMeCollection()
             .whereEqualTo("itemId", itemId)
             .limit(1)
@@ -147,6 +147,25 @@ class SharingRepository @Inject constructor(
             .getHttpsCallable("shareTask")
             .call(hashMapOf("taskId" to taskId, "recipientUid" to recipientUid))
             .await()
+    }
+
+    suspend fun generateTasksFromSharedRecording(
+        ownerUid: String,
+        recordingId: String,
+        timezone: String,
+    ): Int {
+        val result = functions
+            .getHttpsCallable("generateTasksFromSharedRecording")
+            .call(hashMapOf("ownerUid" to ownerUid, "recordingId" to recordingId, "timezone" to timezone))
+            .await()
+        @Suppress("UNCHECKED_CAST")
+        val data = result.getData() as? Map<*, *> ?: return 0
+        return when (val raw = data["count"]) {
+            is Long -> raw.toInt()
+            is Double -> raw.toInt()
+            is Int -> raw
+            else -> 0
+        }
     }
 
     suspend fun markAsRead(shareId: String) {

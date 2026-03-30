@@ -51,6 +51,14 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
+        <service
+            android:name=".service.VoiceMindMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".service.PlaybackActionReceiver"
             android:exported="false">
