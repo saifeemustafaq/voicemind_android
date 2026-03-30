@@ -1,6 +1,7 @@
 package com.voicemind.data.repository
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
@@ -24,6 +25,7 @@ class ActionItemRepository @Inject constructor(
 
     fun observeActionItems(): Flow<List<ActionItem>> = callbackFlow {
         val registration = collection()
+            .whereEqualTo("isDeleted", false)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -41,12 +43,18 @@ class ActionItemRepository @Inject constructor(
     }
 
     suspend fun deleteItem(itemId: String) {
-        collection().document(itemId).delete().await()
+        collection().document(itemId).update(
+            mapOf(
+                "isDeleted" to true,
+                "deletedAt" to FieldValue.serverTimestamp(),
+            )
+        ).await()
     }
 
     suspend fun deleteItems(itemIds: List<String>) {
         val batch = firestore.batch()
-        itemIds.forEach { id -> batch.delete(collection().document(id)) }
+        val softDelete = mapOf("isDeleted" to true, "deletedAt" to FieldValue.serverTimestamp())
+        itemIds.forEach { id -> batch.update(collection().document(id), softDelete) }
         batch.commit().await()
     }
 
@@ -90,6 +98,7 @@ class ActionItemRepository @Inject constructor(
         val data = hashMapOf(
             "title" to title,
             "completed" to false,
+            "isDeleted" to false,
             "createdAt" to Timestamp.now(),
         )
         collection().add(data).await()
@@ -97,6 +106,7 @@ class ActionItemRepository @Inject constructor(
 
     suspend fun getByRecordingId(recordingId: String): List<ActionItem> {
         return collection()
+            .whereEqualTo("isDeleted", false)
             .whereEqualTo("recordingId", recordingId)
             .get().await()
             .toObjects(ActionItem::class.java)
@@ -120,6 +130,7 @@ class ActionItemRepository @Inject constructor(
 
     fun observeActionItemsForRecording(ownerUid: String, recordingId: String): Flow<List<ActionItem>> = callbackFlow {
         val registration = firestore.collection("users/$ownerUid/actionItems")
+            .whereEqualTo("isDeleted", false)
             .whereEqualTo("recordingId", recordingId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -148,6 +159,7 @@ class ActionItemRepository @Inject constructor(
             "dueDate" to dueDate,
             "deadline" to deadline,
             "completed" to completed,
+            "isDeleted" to false,
             "sharedFromUid" to ownerUid,
             "sharedFromName" to ownerName,
             "createdAt" to Timestamp.now(),
@@ -161,6 +173,7 @@ class ActionItemRepository @Inject constructor(
 
     suspend fun hasGeneratedTasksForSharedRecording(ownerUid: String, recordingId: String): Boolean =
         collection()
+            .whereEqualTo("isDeleted", false)
             .whereEqualTo("recordingId", "shared:$ownerUid:$recordingId")
             .limit(1)
             .get().await()
@@ -168,6 +181,7 @@ class ActionItemRepository @Inject constructor(
 
     fun observeSharedTasks(): Flow<List<ActionItem>> = callbackFlow {
         val registration = collection()
+            .whereEqualTo("isDeleted", false)
             .whereNotEqualTo("sharedFromUid", null)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->

@@ -38,6 +38,7 @@ export async function buildAndCommitActionItems(
     const doc: Record<string, unknown> = {
       title: item.title.substring(0, 200),
       completed: false,
+      isDeleted: false,
       recordingId,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };

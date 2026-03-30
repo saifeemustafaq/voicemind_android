@@ -316,10 +316,6 @@ fun RecordingsScreen(
                                         RecordingRow(
                                             recording = recording,
                                             isPlaying = listState.playingRecordingId == recording.id && !listState.isPlaybackPaused,
-                                            isExpanded = listState.playingRecordingId == recording.id,
-                                            isPlaybackPaused = listState.isPlaybackPaused,
-                                            playbackPositionMs = listState.playbackPositionMs,
-                                            playbackDurationMs = listState.playbackDurationMs,
                                             isMultiSelectActive = listState.isMultiSelectActive,
                                             isSelected = isSelected,
                                             onPlayPause = {
@@ -329,11 +325,6 @@ fun RecordingsScreen(
                                                     recordingsViewModel.playAudio(recording)
                                                 }
                                             },
-                                            onPause = { recordingsViewModel.pausePlayback() },
-                                            onResume = { recordingsViewModel.resumePlayback() },
-                                            onSeekTo = { recordingsViewModel.seekTo(it) },
-                                            onSkipForward = { recordingsViewModel.skipForward15() },
-                                            onSkipBackward = { recordingsViewModel.skipBackward15() },
                                             onLongPress = { if (folderId == null) recordingsViewModel.enterMultiSelect(recording.id) },
                                             onTap = { navController?.navigate(recordingDetailRoute(recording.id)) },
                                             onToggleSelect = { recordingsViewModel.toggleSelection(recording.id) },
@@ -855,18 +846,9 @@ private fun MultiSelectHintBanner(onDismiss: () -> Unit) {
 private fun RecordingRow(
     recording: Recording,
     isPlaying: Boolean,
-    isExpanded: Boolean,
-    isPlaybackPaused: Boolean,
-    playbackPositionMs: Long,
-    playbackDurationMs: Long,
     isMultiSelectActive: Boolean,
     isSelected: Boolean,
     onPlayPause: () -> Unit,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onSeekTo: (Long) -> Unit,
-    onSkipForward: () -> Unit,
-    onSkipBackward: () -> Unit,
     onLongPress: () -> Unit,
     onToggleSelect: () -> Unit,
     onTranscript: () -> Unit,
@@ -1015,21 +997,5 @@ private fun RecordingRow(
         }
     }
 
-    androidx.compose.animation.AnimatedVisibility(
-        visible = isExpanded,
-        enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
-        exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut(),
-    ) {
-        com.voicemind.ui.components.InlinePlayerControls(
-            isPlaying = !isPlaybackPaused,
-            positionMs = playbackPositionMs,
-            durationMs = playbackDurationMs,
-            onPlayPause = { if (isPlaybackPaused) onResume() else onPause() },
-            onSkipForward = onSkipForward,
-            onSkipBackward = onSkipBackward,
-            onSeek = onSeekTo,
-            modifier = Modifier.padding(start = 56.dp, end = 8.dp, bottom = 12.dp),
-        )
-    }
     } // end Column
 }

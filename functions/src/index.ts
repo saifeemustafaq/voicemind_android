@@ -8,3 +8,4 @@ export * from "./googleTasks.js";
 export * from "./sharing.js";
 export * from "./nts.js";
 export * from "./userProfile.js";
+export * from "./migration.js";

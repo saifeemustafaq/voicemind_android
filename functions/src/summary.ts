@@ -139,6 +139,7 @@ export const generateCollectiveSummary = onCall(
       summary,
       recordingIds: recordingsWithTranscripts.map((r) => r.id),
       recordingTitles: recordingsWithTranscripts.map((r) => r.title),
+      isDeleted: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 

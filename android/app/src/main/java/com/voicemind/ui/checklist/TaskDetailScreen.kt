@@ -80,8 +80,8 @@ fun TaskDetailScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.isDeleted) {
-        if (state.isDeleted) onBack()
+    LaunchedEffect(state.isNavigatingAway) {
+        if (state.isNavigatingAway) onBack()
     }
 
     if (showShareDialog) {

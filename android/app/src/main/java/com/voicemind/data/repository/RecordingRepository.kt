@@ -1,9 +1,9 @@
 package com.voicemind.data.repository
 
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
-import com.google.firebase.storage.FirebaseStorage
 import com.voicemind.data.model.Recording
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -16,7 +16,6 @@ import javax.inject.Singleton
 @Singleton
 class RecordingRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage,
     private val functions: FirebaseFunctions,
     private val authRepository: AuthRepository,
 ) {
@@ -25,6 +24,7 @@ class RecordingRepository @Inject constructor(
 
     fun observeRecordings(): Flow<List<Recording>> = callbackFlow {
         val registration = collection()
+            .whereEqualTo("isDeleted", false)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -39,6 +39,7 @@ class RecordingRepository @Inject constructor(
 
     fun observeByFolder(folderId: String): Flow<List<Recording>> = callbackFlow {
         val registration = collection()
+            .whereEqualTo("isDeleted", false)
             .whereEqualTo("folderId", folderId)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
@@ -60,6 +61,7 @@ class RecordingRepository @Inject constructor(
                 "folderId" to recording.folderId,
                 "audioPath" to recording.audioPath,
                 "transcription" to recording.transcription,
+                "isDeleted" to false,
                 "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
                 "durationSeconds" to recording.durationSeconds,
             )
@@ -76,12 +78,12 @@ class RecordingRepository @Inject constructor(
     }
 
     suspend fun deleteRecording(recording: Recording) {
-        collection().document(recording.id).delete().await()
-        try {
-            storage.reference.child(recording.audioPath).delete().await()
-        } catch (e: Exception) {
-            Timber.e("Failed to delete audio file: %s", e.message)
-        }
+        collection().document(recording.id).update(
+            mapOf(
+                "isDeleted" to true,
+                "deletedAt" to FieldValue.serverTimestamp(),
+            )
+        ).await()
     }
 
     suspend fun getRecording(recordingId: String): Recording? {
@@ -108,7 +110,7 @@ class RecordingRepository @Inject constructor(
 
     suspend fun reassignFolder(fromFolderId: String, toFolderId: String) {
         val batch = firestore.batch()
-        val docs = collection().whereEqualTo("folderId", fromFolderId).get().await()
+        val docs = collection().whereEqualTo("isDeleted", false).whereEqualTo("folderId", fromFolderId).get().await()
         docs.forEach { batch.update(it.reference, "folderId", toFolderId) }
         batch.commit().await()
     }

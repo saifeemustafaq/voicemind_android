@@ -29,6 +29,8 @@ class SharingRepository @Inject constructor(
 
     fun observeSharedWithMe(): Flow<List<SharedItem>> = callbackFlow {
         val registration = sharedWithMeCollection()
+            .whereEqualTo("isDeleted", false)
+            .whereEqualTo("ownerItemDeleted", false)
             .orderBy("sharedAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -42,6 +44,7 @@ class SharingRepository @Inject constructor(
 
     fun observeMyShares(itemId: String): Flow<List<MyShare>> = callbackFlow {
         val registration = mySharesCollection()
+            .whereEqualTo("isDeleted", false)
             .whereEqualTo("itemId", itemId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -55,6 +58,7 @@ class SharingRepository @Inject constructor(
 
     fun getUnreadCount(): Flow<Int> = callbackFlow {
         val registration = sharedWithMeCollection()
+            .whereEqualTo("isDeleted", false)
             .whereEqualTo("isRead", false)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -116,6 +120,7 @@ class SharingRepository @Inject constructor(
 
     suspend fun getSharedItem(itemId: String): SharedItem? =
         sharedWithMeCollection()
+            .whereEqualTo("isDeleted", false)
             .whereEqualTo("itemId", itemId)
             .limit(1)
             .get().await()

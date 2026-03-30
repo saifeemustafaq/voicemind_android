@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { onDocumentDeleted } from "firebase-functions/v2/firestore";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import { randomBytes } from "crypto";
 import { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX, openaiApiKey } from "./lib/config.js";
@@ -34,25 +34,6 @@ function getItemCollection(itemType: string): string {
   if (itemType === "recording") return "recordings";
   if (itemType === "collectiveSummary") return "collectiveSummaries";
   throw new HttpsError("invalid-argument", `Invalid itemType: ${itemType}`);
-}
-
-async function removeFromActionItemsSharedWith(
-  ownerUid: string,
-  recordingId: string,
-  targetUid: string
-): Promise<void> {
-  const snap = await db
-    .collection(`users/${ownerUid}/actionItems`)
-    .where("recordingId", "==", recordingId)
-    .get();
-  if (snap.empty) return;
-  const batch = db.batch();
-  snap.docs.forEach((doc) => {
-    batch.update(doc.ref, {
-      sharedWith: admin.firestore.FieldValue.arrayRemove(targetUid),
-    });
-  });
-  await batch.commit();
 }
 
 // ── Exported Cloud Functions ─────────────────────────────────────────────────
@@ -125,6 +106,7 @@ export const shareItem = onCall(async (request) => {
     .collection(`users/${callerUid}/myShares`)
     .where("itemId", "==", itemId)
     .where("recipientUid", "==", recipientUid)
+    .where("isDeleted", "==", false)
     .get();
   if (!existingShares.empty) {
     throw new HttpsError("already-exists", "Already shared with this user");
@@ -146,6 +128,8 @@ export const shareItem = onCall(async (request) => {
     itemId,
     sharedAt: admin.firestore.FieldValue.serverTimestamp(),
     isRead: false,
+    isDeleted: false,
+    ownerItemDeleted: false,
   });
 
   batch.set(db.doc(`users/${callerUid}/myShares/${shareId}`), {
@@ -155,6 +139,7 @@ export const shareItem = onCall(async (request) => {
     itemType,
     itemId,
     sharedAt: admin.firestore.FieldValue.serverTimestamp(),
+    isDeleted: false,
   });
 
   await batch.commit();
@@ -238,9 +223,7 @@ export const revokeShare = onCall(async (request) => {
     throw new HttpsError("not-found", "Share not found");
   }
 
-  const { itemId, itemType, recipientUid: storedRecipientUid } = myShareDoc.data() as {
-    itemId: string;
-    itemType: string;
+  const { recipientUid: storedRecipientUid } = myShareDoc.data() as {
     recipientUid: string;
   };
 
@@ -248,18 +231,14 @@ export const revokeShare = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "recipientUid does not match share record");
   }
 
-  const collectionName = getItemCollection(itemType);
-  const itemRef = db.doc(`users/${callerUid}/${collectionName}/${itemId}`);
-
+  const softDelete = {
+    isDeleted: true,
+    deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
   const batch = db.batch();
-  batch.update(itemRef, { sharedWith: admin.firestore.FieldValue.arrayRemove(storedRecipientUid) });
-  batch.delete(db.doc(`users/${storedRecipientUid}/sharedWithMe/${shareId}`));
-  batch.delete(myShareRef);
+  batch.update(db.doc(`users/${storedRecipientUid}/sharedWithMe/${shareId}`), softDelete);
+  batch.update(myShareRef, softDelete);
   await batch.commit();
-
-  if (itemType === "recording") {
-    await removeFromActionItemsSharedWith(callerUid, itemId, storedRecipientUid);
-  }
 
   return { success: true };
 });
@@ -282,23 +261,16 @@ export const dismissSharedItem = onCall(async (request) => {
     throw new HttpsError("not-found", "Shared item not found");
   }
 
-  const { ownerUid, itemId, itemType } = inboxDoc.data() as {
-    ownerUid: string;
-    itemId: string;
-    itemType: string;
+  const { ownerUid } = inboxDoc.data() as { ownerUid: string };
+
+  const softDelete = {
+    isDeleted: true,
+    deletedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
-  const collectionName = getItemCollection(itemType);
-  const itemRef = db.doc(`users/${ownerUid}/${collectionName}/${itemId}`);
-
   const batch = db.batch();
-  batch.update(itemRef, { sharedWith: admin.firestore.FieldValue.arrayRemove(callerUid) });
-  batch.delete(inboxRef);
-  batch.delete(db.doc(`users/${ownerUid}/myShares/${shareId}`));
+  batch.update(inboxRef, softDelete);
+  batch.update(db.doc(`users/${ownerUid}/myShares/${shareId}`), softDelete);
   await batch.commit();
-
-  if (itemType === "recording") {
-    await removeFromActionItemsSharedWith(ownerUid, itemId, callerUid);
-  }
 
   return { success: true };
 });
@@ -384,6 +356,7 @@ export const duplicateSharedRecording = onCall(async (request) => {
     durationSeconds: recordingData.durationSeconds ?? 0,
     folderId: destinationFolderId,
     audioPath: newAudioPath,
+    isDeleted: false,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -412,6 +385,7 @@ export const duplicateSharedRecording = onCall(async (request) => {
         batch.set(newRef, {
           title: d.title ?? "",
           completed: d.completed ?? false,
+          isDeleted: false,
           recordingId: newId,
           createdAt: d.createdAt ?? admin.firestore.FieldValue.serverTimestamp(),
           dueDate: d.dueDate ?? null,
@@ -473,7 +447,7 @@ export const shareTask = onCall(async (request) => {
   const targetRef = db.doc(`users/${recipientUid}/actionItems/${docId}`);
 
   const existing = await targetRef.get();
-  if (existing.exists) {
+  if (existing.exists && existing.data()?.isDeleted !== true) {
     throw new HttpsError("already-exists", "Already shared with this user");
   }
 
@@ -483,6 +457,7 @@ export const shareTask = onCall(async (request) => {
     dueDate: taskData.dueDate ?? null,
     deadline: taskData.deadline ?? null,
     completed: false,
+    isDeleted: false,
     sharedFromUid: callerUid,
     sharedFromName: callerDisplayName,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -550,95 +525,127 @@ export const generateTasksFromSharedRecording = onCall(
   }
 );
 
-// ── Firestore trigger: collective summary deletion cascade ────────────────────
+// ── Firestore trigger: collective summary soft delete cascade ─────────────────
 
 /**
- * When an owner deletes a collective summary, clean up all sharing references
- * so the item disappears from every recipient's Shared Items list in real time.
+ * When an owner soft-deletes (or admin restores) a collective summary,
+ * propagate the visibility change to all recipients' sharedWithMe entries
+ * by toggling ownerItemDeleted.
  */
-export const onCollectiveSummaryDeleted = onDocumentDeleted(
+export const onCollectiveSummarySoftDeleted = onDocumentUpdated(
   { document: "users/{uid}/collectiveSummaries/{summaryId}" },
   async (event) => {
     const uid = event.params.uid;
     const summaryId = event.params.summaryId;
-    const data = event.data?.data();
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
 
-    if (!data) return;
+    if (!before || !after) return;
+    if (before.isDeleted === after.isDeleted) return;
 
-    const sharedWith = (data.sharedWith as string[] | undefined) ?? [];
-    if (sharedWith.length === 0) return;
+    const ownerItemDeleted = after.isDeleted === true;
 
     const mySharesSnap = await db
       .collection(`users/${uid}/myShares`)
       .where("itemId", "==", summaryId)
       .where("itemType", "==", "collectiveSummary")
+      .where("isDeleted", "==", false)
       .get();
+
+    if (mySharesSnap.empty) return;
 
     for (let i = 0; i < mySharesSnap.docs.length; i += 250) {
       const batch = db.batch();
       mySharesSnap.docs.slice(i, i + 250).forEach((shareDoc) => {
         const { recipientUid } = shareDoc.data() as { recipientUid: string };
-        batch.delete(db.doc(`users/${recipientUid}/sharedWithMe/${shareDoc.id}`));
-        batch.delete(shareDoc.ref);
+        batch.update(
+          db.doc(`users/${recipientUid}/sharedWithMe/${shareDoc.id}`),
+          { ownerItemDeleted }
+        );
       });
       await batch.commit();
     }
   }
 );
 
-// ── Firestore trigger: recording deletion cascade ─────────────────────────────
+// ── Firestore trigger: recording soft delete cascade ──────────────────────────
 
 /**
- * When an owner deletes a recording, clean up all sharing references so the
- * item disappears from every recipient's Shared Items list in real time.
+ * When an owner soft-deletes (or admin restores) a recording:
  *
- * Steps:
- *  1. Read the deleted document's sharedWith array — return early if empty.
- *  2. Query myShares for this recording and delete both myShares and
- *     sharedWithMe inbox entries in batches of 250 shares (= 500 ops/batch).
- *  3. Remove the sharedWith field from all linked actionItems.
+ * On soft delete (isDeleted: false → true):
+ *  1. Set ownerItemDeleted: true on all active recipients' sharedWithMe entries.
+ *  2. Remove the sharedWith field from all linked action items so the trigger
+ *     does not re-notify when action items are updated.
+ *
+ * On restore (isDeleted: true → false):
+ *  1. Set ownerItemDeleted: false on all active recipients' sharedWithMe entries.
+ *  2. Re-add recipient UIDs to sharedWith on linked action items via arrayUnion.
  */
-export const onRecordingDeleted = onDocumentDeleted(
+export const onRecordingSoftDeleted = onDocumentUpdated(
   { document: "users/{uid}/recordings/{recordingId}" },
   async (event) => {
     const uid = event.params.uid;
     const recordingId = event.params.recordingId;
-    const data = event.data?.data();
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
 
-    if (!data) return;
+    if (!before || !after) return;
+    if (before.isDeleted === after.isDeleted) return;
 
-    const sharedWith = (data.sharedWith as string[] | undefined) ?? [];
-    if (sharedWith.length === 0) return;
+    const ownerItemDeleted = after.isDeleted === true;
 
-    // Delete myShares + sharedWithMe entries in batches (2 deletes per share)
     const mySharesSnap = await db
       .collection(`users/${uid}/myShares`)
       .where("itemId", "==", recordingId)
       .where("itemType", "==", "recording")
+      .where("isDeleted", "==", false)
       .get();
 
-    for (let i = 0; i < mySharesSnap.docs.length; i += 250) {
-      const batch = db.batch();
-      mySharesSnap.docs.slice(i, i + 250).forEach((shareDoc) => {
-        const { recipientUid } = shareDoc.data() as { recipientUid: string };
-        batch.delete(db.doc(`users/${recipientUid}/sharedWithMe/${shareDoc.id}`));
-        batch.delete(shareDoc.ref);
-      });
-      await batch.commit();
+    if (!mySharesSnap.empty) {
+      for (let i = 0; i < mySharesSnap.docs.length; i += 250) {
+        const batch = db.batch();
+        mySharesSnap.docs.slice(i, i + 250).forEach((shareDoc) => {
+          const { recipientUid } = shareDoc.data() as { recipientUid: string };
+          batch.update(
+            db.doc(`users/${recipientUid}/sharedWithMe/${shareDoc.id}`),
+            { ownerItemDeleted }
+          );
+        });
+        await batch.commit();
+      }
     }
 
-    // Remove sharedWith field from linked actionItems (field no longer needed)
     const actionItemsSnap = await db
       .collection(`users/${uid}/actionItems`)
       .where("recordingId", "==", recordingId)
       .get();
 
-    for (let i = 0; i < actionItemsSnap.docs.length; i += 500) {
-      const batch = db.batch();
-      actionItemsSnap.docs.slice(i, i + 500).forEach((doc) => {
-        batch.update(doc.ref, { sharedWith: admin.firestore.FieldValue.delete() });
-      });
-      await batch.commit();
+    if (actionItemsSnap.empty) return;
+
+    if (ownerItemDeleted) {
+      for (let i = 0; i < actionItemsSnap.docs.length; i += 500) {
+        const batch = db.batch();
+        actionItemsSnap.docs.slice(i, i + 500).forEach((doc) => {
+          batch.update(doc.ref, { sharedWith: admin.firestore.FieldValue.delete() });
+        });
+        await batch.commit();
+      }
+    } else {
+      // Restore: re-add all active share recipients to sharedWith
+      const recipientUids = mySharesSnap.docs.map(
+        (shareDoc) => (shareDoc.data() as { recipientUid: string }).recipientUid
+      );
+      if (recipientUids.length === 0) return;
+      for (let i = 0; i < actionItemsSnap.docs.length; i += 500) {
+        const batch = db.batch();
+        actionItemsSnap.docs.slice(i, i + 500).forEach((doc) => {
+          batch.update(doc.ref, {
+            sharedWith: admin.firestore.FieldValue.arrayUnion(...recipientUids),
+          });
+        });
+        await batch.commit();
+      }
     }
   }
 );

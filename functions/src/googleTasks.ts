@@ -288,6 +288,22 @@ export const syncActionItemToGoogleTasks = onDocumentWritten(
     const oldCalEventId = before?.calendarEventId as string | undefined;
     const calEventId = (after?.calendarEventId ?? oldCalEventId) as string | undefined;
 
+    // Soft delete — remove linked Google Tasks/Calendar events and stop
+    if (after && after.isDeleted === true && (!before || before.isDeleted !== true)) {
+      if (taskId) await deleteGoogleTask(tasks, taskId, uid);
+      if (calEventId) await deleteCalendarEvent(calendar, calEventId, uid);
+      const removals: Record<string, unknown> = {};
+      if (taskId) removals.googleTaskId = admin.firestore.FieldValue.delete();
+      if (calEventId) removals.calendarEventId = admin.firestore.FieldValue.delete();
+      if (Object.keys(removals).length > 0) {
+        await event.data?.after?.ref.update(removals);
+      }
+      return;
+    }
+
+    // Skip all further sync for already soft-deleted items
+    if (after?.isDeleted === true) return;
+
     // Document deleted
     if (!after) {
       if (taskId) await deleteGoogleTask(tasks, taskId, uid);

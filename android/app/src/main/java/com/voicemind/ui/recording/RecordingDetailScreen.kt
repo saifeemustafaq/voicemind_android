@@ -1,5 +1,6 @@
 package com.voicemind.ui.recording
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,9 +22,10 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,8 +39,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -80,13 +84,6 @@ fun RecordingDetailScreen(
 
     val recording = state.recordings.find { it.id == recordingId }
 
-    // Auto-play on entry if nothing is playing this recording yet
-    LaunchedEffect(recordingId, recording) {
-        if (recording != null && state.playingRecordingId != recordingId) {
-            playbackViewModel.playAudio(recording)
-        }
-    }
-
     val isThisPlaying = state.playingRecordingId == recordingId
     val isPlaying = isThisPlaying && !state.isPlaybackPaused
     val positionMs = if (isThisPlaying) state.playbackPositionMs else 0L
@@ -94,12 +91,32 @@ fun RecordingDetailScreen(
         (recording?.durationSeconds?.times(1000L) ?: 0L)
     val progress = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
 
+    val sheetState by playbackViewModel.sheetState.collectAsStateWithLifecycle()
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val hasTasks = sheetState.actionItemsLoaded && sheetState.actionItems.isNotEmpty()
+    val tabs = listOf(TranscriptTab.Transcript, TranscriptTab.Summary) +
+        if (hasTasks) listOf(TranscriptTab.Tasks) else emptyList()
+    if (selectedTab >= tabs.size) selectedTab = 0
+
+    LaunchedEffect(hasTasks) {
+        if (hasTasks) selectedTab = tabs.indexOf(TranscriptTab.Tasks)
+    }
+
+    LaunchedEffect(recording?.id) {
+        recording?.let { playbackViewModel.openTranscriptSheet(it) }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            playbackViewModel.stopPlayback()
+        }
+    }
+
     // Overlay dialogs
     var showRenameDialog by remember { mutableStateOf(false) }
     var showMoveDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
-    var showSheet by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
 
     if (recording == null) {
@@ -281,30 +298,102 @@ fun RecordingDetailScreen(
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
 
-            // View Content button
-            Button(
-                onClick = {
-                    playbackViewModel.openTranscriptSheet(recording)
-                    showSheet = true
-                },
+            // Content tabs
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("View Content")
+                tabs.forEachIndexed { index, tab ->
+                    FilterChip(
+                        selected = selectedTab == index,
+                        onClick = {
+                            selectedTab = index
+                            if (tab == TranscriptTab.Summary) {
+                                playbackViewModel.generateSummary(recording)
+                            }
+                        },
+                        label = {
+                            Text(tab.label, style = MaterialTheme.typography.labelMedium)
+                        },
+                    )
+                }
+
+                if (!hasTasks && !recording.transcription.isNullOrBlank() && sheetState.actionItemsLoaded) {
+                    if (sheetState.isGeneratingTasks) {
+                        FilterChip(
+                            selected = false,
+                            onClick = {},
+                            enabled = false,
+                            label = {
+                                Text("Generating...", style = MaterialTheme.typography.labelMedium)
+                            },
+                            leadingIcon = {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            },
+                        )
+                    } else {
+                        FilterChip(
+                            selected = false,
+                            onClick = { playbackViewModel.generateTasks(recording) },
+                            label = {
+                                Text("Generate Tasks", style = MaterialTheme.typography.labelMedium)
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (!sheetState.isGeneratingTasks) {
+                when {
+                    sheetState.generateTasksNoResults -> {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "No tasks could be identified. Try again or edit the transcript.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    sheetState.generateTasksFailed -> {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "Something went wrong — tap Generate Tasks to try again.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Crossfade(
+                targetState = tabs.getOrNull(selectedTab) ?: TranscriptTab.Transcript,
+                label = "tab_content",
+            ) { tab ->
+                when (tab) {
+                    TranscriptTab.Transcript -> TranscriptContent(recording)
+                    TranscriptTab.Summary -> SummaryContent(
+                        summaryState = sheetState.summaryState,
+                        onRetry = { playbackViewModel.generateSummary(recording) },
+                    )
+                    TranscriptTab.Tasks -> TasksContent(sheetState)
+                }
             }
 
             Spacer(Modifier.height(24.dp))
         }
-    }
-
-    // TranscriptSheet
-    if (showSheet) {
-        TranscriptSheet(
-            recording = recording,
-            viewModel = playbackViewModel,
-            onDismiss = { showSheet = false },
-        )
     }
 
     // Rename dialog

@@ -1,5 +1,6 @@
 package com.voicemind.ui.sharing
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +45,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,8 +53,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,7 +64,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voicemind.R
 import com.voicemind.data.model.ActionItem
 import com.voicemind.ui.components.AudioWaveform
-import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.SpeedBubble
 import com.voicemind.ui.components.formatMmSsDecimal
 import com.voicemind.ui.recording.MoveToFolderDialog
@@ -80,6 +82,7 @@ fun SharedRecordingDetailScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var showFolderPicker by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    var selectedContentTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(state.duplicateSuccess) {
         if (state.duplicateSuccess != null) {
@@ -97,7 +100,7 @@ fun SharedRecordingDetailScreen(
 
     LaunchedEffect(state.generatedTaskCount) {
         state.generatedTaskCount?.let { count ->
-            snackbarHostState.showSnackbar("Generated $count task${if (count == 1) "" else "s"}")
+            snackbarHostState.showSnackbar("Generated $count task${if (count == 1) "" else "s"} — added to your checklist")
             viewModel.clearGeneratedTaskCount()
         }
     }
@@ -304,53 +307,128 @@ fun SharedRecordingDetailScreen(
 
                     Spacer(Modifier.height(VmDimens.SpaceXxl))
 
-                    // Transcription
-                    SharedContentCard(
-                        title = "Transcription",
-                        bodyText = recording.transcription ?: "No transcription available",
-                        hasContent = recording.transcription != null,
-                        onCopy = recording.transcription?.let { text ->
-                            { clipboardManager.setText(AnnotatedString(text)) }
-                        },
-                    )
+                    // Three content pills
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        FilterChip(
+                            selected = selectedContentTab == 0,
+                            onClick = { selectedContentTab = 0 },
+                            label = { Text("Transcript", style = MaterialTheme.typography.labelMedium) },
+                        )
+                        FilterChip(
+                            selected = selectedContentTab == 1,
+                            onClick = { selectedContentTab = 1 },
+                            label = { Text("Summary", style = MaterialTheme.typography.labelMedium) },
+                        )
+                        FilterChip(
+                            selected = selectedContentTab == 2,
+                            onClick = { selectedContentTab = 2 },
+                            label = { Text("Tasks", style = MaterialTheme.typography.labelMedium) },
+                        )
+                    }
 
                     Spacer(Modifier.height(VmDimens.SpaceMd))
 
-                    // Summary
-                    SharedContentCard(
-                        title = "Summary",
-                        bodyText = recording.summary ?: "No summary available",
-                        hasContent = recording.summary != null,
-                        onCopy = recording.summary?.let { text ->
-                            { clipboardManager.setText(AnnotatedString(text)) }
-                        },
-                    )
-
-                    Spacer(Modifier.height(VmDimens.SpaceMd))
-
-                    // Tasks
-                    SharedTasksCard(
-                        tasks = state.tasks,
-                        addedTaskIds = state.addedTaskIds,
-                        onAddTask = viewModel::addTaskToChecklist,
-                    )
-
-                    if (recording.transcription != null && !state.hasGeneratedTasks) {
-                        Spacer(Modifier.height(VmDimens.SpaceMd))
-                        FilledTonalButton(
-                            onClick = viewModel::generateTasks,
-                            enabled = !state.isGeneratingTasks,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            if (state.isGeneratingTasks) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    Crossfade(targetState = selectedContentTab, label = "content_tab") { tab ->
+                        when (tab) {
+                            0 -> Column(modifier = Modifier.fillMaxWidth()) {
+                                if (recording.transcription != null) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End,
+                                    ) {
+                                        IconButton(
+                                            onClick = { clipboardManager.setText(AnnotatedString(recording.transcription)) },
+                                            modifier = Modifier.size(VmDimens.TouchTarget),
+                                        ) {
+                                            Icon(
+                                                Icons.Default.ContentCopy,
+                                                contentDescription = "Copy transcript",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(VmDimens.IconMd),
+                                            )
+                                        }
+                                    }
+                                }
+                                Text(
+                                    text = recording.transcription ?: "No transcription available",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (recording.transcription != null)
+                                        MaterialTheme.colorScheme.onSurface
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                Spacer(Modifier.width(VmDimens.SpaceSm))
                             }
-                            Text(if (state.isGeneratingTasks) "Generating Tasks..." else "Generate Tasks")
+                            1 -> {
+                                if (recording.summary != null) {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End,
+                                        ) {
+                                            IconButton(
+                                                onClick = { clipboardManager.setText(AnnotatedString(recording.summary)) },
+                                                modifier = Modifier.size(VmDimens.TouchTarget),
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.ContentCopy,
+                                                    contentDescription = "Copy summary",
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(VmDimens.IconMd),
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = recording.summary,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = "${state.ownerName.ifEmpty { "The owner" }} has not generated a summary for this recording.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            else -> Column {
+                                if (state.tasks.isEmpty()) {
+                                    Text(
+                                        "No tasks",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                } else {
+                                    state.tasks.forEach { task ->
+                                        SharedTaskRow(
+                                            task = task,
+                                            isAdded = task.id in state.addedTaskIds,
+                                            onAddTask = { viewModel.addTaskToChecklist(task) },
+                                        )
+                                    }
+                                }
+                                if (recording.transcription != null && !state.hasGeneratedTasks) {
+                                    Spacer(Modifier.height(VmDimens.SpaceMd))
+                                    FilledTonalButton(
+                                        onClick = viewModel::generateTasks,
+                                        enabled = !state.isGeneratingTasks,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        if (state.isGeneratingTasks) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(18.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            )
+                                            Spacer(Modifier.width(VmDimens.SpaceSm))
+                                        }
+                                        Text(if (state.isGeneratingTasks) "Generating Tasks..." else "Generate Tasks")
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -370,88 +448,6 @@ fun SharedRecordingDetailScreen(
             },
             onDismiss = { showFolderPicker = false },
         )
-    }
-}
-
-@Composable
-private fun SharedContentCard(
-    title: String,
-    bodyText: String,
-    hasContent: Boolean,
-    onCopy: (() -> Unit)?,
-) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.weight(1f),
-                )
-                if (onCopy != null) {
-                    IconButton(
-                        onClick = onCopy,
-                        modifier = Modifier.size(VmDimens.TouchTarget),
-                    ) {
-                        Icon(
-                            Icons.Default.ContentCopy,
-                            contentDescription = "Copy $title",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(VmDimens.IconMd),
-                        )
-                    }
-                } else {
-                    Icon(
-                        Icons.Default.ContentCopy,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(VmDimens.IconMd),
-                    )
-                }
-            }
-            Spacer(Modifier.height(VmDimens.SpaceSm))
-            Text(
-                text = bodyText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (hasContent) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SharedTasksCard(
-    tasks: List<ActionItem>,
-    addedTaskIds: Set<String>,
-    onAddTask: (ActionItem) -> Unit,
-) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
-        Column {
-            Text(
-                text = "Tasks",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Spacer(Modifier.height(VmDimens.SpaceSm))
-            if (tasks.isEmpty()) {
-                Text(
-                    text = "No tasks",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                tasks.forEach { task ->
-                    SharedTaskRow(
-                        task = task,
-                        isAdded = task.id in addedTaskIds,
-                        onAddTask = { onAddTask(task) },
-                    )
-                }
-            }
-        }
     }
 }
 

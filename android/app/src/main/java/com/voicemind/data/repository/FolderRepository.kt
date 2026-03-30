@@ -1,5 +1,6 @@
 package com.voicemind.data.repository
 
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.voicemind.data.model.Folder
@@ -21,6 +22,7 @@ class FolderRepository @Inject constructor(
 
     fun observeFolders(): Flow<List<Folder>> = callbackFlow {
         val registration = collection()
+            .whereEqualTo("isDeleted", false)
             .orderBy("createdAt", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -34,7 +36,7 @@ class FolderRepository @Inject constructor(
     }
 
     suspend fun seedDefaultsIfEmpty() {
-        val existing = collection().get().await()
+        val existing = collection().whereEqualTo("isDeleted", false).get().await()
         if (existing.isEmpty) {
             val batch = firestore.batch()
             Folder.DEFAULTS.forEach { folder ->
@@ -42,6 +44,7 @@ class FolderRepository @Inject constructor(
                     collection().document(folder.id),
                     mapOf(
                         "name" to folder.name,
+                        "isDeleted" to false,
                         "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
                     )
                 )
@@ -55,6 +58,7 @@ class FolderRepository @Inject constructor(
         val docRef = collection().document()
         docRef.set(mapOf(
             "name" to name,
+            "isDeleted" to false,
             "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
         )).await()
         return docRef.id
@@ -67,6 +71,11 @@ class FolderRepository @Inject constructor(
 
     suspend fun deleteFolder(folderId: String) {
         if (folderId == Folder.UNFILED_ID) return
-        collection().document(folderId).delete().await()
+        collection().document(folderId).update(
+            mapOf(
+                "isDeleted" to true,
+                "deletedAt" to FieldValue.serverTimestamp(),
+            )
+        ).await()
     }
 }

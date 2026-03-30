@@ -1,6 +1,7 @@
 package com.voicemind.data.repository
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
@@ -24,6 +25,7 @@ class CollectiveSummaryRepository @Inject constructor(
 
     fun observeSummaries(): Flow<List<CollectiveSummary>> = callbackFlow {
         val registration = collection()
+            .whereEqualTo("isDeleted", false)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -61,7 +63,12 @@ class CollectiveSummaryRepository @Inject constructor(
     }
 
     suspend fun deleteSummary(summaryId: String) {
-        collection().document(summaryId).delete().await()
+        collection().document(summaryId).update(
+            mapOf(
+                "isDeleted" to true,
+                "deletedAt" to FieldValue.serverTimestamp(),
+            )
+        ).await()
     }
 
     suspend fun getSharedSummary(ownerUid: String, summaryId: String): CollectiveSummary? = try {
@@ -92,6 +99,7 @@ class CollectiveSummaryRepository @Inject constructor(
             "summary" to source.summary,
             "recordingTitles" to source.recordingTitles,
             "recordingIds" to emptyList<String>(),
+            "isDeleted" to false,
             "createdAt" to Timestamp.now(),
         )).await()
     }

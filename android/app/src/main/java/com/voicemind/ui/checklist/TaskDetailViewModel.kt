@@ -23,7 +23,7 @@ data class TaskDetailUiState(
     val item: ActionItem? = null,
     val recordingTitle: String? = null,
     val isLoading: Boolean = true,
-    val isDeleted: Boolean = false,
+    val isNavigatingAway: Boolean = false,
 )
 
 @HiltViewModel
@@ -42,7 +42,7 @@ class TaskDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             actionItemRepository.observeActionItem(itemId).collect { item ->
-                if (item == null && !_uiState.value.isDeleted) {
+                if (item == null && !_uiState.value.isNavigatingAway) {
                     _uiState.value = _uiState.value.copy(item = null, isLoading = false)
                     return@collect
                 }
@@ -117,7 +117,7 @@ class TaskDetailViewModel @Inject constructor(
 
     fun deleteItem() {
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.value = _uiState.value.copy(isDeleted = true)
+            _uiState.value = _uiState.value.copy(isNavigatingAway = true)
             actionItemRepository.deleteItem(itemId)
         }
     }

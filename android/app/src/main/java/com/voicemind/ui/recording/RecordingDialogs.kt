@@ -46,7 +46,7 @@ import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
 import com.voicemind.util.LocalAppTimeZone
 
-private enum class TranscriptTab(val label: String) {
+internal enum class TranscriptTab(val label: String) {
     Transcript("Transcript"),
     Summary("Summary"),
     Tasks("Tasks"),
@@ -191,7 +191,7 @@ fun TranscriptSheet(
 }
 
 @Composable
-private fun TranscriptContent(recording: Recording) {
+internal fun TranscriptContent(recording: Recording) {
     Text(
         text = recording.transcription ?: "No transcript",
         style = MaterialTheme.typography.bodyMedium,
@@ -203,7 +203,7 @@ private fun TranscriptContent(recording: Recording) {
 }
 
 @Composable
-private fun SummaryContent(
+internal fun SummaryContent(
     summaryState: SummaryState,
     onRetry: () -> Unit,
 ) {
@@ -255,7 +255,7 @@ private fun SummaryContent(
 }
 
 @Composable
-private fun TasksContent(sheetState: TranscriptSheetState) {
+internal fun TasksContent(sheetState: TranscriptSheetState) {
     if (sheetState.actionItems.isEmpty()) {
         Text(
             "No tasks",
@@ -296,7 +296,7 @@ private fun TasksContent(sheetState: TranscriptSheetState) {
 }
 
 @Composable
-private fun TaskDateLabels(item: ActionItem) {
+internal fun TaskDateLabels(item: ActionItem) {
     val now = remember { java.util.Date() }
     val isOverdue = !item.completed
     val appTz = LocalAppTimeZone.current
