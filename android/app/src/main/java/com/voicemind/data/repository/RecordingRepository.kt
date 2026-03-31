@@ -126,6 +126,7 @@ class RecordingRepository @Inject constructor(
     suspend fun invokeProcessRecording(recordingId: String, timezone: String) {
         functions
             .getHttpsCallable("processRecording")
+            .withTimeout(5, java.util.concurrent.TimeUnit.MINUTES)
             .call(hashMapOf("recordingId" to recordingId, "timezone" to timezone))
             .await()
     }

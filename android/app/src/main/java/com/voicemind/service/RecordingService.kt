@@ -35,6 +35,7 @@ import com.voicemind.util.toDefaultTitle
 import com.voicemind.widget.RecordingWidget
 import com.voicemind.widget.RecordingWidgetStateKeys
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -236,6 +237,7 @@ class RecordingService : Service() {
                 try {
                     functions
                         .getHttpsCallable("processRecording")
+                        .withTimeout(5, java.util.concurrent.TimeUnit.MINUTES)
                         .call(hashMapOf(
                             "recordingId" to recordingId,
                             "timezone" to userTimezone,
