@@ -24,12 +24,18 @@ import com.google.firebase.functions.FirebaseFunctions
 import com.voicemind.MainActivity
 import com.voicemind.R
 import com.voicemind.audio.AudioRecorder
+import com.voicemind.data.local.LocalAudioManager
+import com.voicemind.data.local.SyncStatus
+import com.voicemind.data.local.dao.RecordingDao
+import com.voicemind.data.local.entity.RecordingEntity
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingStateRepository
 import com.voicemind.data.repository.StorageRepository
+import com.voicemind.data.sync.SyncScheduler
+import com.voicemind.util.ConnectivityObserver
 import com.voicemind.util.formatRecordingTime
 import com.voicemind.util.toDefaultTitle
 import com.voicemind.widget.RecordingWidget
@@ -49,6 +55,7 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.util.Date
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -60,6 +67,10 @@ class RecordingService : Service() {
     @Inject lateinit var functions: FirebaseFunctions
     @Inject lateinit var recordingStateRepository: RecordingStateRepository
     @Inject lateinit var navPreferenceRepository: NavPreferenceRepository
+    @Inject lateinit var localAudioManager: LocalAudioManager
+    @Inject lateinit var connectivityObserver: ConnectivityObserver
+    @Inject lateinit var recordingDao: RecordingDao
+    @Inject lateinit var syncScheduler: SyncScheduler
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var timerJob: Job? = null
@@ -221,36 +232,62 @@ class RecordingService : Service() {
                 pushWidgetState()
 
                 val recordingId = "rec-${System.currentTimeMillis()}-${(1000..9999).random()}"
-                val audioPath = storageRepository.uploadAudio(recordingId, file)
+                val uid = requireNotNull(FirebaseAuth.getInstance().currentUser?.uid) { "Not signed in" }
+                val cloudAudioPath = "users/$uid/audio/$recordingId.m4a"
 
-                recordingRepository.createRecording(
-                    Recording(
+                // 1. Move audio from cacheDir to permanent local storage.
+                val localAudioPath = localAudioManager.saveAudio(recordingId, file)
+                audioFile = null
+
+                // 2. Insert into Room immediately so the recording is visible offline.
+                recordingDao.upsert(
+                    RecordingEntity(
                         id = recordingId,
                         title = title.take(25),
                         folderId = folderId,
-                        audioPath = audioPath,
+                        createdAt = System.currentTimeMillis(),
+                        transcription = null,
+                        summary = null,
+                        audioPath = cloudAudioPath,
+                        localAudioPath = localAudioPath,
                         durationSeconds = elapsedSeconds,
+                        isDeleted = false,
+                        deletedAt = null,
+                        processingFailed = false,
+                        syncStatus = SyncStatus.PENDING_UPLOAD,
                     )
                 )
 
-                val userTimezone = navPreferenceRepository.appTimezone.first()
-                try {
-                    functions
-                        .getHttpsCallable("processRecording")
-                        .withTimeout(5, java.util.concurrent.TimeUnit.MINUTES)
-                        .call(hashMapOf(
-                            "recordingId" to recordingId,
-                            "timezone" to userTimezone,
-                        ))
-                        .await()
-                } catch (e: Exception) {
-                    Timber.e("processRecording callable failed: %s", e.message)
-                    try { recordingRepository.updateProcessingFailed(recordingId, true) } catch (_: Exception) {}
+                if (connectivityObserver.isOnline.value) {
+                    // 3a. Online: upload, create cloud doc, trigger processing.
+                    storageRepository.uploadAudio(recordingId, File(localAudioPath))
+                    recordingRepository.createRecordingCloud(
+                        Recording(
+                            id = recordingId,
+                            title = title.take(25),
+                            folderId = folderId,
+                            audioPath = cloudAudioPath,
+                            durationSeconds = elapsedSeconds,
+                        )
+                    )
+                    val userTimezone = navPreferenceRepository.appTimezone.first()
+                    try {
+                        functions
+                            .getHttpsCallable("processRecording")
+                            .withTimeout(5, TimeUnit.MINUTES)
+                            .call(hashMapOf("recordingId" to recordingId, "timezone" to userTimezone))
+                            .await()
+                    } catch (e: Exception) {
+                        Timber.e("processRecording callable failed: %s", e.message)
+                        recordingRepository.updateProcessingFailed(recordingId, true)
+                    }
+                    recordingDao.updateSyncStatus(recordingId, SyncStatus.SYNCED)
+                } else {
+                    // 3b. Offline: enqueue SyncWorker to handle upload when connected.
+                    syncScheduler.enqueueSync()
                 }
 
-                file.delete()
-                audioFile = null
-                Timber.d("Recording saved: $recordingId")
+                Timber.d("Recording saved: %s", recordingId)
             } catch (e: Exception) {
                 Timber.e("Failed to save recording: %s", e.message)
             } finally {

@@ -16,6 +16,7 @@ import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.CollectiveSummary
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
+import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.CollectiveSummaryRepository
 import com.voicemind.data.repository.FolderRepository
@@ -81,6 +82,7 @@ class RecordingsViewModel @Inject constructor(
     private val collectiveSummaryRepository: CollectiveSummaryRepository,
     private val navPreferenceRepository: NavPreferenceRepository,
     private val playbackCommandRepository: PlaybackCommandRepository,
+    private val recordingDao: RecordingDao,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecordingsListState())
@@ -144,9 +146,14 @@ class RecordingsViewModel @Inject constructor(
         currentPlayingTitle = recording.title
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val url = storageRepository.getDownloadUrl(recording.audioPath)
+                val localPath = recordingDao.getById(recording.id)?.localAudioPath
+                val dataSource = if (localPath != null && File(localPath).exists()) {
+                    localPath
+                } else {
+                    storageRepository.getDownloadUrl(recording.audioPath).toString()
+                }
                 mediaPlayer = MediaPlayer().apply {
-                    setDataSource(url.toString())
+                    setDataSource(dataSource)
                     setOnPreparedListener {
                         it.start()
                         _state.update { s -> s.copy(
@@ -290,10 +297,15 @@ class RecordingsViewModel @Inject constructor(
     fun shareAudio(context: Context, recording: Recording) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val url = storageRepository.getDownloadUrl(recording.audioPath)
                 val tempFile = File(context.cacheDir, "${recording.id}.m4a")
-                java.net.URL(url.toString()).openStream().use { input ->
-                    tempFile.outputStream().use { output -> input.copyTo(output) }
+                val localPath = recordingDao.getById(recording.id)?.localAudioPath
+                if (localPath != null && File(localPath).exists()) {
+                    File(localPath).copyTo(tempFile, overwrite = true)
+                } else {
+                    val url = storageRepository.getDownloadUrl(recording.audioPath)
+                    java.net.URL(url.toString()).openStream().use { input ->
+                        tempFile.outputStream().use { output -> input.copyTo(output) }
+                    }
                 }
                 val uri = FileProvider.getUriForFile(
                     context,

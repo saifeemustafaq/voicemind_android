@@ -10,6 +10,8 @@ import android.os.Build
 import android.os.Bundle
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.google.firebase.auth.FirebaseAuth
 import com.voicemind.widget.RecordingWidget
 import com.voicemind.widget.RecordingWidgetStateKeys
@@ -21,9 +23,15 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import javax.inject.Inject
 
 @HiltAndroidApp
-class VoiceMindApp : Application() {
+class VoiceMindApp : Application(), Configuration.Provider {
+
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 

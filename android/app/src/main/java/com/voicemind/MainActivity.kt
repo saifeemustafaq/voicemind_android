@@ -15,6 +15,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -24,10 +25,15 @@ import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.auth.api.identity.Identity
+import com.google.firebase.auth.FirebaseAuth
 import com.voicemind.data.repository.NavPreferenceRepository
+import com.voicemind.data.sync.FirestoreSyncService
+import com.voicemind.data.sync.InitialSyncManager
 import com.voicemind.service.RecordingService
 import com.voicemind.ui.auth.AuthViewModel
 import com.voicemind.ui.auth.SignInScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.voicemind.ui.components.TasksSyncPromptDialog
 import com.voicemind.ui.components.PermissionRationaleDialog
 import com.voicemind.ui.main.MainViewModel
@@ -42,6 +48,8 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var navPreferenceRepository: NavPreferenceRepository
+    @Inject lateinit var firestoreSyncService: FirestoreSyncService
+    @Inject lateinit var initialSyncManager: InitialSyncManager
 
     // --- Notification tap navigation ---
     private var openRecordingsOnStart by mutableStateOf(false)
@@ -88,6 +96,17 @@ class MainActivity : ComponentActivity() {
 
                     LaunchedEffect(Unit) {
                         authViewModel.registerFcmToken()
+                    }
+
+                    // ── Local-first lifecycle ──────────────────────────────────────────────
+                    LaunchedEffect(Unit) {
+                        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@LaunchedEffect
+                        withContext(Dispatchers.IO) { initialSyncManager.runIfNeeded() }
+                        firestoreSyncService.startListening(uid)
+                    }
+
+                    DisposableEffect(Unit) {
+                        onDispose { firestoreSyncService.stopListening() }
                     }
 
                     // ── Permission request launcher ────────────────────────────────────────

@@ -94,6 +94,18 @@ class NavPreferenceRepository @Inject constructor(
         }
     }
 
+    // ── Initial sync ─────────────────────────────────────────────────────────
+
+    private val initialSyncCompleteKey = booleanPreferencesKey("initial_sync_complete")
+
+    val isInitialSyncComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[initialSyncCompleteKey] ?: false
+    }
+
+    suspend fun setInitialSyncComplete(value: Boolean) {
+        context.dataStore.edit { prefs -> prefs[initialSyncCompleteKey] = value }
+    }
+
     // ── Timezone ─────────────────────────────────────────────────────────────
 
     private val timezoneKey = stringPreferencesKey("timezone")

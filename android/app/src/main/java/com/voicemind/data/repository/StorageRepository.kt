@@ -26,4 +26,8 @@ class StorageRepository @Inject constructor(
     suspend fun getDownloadUrl(audioPath: String): Uri {
         return storage.reference.child(audioPath).downloadUrl.await()
     }
+
+    suspend fun downloadAudio(audioPath: String, destinationFile: File) {
+        storage.reference.child(audioPath).getFile(destinationFile).await()
+    }
 }
