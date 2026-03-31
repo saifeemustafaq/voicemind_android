@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -35,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -62,6 +65,7 @@ import com.voicemind.ui.theme.VmDimens
 fun FoldersScreen(
     onFolderClick: (String) -> Unit,
     onSharedItemsClick: () -> Unit = {},
+    onSharedByMeClick: () -> Unit = {},
     viewModel: FoldersViewModel = hiltViewModel(),
     onOpenDrawer: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
@@ -70,6 +74,8 @@ fun FoldersScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf<Folder?>(null) }
     var showDeleteConfirm by remember { mutableStateOf<Folder?>(null) }
+    var showSharedWithMeOverview by remember { mutableStateOf(false) }
+    var showSharedByMeOverview by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -108,8 +114,20 @@ fun FoldersScreen(
             }
             LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
-                    SharedItemsRow(onClick = onSharedItemsClick, unreadCount = state.sharedItemsUnreadCount)
+                    SharedByMeRow(
+                        onClick = onSharedByMeClick,
+                        count = state.sharedByMeCount,
+                        onShowOverview = { showSharedByMeOverview = true },
+                    )
                 }
+                item {
+                    SharedItemsRow(
+                        onClick = onSharedItemsClick,
+                        unreadCount = state.sharedItemsUnreadCount,
+                        onShowOverview = { showSharedWithMeOverview = true },
+                    )
+                }
+                item { Spacer(modifier = Modifier.height(4.dp)) }
                 items(state.folders, key = { it.id }) { folder ->
                     FolderRow(
                         folder = folder,
@@ -185,6 +203,26 @@ fun FoldersScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = null }) { Text("Cancel") }
             }
+        )
+    }
+
+    if (showSharedWithMeOverview) {
+        SharingOverviewDialog(
+            title = "Shared with Me",
+            overview = state.sharedWithMeOverview,
+            personLabel = "Unread",
+            personSuffix = "new",
+            onDismiss = { showSharedWithMeOverview = false },
+        )
+    }
+
+    if (showSharedByMeOverview) {
+        SharingOverviewDialog(
+            title = "Shared by Me",
+            overview = state.sharedByMeOverview,
+            personLabel = "Shared with",
+            personSuffix = "items",
+            onDismiss = { showSharedByMeOverview = false },
         )
     }
 }
@@ -267,7 +305,56 @@ private fun FolderRow(
 }
 
 @Composable
-private fun SharedItemsRow(onClick: () -> Unit, unreadCount: Int = 0) {
+private fun SharedByMeRow(onClick: () -> Unit, count: Int = 0, onShowOverview: () -> Unit = {}) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), innerPadding = 0.dp, onClick = onClick) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.Share,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp),
+            )
+            Text(
+                text = "Shared by Me",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
+            )
+            if (count > 0) {
+                Text(
+                    text = "$count",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
+            IconButton(onClick = onShowOverview) {
+                Icon(
+                    Icons.Default.Visibility,
+                    contentDescription = "Overview",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SharedItemsRow(onClick: () -> Unit, unreadCount: Int = 0, onShowOverview: () -> Unit = {}) {
     GlassCard(modifier = Modifier.fillMaxWidth(), innerPadding = 0.dp, onClick = onClick) {
         Row(
             modifier = Modifier
@@ -282,7 +369,7 @@ private fun SharedItemsRow(onClick: () -> Unit, unreadCount: Int = 0) {
                 modifier = Modifier.size(24.dp),
             )
             Text(
-                text = "Shared Items",
+                text = "Shared with Me",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .weight(1f)
@@ -290,6 +377,14 @@ private fun SharedItemsRow(onClick: () -> Unit, unreadCount: Int = 0) {
             )
             if (unreadCount > 0) {
                 Badge { Text(unreadCount.toString()) }
+            }
+            IconButton(onClick = onShowOverview) {
+                Icon(
+                    Icons.Default.Visibility,
+                    contentDescription = "Overview",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
             }
             Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                 Icon(
@@ -299,6 +394,67 @@ private fun SharedItemsRow(onClick: () -> Unit, unreadCount: Int = 0) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SharingOverviewDialog(
+    title: String,
+    overview: SharingOverview,
+    personLabel: String,
+    personSuffix: String,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("$title \u2014 Overview") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                OverviewStatRow("Recordings", overview.recordingCount)
+                OverviewStatRow("Tasks", overview.taskCount)
+                OverviewStatRow("Summaries", overview.summaryCount)
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                OverviewStatRow("Total", overview.total)
+
+                if (overview.perPerson.isNotEmpty()) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Text(
+                        text = personLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                    overview.perPerson.forEach { stat ->
+                        OverviewStatRow(stat.name, stat.count, suffix = personSuffix)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+    )
+}
+
+@Composable
+private fun OverviewStatRow(label: String, count: Int, suffix: String? = null) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = if (suffix != null) "$count $suffix" else "$count",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

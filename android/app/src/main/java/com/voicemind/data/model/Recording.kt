@@ -15,4 +15,5 @@ data class Recording(
     val durationSeconds: Long = 0,
     val isDeleted: Boolean = false,
     val deletedAt: Timestamp? = null,
+    val processingFailed: Boolean = false,
 )

@@ -50,6 +50,8 @@ fun recordingDetailRoute(recordingId: String) = "recording_detail/$recordingId"
 
 const val SHARED_ITEMS_ROUTE = "shared_items"
 
+const val SHARED_BY_ME_ROUTE = "shared_by_me"
+
 const val SHARED_RECORDING_DETAIL_ROUTE = "shared_recording/{ownerUid}/{recordingId}"
 
 fun sharedRecordingDetailRoute(ownerUid: String, recordingId: String) =

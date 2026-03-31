@@ -177,7 +177,10 @@ fun TranscriptSheet(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     when (tab) {
-                        TranscriptTab.Transcript -> TranscriptContent(recording)
+                        TranscriptTab.Transcript -> TranscriptContent(
+                            recording = recording,
+                            onRetry = { viewModel.retryProcessing(recording) },
+                        )
                         TranscriptTab.Summary -> SummaryContent(
                             summaryState = sheetState.summaryState,
                             onRetry = { viewModel.generateSummary(recording) },
@@ -191,15 +194,44 @@ fun TranscriptSheet(
 }
 
 @Composable
-internal fun TranscriptContent(recording: Recording) {
-    Text(
-        text = recording.transcription ?: "No transcript",
-        style = MaterialTheme.typography.bodyMedium,
-        color = if (recording.transcription != null)
-            MaterialTheme.colorScheme.onSurface
-        else
-            MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+internal fun TranscriptContent(recording: Recording, onRetry: () -> Unit) {
+    when {
+        recording.transcription != null -> Text(
+            text = recording.transcription,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        recording.processingFailed -> Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                "Processing failed",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(onClick = onRetry) { Text("Retry") }
+        }
+        else -> Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "Processing transcript...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }
 
 @Composable

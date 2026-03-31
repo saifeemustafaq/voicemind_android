@@ -310,7 +310,7 @@ interface TranscribeRequest {
  * All three steps run server-side; the client just waits for completion.
  */
 export const processRecording = onCall(
-  { secrets: [openaiApiKey], timeoutSeconds: 120 },
+  { secrets: [openaiApiKey], timeoutSeconds: 300, memory: "1GiB" },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "User must be signed in");

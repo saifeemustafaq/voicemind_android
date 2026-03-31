@@ -52,7 +52,7 @@ fun SharedItemsScreen(
     Scaffold(
         topBar = {
             VoiceMindTopAppBar(
-                title = "Shared Items",
+                title = "Shared with Me",
                 icon = Icons.Default.FolderShared,
                 onBack = onBack,
             )

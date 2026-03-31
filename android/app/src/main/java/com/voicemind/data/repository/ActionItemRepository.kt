@@ -104,6 +104,26 @@ class ActionItemRepository @Inject constructor(
         collection().add(data).await()
     }
 
+    suspend fun getActionItem(itemId: String): ActionItem? =
+        collection().document(itemId).get().await()
+            .toObject(ActionItem::class.java)
+
+    fun observeByRecordingId(recordingId: String): Flow<List<ActionItem>> = callbackFlow {
+        val registration = collection()
+            .whereEqualTo("isDeleted", false)
+            .whereEqualTo("recordingId", recordingId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "observeByRecordingId")
+                    return@addSnapshotListener
+                }
+                val items = (snapshot?.toObjects(ActionItem::class.java) ?: emptyList())
+                    .sortedBy { it.createdAt }
+                trySend(items)
+            }
+        awaitClose { registration.remove() }
+    }
+
     suspend fun getByRecordingId(recordingId: String): List<ActionItem> {
         return collection()
             .whereEqualTo("isDeleted", false)

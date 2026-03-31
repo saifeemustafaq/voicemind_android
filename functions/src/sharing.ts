@@ -223,8 +223,10 @@ export const revokeShare = onCall(async (request) => {
     throw new HttpsError("not-found", "Share not found");
   }
 
-  const { recipientUid: storedRecipientUid } = myShareDoc.data() as {
+  const { recipientUid: storedRecipientUid, itemType, itemId } = myShareDoc.data() as {
     recipientUid: string;
+    itemType?: string;
+    itemId?: string;
   };
 
   if (storedRecipientUid !== recipientUid) {
@@ -236,8 +238,35 @@ export const revokeShare = onCall(async (request) => {
     deletedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
   const batch = db.batch();
-  batch.update(db.doc(`users/${storedRecipientUid}/sharedWithMe/${shareId}`), softDelete);
+  if (itemType === "task" && itemId) {
+    batch.update(
+      db.doc(`users/${storedRecipientUid}/actionItems/shared-${callerUid}-${itemId}`),
+      softDelete
+    );
+  } else {
+    batch.update(db.doc(`users/${storedRecipientUid}/sharedWithMe/${shareId}`), softDelete);
+  }
   batch.update(myShareRef, softDelete);
+
+  if (itemType && itemId && itemType !== "task") {
+    const itemRef = db.doc(`users/${callerUid}/${getItemCollection(itemType)}/${itemId}`);
+    batch.update(itemRef, {
+      sharedWith: admin.firestore.FieldValue.arrayRemove(storedRecipientUid),
+    });
+
+    if (itemType === "recording") {
+      const actionItemsSnap = await db
+        .collection(`users/${callerUid}/actionItems`)
+        .where("recordingId", "==", itemId)
+        .get();
+      for (const doc of actionItemsSnap.docs) {
+        batch.update(doc.ref, {
+          sharedWith: admin.firestore.FieldValue.arrayRemove(storedRecipientUid),
+        });
+      }
+    }
+  }
+
   await batch.commit();
 
   return { success: true };
@@ -261,7 +290,11 @@ export const dismissSharedItem = onCall(async (request) => {
     throw new HttpsError("not-found", "Shared item not found");
   }
 
-  const { ownerUid } = inboxDoc.data() as { ownerUid: string };
+  const { ownerUid, itemType, itemId } = inboxDoc.data() as {
+    ownerUid: string;
+    itemType?: string;
+    itemId?: string;
+  };
 
   const softDelete = {
     isDeleted: true,
@@ -270,6 +303,26 @@ export const dismissSharedItem = onCall(async (request) => {
   const batch = db.batch();
   batch.update(inboxRef, softDelete);
   batch.update(db.doc(`users/${ownerUid}/myShares/${shareId}`), softDelete);
+
+  if (itemType && itemId && itemType !== "task") {
+    const itemRef = db.doc(`users/${ownerUid}/${getItemCollection(itemType)}/${itemId}`);
+    batch.update(itemRef, {
+      sharedWith: admin.firestore.FieldValue.arrayRemove(callerUid),
+    });
+
+    if (itemType === "recording") {
+      const actionItemsSnap = await db
+        .collection(`users/${ownerUid}/actionItems`)
+        .where("recordingId", "==", itemId)
+        .get();
+      for (const doc of actionItemsSnap.docs) {
+        batch.update(doc.ref, {
+          sharedWith: admin.firestore.FieldValue.arrayRemove(callerUid),
+        });
+      }
+    }
+  }
+
   await batch.commit();
 
   return { success: true };
@@ -441,6 +494,7 @@ export const shareTask = onCall(async (request) => {
 
   const callerDoc = await db.doc(`users/${callerUid}`).get();
   const callerDisplayName = callerDoc.data()?.displayName || "";
+  const recipientData = recipientDoc.data() || {};
 
   const taskData = taskDoc.data()!;
   const docId = `shared-${callerUid}-${taskId}`;
@@ -451,7 +505,10 @@ export const shareTask = onCall(async (request) => {
     throw new HttpsError("already-exists", "Already shared with this user");
   }
 
-  await targetRef.set({
+  const shareId = db.collection("_").doc().id;
+  const batch = db.batch();
+
+  batch.set(targetRef, {
     title: taskData.title ?? "",
     notes: taskData.notes ?? null,
     dueDate: taskData.dueDate ?? null,
@@ -462,6 +519,18 @@ export const shareTask = onCall(async (request) => {
     sharedFromName: callerDisplayName,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+
+  batch.set(db.doc(`users/${callerUid}/myShares/${shareId}`), {
+    recipientUid,
+    recipientName: recipientData.displayName || "",
+    recipientEmail: recipientData.email || "",
+    itemType: "task",
+    itemId: taskId,
+    sharedAt: admin.firestore.FieldValue.serverTimestamp(),
+    isDeleted: false,
+  });
+
+  await batch.commit();
 
   return { success: true };
 });

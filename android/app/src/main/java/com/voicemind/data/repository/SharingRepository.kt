@@ -56,6 +56,20 @@ class SharingRepository @Inject constructor(
         awaitClose { registration.remove() }
     }
 
+    fun observeAllMyShares(): Flow<List<MyShare>> = callbackFlow {
+        val registration = mySharesCollection()
+            .whereEqualTo("isDeleted", false)
+            .orderBy("sharedAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Timber.e(error, "observeAllMyShares")
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObjects(MyShare::class.java) ?: emptyList())
+            }
+        awaitClose { registration.remove() }
+    }
+
     fun getUnreadCount(): Flow<Int> = callbackFlow {
         val registration = sharedWithMeCollection()
             .whereEqualTo("isDeleted", false)
@@ -176,4 +190,12 @@ class SharingRepository @Inject constructor(
     suspend fun markAsRead(shareId: String) {
         sharedWithMeCollection().document(shareId).update("isRead", true).await()
     }
+
+    suspend fun getRecentRecipients(): List<MyShare> =
+        mySharesCollection()
+            .whereEqualTo("isDeleted", false)
+            .orderBy("sharedAt", Query.Direction.DESCENDING)
+            .limit(30)
+            .get().await()
+            .toObjects(MyShare::class.java)
 }

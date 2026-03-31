@@ -1,5 +1,6 @@
 package com.voicemind.ui.sharing
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -73,6 +74,7 @@ fun ShareDialog(
             onShare = viewModel::shareItem,
             onRevoke = viewModel::revokeShare,
             onResetLookup = viewModel::resetLookup,
+            onSelectRecent = viewModel::selectRecentRecipient,
         )
     }
 }
@@ -85,6 +87,7 @@ private fun ShareDialogContent(
     onShare: () -> Unit,
     onRevoke: (shareId: String, recipientUid: String) -> Unit,
     onResetLookup: () -> Unit,
+    onSelectRecent: (FoundUser) -> Unit,
 ) {
     var email by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -125,6 +128,45 @@ private fun ShareDialogContent(
                 onFind(email)
             },
         )
+
+        // ── Recent recipients (only when no lookup is active) ─────────────
+        if (state.recentRecipients.isNotEmpty() && state.lookupState is LookupState.Idle) {
+            Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
+            Text(
+                text = "Recent",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(VmDimens.SpaceXs))
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    state.recentRecipients.forEachIndexed { index, recipient ->
+                        if (index > 0) HorizontalDivider()
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    keyboardController?.hide()
+                                    email = recipient.email
+                                    onSelectRecent(recipient)
+                                }
+                                .padding(vertical = VmDimens.SpaceSm),
+                        ) {
+                            Text(
+                                text = recipient.displayName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = recipient.email,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
 

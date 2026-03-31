@@ -92,6 +92,7 @@ class RecordingsViewModel @Inject constructor(
     private var mediaPlayer: MediaPlayer? = null
     private var recordingsJob: Job? = null
     private var positionPollJob: Job? = null
+    private var actionItemsJob: Job? = null
     private var currentPlayingTitle: String = ""
 
     init {
@@ -321,25 +322,13 @@ class RecordingsViewModel @Inject constructor(
 
     fun openTranscriptSheet(recording: Recording) {
         _sheetState.value = TranscriptSheetState()
-        loadActionItems(recording.id)
         if (recording.summary != null) {
-            _sheetState.value = _sheetState.value.copy(
-                summaryState = SummaryState.Loaded(recording.summary)
-            )
+            _sheetState.update { it.copy(summaryState = SummaryState.Loaded(recording.summary)) }
         }
-    }
-
-    fun loadActionItems(recordingId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val items = actionItemRepository.getByRecordingId(recordingId)
-                _sheetState.value = _sheetState.value.copy(
-                    actionItems = items,
-                    actionItemsLoaded = true,
-                )
-            } catch (e: Exception) {
-                Timber.e("Failed to load action items: %s", e.message)
-                _sheetState.value = _sheetState.value.copy(actionItemsLoaded = true)
+        actionItemsJob?.cancel()
+        actionItemsJob = viewModelScope.launch {
+            actionItemRepository.observeByRecordingId(recording.id).collect { items ->
+                _sheetState.update { it.copy(actionItems = items, actionItemsLoaded = true) }
             }
         }
     }
@@ -352,20 +341,27 @@ class RecordingsViewModel @Inject constructor(
             }
             try {
                 val tz = navPreferenceRepository.appTimezone.first()
-                val count = actionItemRepository.retryExtractActionItems(
-                    recording.id, tz
-                )
-                if (count > 0) {
-                    val items = actionItemRepository.getByRecordingId(recording.id)
-                    _sheetState.update { it.copy(actionItems = items, actionItemsLoaded = true) }
-                } else {
-                    _sheetState.update { it.copy(generateTasksNoResults = true) }
-                }
+                val count = actionItemRepository.retryExtractActionItems(recording.id, tz)
+                // New items arrive via the snapshot listener; only handle the no-results case.
+                if (count == 0) _sheetState.update { it.copy(generateTasksNoResults = true) }
             } catch (e: Exception) {
                 Timber.e("generateTasks failed: %s", e.message)
                 _sheetState.update { it.copy(generateTasksFailed = true) }
             } finally {
                 _sheetState.update { it.copy(isGeneratingTasks = false) }
+            }
+        }
+    }
+
+    fun retryProcessing(recording: Recording) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                recordingRepository.updateProcessingFailed(recording.id, false)
+                val tz = navPreferenceRepository.appTimezone.first()
+                recordingRepository.invokeProcessRecording(recording.id, tz)
+            } catch (e: Exception) {
+                Timber.e("retryProcessing failed: %s", e.message)
+                try { recordingRepository.updateProcessingFailed(recording.id, true) } catch (_: Exception) {}
             }
         }
     }

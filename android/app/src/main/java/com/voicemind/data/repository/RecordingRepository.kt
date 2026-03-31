@@ -119,6 +119,17 @@ class RecordingRepository @Inject constructor(
         recordings.forEach { deleteRecording(it) }
     }
 
+    suspend fun updateProcessingFailed(recordingId: String, failed: Boolean) {
+        collection().document(recordingId).update("processingFailed", failed).await()
+    }
+
+    suspend fun invokeProcessRecording(recordingId: String, timezone: String) {
+        functions
+            .getHttpsCallable("processRecording")
+            .call(hashMapOf("recordingId" to recordingId, "timezone" to timezone))
+            .await()
+    }
+
     suspend fun moveRecordingsToFolder(recordingIds: List<String>, folderId: String) {
         val batch = firestore.batch()
         recordingIds.forEach { id ->

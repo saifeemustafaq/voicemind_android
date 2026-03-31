@@ -38,6 +38,7 @@ data class ShareUiState(
     val shareError: String? = null,
     val myShares: List<MyShare> = emptyList(),
     val isRevoking: Set<String> = emptySet(),
+    val recentRecipients: List<FoundUser> = emptyList(),
 )
 
 @HiltViewModel
@@ -52,19 +53,40 @@ class ShareViewModel @Inject constructor(
     private var itemId = ""
     private var itemType = ""
     private var observeJob: Job? = null
+    @Volatile
+    private var allRecentCandidates: List<FoundUser> = emptyList()
 
     fun setItem(itemId: String, itemType: String) {
         _uiState.update { it.copy(lookupState = LookupState.Idle, shareError = null, shareSuccess = false) }
         if (this.itemId == itemId && this.itemType == itemType) return
         this.itemId = itemId
         this.itemType = itemType
+        allRecentCandidates = emptyList()
         _uiState.value = ShareUiState()
         observeJob?.cancel()
         if (itemType != "task") {
             observeJob = viewModelScope.launch {
                 sharingRepository.observeMyShares(itemId).collect { shares ->
-                    _uiState.update { it.copy(myShares = shares) }
+                    val sharedUids = shares.map { it.recipientUid }.toSet()
+                    _uiState.update {
+                        it.copy(
+                            myShares = shares,
+                            recentRecipients = allRecentCandidates.filter { r -> r.uid !in sharedUids }.take(3),
+                        )
+                    }
                 }
+            }
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val rawShares = sharingRepository.getRecentRecipients()
+                allRecentCandidates = rawShares
+                    .distinctBy { it.recipientUid }
+                    .map { FoundUser(uid = it.recipientUid, displayName = it.recipientName, email = it.recipientEmail) }
+                val sharedUids = _uiState.value.myShares.map { it.recipientUid }.toSet()
+                _uiState.update { it.copy(recentRecipients = allRecentCandidates.filter { r -> r.uid !in sharedUids }.take(3)) }
+            } catch (e: Exception) {
+                Timber.e(e, "getRecentRecipients")
             }
         }
     }
@@ -152,6 +174,10 @@ class ShareViewModel @Inject constructor(
 
     fun resetLookup() {
         _uiState.update { it.copy(lookupState = LookupState.Idle, shareError = null) }
+    }
+
+    fun selectRecentRecipient(user: FoundUser) {
+        _uiState.update { it.copy(lookupState = LookupState.Found(user)) }
     }
 
     fun clearShareSuccess() {

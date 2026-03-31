@@ -383,7 +383,10 @@ fun RecordingDetailScreen(
                 label = "tab_content",
             ) { tab ->
                 when (tab) {
-                    TranscriptTab.Transcript -> TranscriptContent(recording)
+                    TranscriptTab.Transcript -> TranscriptContent(
+                        recording = recording,
+                        onRetry = { playbackViewModel.retryProcessing(recording) },
+                    )
                     TranscriptTab.Summary -> SummaryContent(
                         summaryState = sheetState.summaryState,
                         onRetry = { playbackViewModel.generateSummary(recording) },

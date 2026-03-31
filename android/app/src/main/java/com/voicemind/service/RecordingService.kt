@@ -198,7 +198,8 @@ class RecordingService : Service() {
 
         isRecording = false
         isPaused = false
-        releaseWakeLock()
+        // Keep wake lock held through upload + processing; released in the finally block below.
+        if (wakeLock?.isHeld != true) acquireWakeLock()
 
         // Resolve title and folder: explicit extras → pending values from ViewModel → defaults.
         val fallbackTz = runBlocking {
@@ -232,12 +233,18 @@ class RecordingService : Service() {
                 )
 
                 val userTimezone = navPreferenceRepository.appTimezone.first()
-                functions
-                    .getHttpsCallable("processRecording")
-                    .call(hashMapOf(
-                        "recordingId" to recordingId,
-                        "timezone" to userTimezone,
-                    ))
+                try {
+                    functions
+                        .getHttpsCallable("processRecording")
+                        .call(hashMapOf(
+                            "recordingId" to recordingId,
+                            "timezone" to userTimezone,
+                        ))
+                        .await()
+                } catch (e: Exception) {
+                    Timber.e("processRecording callable failed: %s", e.message)
+                    try { recordingRepository.updateProcessingFailed(recordingId, true) } catch (_: Exception) {}
+                }
 
                 file.delete()
                 audioFile = null
@@ -245,6 +252,7 @@ class RecordingService : Service() {
             } catch (e: Exception) {
                 Timber.e("Failed to save recording: %s", e.message)
             } finally {
+                releaseWakeLock()
                 recordingStateRepository.onIdle()
                 withContext(Dispatchers.Main) {
                     stopForeground(STOP_FOREGROUND_REMOVE)

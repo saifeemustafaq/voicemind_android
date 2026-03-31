@@ -31,6 +31,7 @@ import com.voicemind.ui.folders.FoldersScreen
 import com.voicemind.ui.recording.RecordingDetailScreen
 import com.voicemind.ui.recording.RecordingsScreen
 import com.voicemind.ui.settings.SettingsScreen
+import com.voicemind.ui.sharing.SharedByMeScreen
 import com.voicemind.ui.sharing.SharedItemsScreen
 import com.voicemind.ui.sharing.SharedRecordingDetailScreen
 import com.voicemind.ui.sharing.SharedSummaryDetailScreen
@@ -139,6 +140,7 @@ fun AppNavHost(
                         FoldersScreen(
                             onFolderClick = { folderId -> navController.navigate(folderDetailRoute(folderId)) },
                             onSharedItemsClick = { navController.navigate(SHARED_ITEMS_ROUTE) },
+                            onSharedByMeClick = { navController.navigate(SHARED_BY_ME_ROUTE) },
                             onOpenDrawer = onOpenDrawer,
                             onSettings = onSettings,
                         )
@@ -219,6 +221,7 @@ fun AppNavHost(
                             Routes.Folders -> FoldersScreen(
                                 onFolderClick = { folderId -> navController.navigate(folderDetailRoute(folderId)) },
                                 onSharedItemsClick = { navController.navigate(SHARED_ITEMS_ROUTE) },
+                                onSharedByMeClick = { navController.navigate(SHARED_BY_ME_ROUTE) },
                                 onSettings = onSettings,
                             )
                             else -> {}
@@ -253,6 +256,9 @@ private fun NavGraphBuilder.detailRoutes(
             navController = navController,
             onBack = { navController.popBackStack() },
         )
+    }
+    composable(SHARED_BY_ME_ROUTE) {
+        SharedByMeScreen(onBack = { navController.popBackStack() })
     }
     composable(SHARED_ITEMS_ROUTE) {
         SharedItemsScreen(
