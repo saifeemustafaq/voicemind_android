@@ -13,6 +13,7 @@ import com.voicemind.data.model.Recording
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import timber.log.Timber
@@ -107,28 +108,31 @@ class RecordingRepository @Inject constructor(
         recordingDao.updateSyncStatus(recordingId, SyncStatus.SYNCED)
     }
 
-    // ── Bulk operations (still Firestore-batch; FirestoreSyncService propagates to Room) ──
+    // ── Bulk operations (Room first, Firestore in background) ─────────────────
 
     suspend fun deleteRecordings(recordings: List<Recording>) {
         recordings.forEach { deleteRecording(it) }
     }
 
     suspend fun reassignFolder(fromFolderId: String, toFolderId: String) {
-        val batch = firestore.batch()
-        val docs = collection()
-            .whereEqualTo("isDeleted", false)
-            .whereEqualTo("folderId", fromFolderId)
-            .get().await()
-        docs.forEach { batch.update(it.reference, "folderId", toFolderId) }
-        batch.commit().await()
+        val affected = recordingDao.observeByFolder(fromFolderId).first()
+        affected.forEach { recordingDao.updateFolder(it.id, toFolderId, SyncStatus.PENDING_UPDATE) }
+        try {
+            val batch = firestore.batch()
+            affected.forEach { batch.update(collection().document(it.id), "folderId", toFolderId) }
+            batch.commit().await()
+            affected.forEach { recordingDao.updateSyncStatus(it.id, SyncStatus.SYNCED) }
+        } catch (_: Exception) { /* SyncWorker will retry pending updates */ }
     }
 
     suspend fun moveRecordingsToFolder(recordingIds: List<String>, folderId: String) {
-        val batch = firestore.batch()
-        recordingIds.forEach { id ->
-            batch.update(collection().document(id), "folderId", folderId)
-        }
-        batch.commit().await()
+        recordingIds.forEach { id -> recordingDao.updateFolder(id, folderId, SyncStatus.PENDING_UPDATE) }
+        try {
+            val batch = firestore.batch()
+            recordingIds.forEach { id -> batch.update(collection().document(id), "folderId", folderId) }
+            batch.commit().await()
+            recordingIds.forEach { id -> recordingDao.updateSyncStatus(id, SyncStatus.SYNCED) }
+        } catch (_: Exception) { /* SyncWorker will retry pending updates */ }
     }
 
     // ── Cloud function calls (unchanged) ─────────────────────────────────────

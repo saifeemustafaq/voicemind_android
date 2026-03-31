@@ -3,6 +3,7 @@ package com.voicemind.data.local.dao
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import com.voicemind.data.local.SyncStatus
 import com.voicemind.data.local.entity.ActionItemEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -38,4 +39,25 @@ interface ActionItemDao {
 
     @Query("DELETE FROM action_items")
     suspend fun deleteAll()
+
+    @Query("UPDATE action_items SET syncStatus = :status WHERE id = :id")
+    suspend fun updateSyncStatus(id: String, status: SyncStatus)
+
+    @Query("UPDATE action_items SET completed = :completed, syncStatus = :syncStatus WHERE id = :id")
+    suspend fun updateCompleted(id: String, completed: Boolean, syncStatus: SyncStatus)
+
+    @Query("UPDATE action_items SET title = :title, syncStatus = :syncStatus WHERE id = :id")
+    suspend fun updateTitle(id: String, title: String, syncStatus: SyncStatus)
+
+    @Query("UPDATE action_items SET dueDate = :dueDate, syncStatus = :syncStatus WHERE id = :id")
+    suspend fun updateDueDate(id: String, dueDate: Long?, syncStatus: SyncStatus)
+
+    @Query("UPDATE action_items SET deadline = :deadline, syncStatus = :syncStatus WHERE id = :id")
+    suspend fun updateDeadline(id: String, deadline: Long?, syncStatus: SyncStatus)
+
+    @Query("UPDATE action_items SET notes = :notes, syncStatus = :syncStatus WHERE id = :id")
+    suspend fun updateNotes(id: String, notes: String?, syncStatus: SyncStatus)
+
+    @Query("SELECT * FROM action_items WHERE isDeleted = 0 AND recordingId = :recordingId ORDER BY createdAt ASC")
+    suspend fun getByRecordingId(recordingId: String): List<ActionItemEntity>
 }

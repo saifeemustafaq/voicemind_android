@@ -3,12 +3,19 @@ package com.voicemind.data.repository
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
+import com.voicemind.data.local.SyncStatus
+import com.voicemind.data.local.dao.ActionItemDao
+import com.voicemind.data.local.entity.ActionItemEntity
+import com.voicemind.data.local.toEpochMillis
+import com.voicemind.data.local.toModel
+import com.voicemind.data.local.toTimestamp
 import com.voicemind.data.model.ActionItem
+import com.voicemind.data.sync.SyncScheduler
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import javax.inject.Inject
@@ -19,119 +26,169 @@ class ActionItemRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val authRepository: AuthRepository,
     private val functions: FirebaseFunctions,
+    private val actionItemDao: ActionItemDao,
+    private val syncScheduler: SyncScheduler,
 ) {
     private fun collection() =
         firestore.collection("users/${requireNotNull(authRepository.currentUser) { "User must be signed in" }.uid}/actionItems")
 
-    fun observeActionItems(): Flow<List<ActionItem>> = callbackFlow {
-        val registration = collection()
-            .whereEqualTo("isDeleted", false)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Timber.e(error, "observeActionItems")
-                    return@addSnapshotListener
-                }
-                val items = snapshot?.toObjects(ActionItem::class.java) ?: emptyList()
-                trySend(items)
-            }
-        awaitClose { registration.remove() }
+    // ── Reads (Room-first) ────────────────────────────────────────────────────
+
+    fun observeActionItems(): Flow<List<ActionItem>> =
+        actionItemDao.observeAll().map { it.map { e -> e.toModel() } }
+
+    fun observeByRecordingId(recordingId: String): Flow<List<ActionItem>> =
+        actionItemDao.observeByRecordingId(recordingId).map { it.map { e -> e.toModel() } }
+
+    fun observeActionItem(itemId: String): Flow<ActionItem?> =
+        actionItemDao.observeById(itemId).map { it?.toModel() }
+
+    fun observeSharedTasks(): Flow<List<ActionItem>> =
+        actionItemDao.observeSharedTasks().map { it.map { e -> e.toModel() } }
+
+    suspend fun getActionItem(itemId: String): ActionItem? =
+        actionItemDao.getById(itemId)?.toModel()
+
+    suspend fun getByRecordingId(recordingId: String): List<ActionItem> =
+        actionItemDao.getByRecordingId(recordingId).map { it.toModel() }
+
+    // ── Writes — dual-write (Room first, Firestore background) ───────────────
+
+    suspend fun createItem(title: String) {
+        val docId = collection().document().id
+        val entity = ActionItemEntity(
+            id = docId,
+            title = title,
+            completed = false,
+            recordingId = null,
+            createdAt = System.currentTimeMillis(),
+            dueDate = null,
+            deadline = null,
+            notes = null,
+            googleTaskId = null,
+            calendarEventId = null,
+            autoScheduled = false,
+            sharedFromUid = null,
+            sharedFromName = null,
+            isDeleted = false,
+            deletedAt = null,
+            syncStatus = SyncStatus.PENDING_UPLOAD,
+        )
+        actionItemDao.upsert(entity)
+        try {
+            collection().document(docId).set(mapOf(
+                "title" to title,
+                "completed" to false,
+                "isDeleted" to false,
+                "createdAt" to FieldValue.serverTimestamp(),
+            )).await()
+            actionItemDao.updateSyncStatus(docId, SyncStatus.SYNCED)
+        } catch (_: Exception) {
+            syncScheduler.enqueueSync()
+        }
     }
 
     suspend fun toggleCompleted(itemId: String, completed: Boolean) {
-        collection().document(itemId).update("completed", completed).await()
-    }
-
-    suspend fun deleteItem(itemId: String) {
-        collection().document(itemId).update(
-            mapOf(
-                "isDeleted" to true,
-                "deletedAt" to FieldValue.serverTimestamp(),
-            )
-        ).await()
-    }
-
-    suspend fun deleteItems(itemIds: List<String>) {
-        val batch = firestore.batch()
-        val softDelete = mapOf("isDeleted" to true, "deletedAt" to FieldValue.serverTimestamp())
-        itemIds.forEach { id -> batch.update(collection().document(id), softDelete) }
-        batch.commit().await()
-    }
-
-    suspend fun markCompleted(itemIds: List<String>, completed: Boolean) {
-        val batch = firestore.batch()
-        itemIds.forEach { id ->
-            batch.update(collection().document(id), "completed", completed)
-        }
-        batch.commit().await()
-    }
-
-    fun observeActionItem(itemId: String): Flow<ActionItem?> = callbackFlow {
-        val registration = collection().document(itemId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Timber.e(error, "observeActionItem")
-                    return@addSnapshotListener
-                }
-                trySend(snapshot?.toObject(ActionItem::class.java))
-            }
-        awaitClose { registration.remove() }
+        actionItemDao.updateCompleted(itemId, completed, SyncStatus.PENDING_UPDATE)
+        try {
+            collection().document(itemId).update("completed", completed).await()
+            actionItemDao.updateSyncStatus(itemId, SyncStatus.SYNCED)
+        } catch (_: Exception) { /* SyncWorker will retry */ }
     }
 
     suspend fun updateTitle(itemId: String, title: String) {
-        collection().document(itemId).update("title", title).await()
+        actionItemDao.updateTitle(itemId, title, SyncStatus.PENDING_UPDATE)
+        try {
+            collection().document(itemId).update("title", title).await()
+            actionItemDao.updateSyncStatus(itemId, SyncStatus.SYNCED)
+        } catch (_: Exception) { /* SyncWorker will retry */ }
     }
 
     suspend fun updateDueDate(itemId: String, dueDate: Timestamp?) {
-        collection().document(itemId).update("dueDate", dueDate).await()
+        actionItemDao.updateDueDate(itemId, dueDate.toEpochMillis(), SyncStatus.PENDING_UPDATE)
+        try {
+            collection().document(itemId).update("dueDate", dueDate).await()
+            actionItemDao.updateSyncStatus(itemId, SyncStatus.SYNCED)
+        } catch (_: Exception) { /* SyncWorker will retry */ }
     }
 
     suspend fun updateDeadline(itemId: String, deadline: Timestamp?) {
-        collection().document(itemId).update("deadline", deadline).await()
+        actionItemDao.updateDeadline(itemId, deadline.toEpochMillis(), SyncStatus.PENDING_UPDATE)
+        try {
+            collection().document(itemId).update("deadline", deadline).await()
+            actionItemDao.updateSyncStatus(itemId, SyncStatus.SYNCED)
+        } catch (_: Exception) { /* SyncWorker will retry */ }
     }
 
     suspend fun updateNotes(itemId: String, notes: String?) {
-        collection().document(itemId).update("notes", notes).await()
+        actionItemDao.updateNotes(itemId, notes, SyncStatus.PENDING_UPDATE)
+        try {
+            collection().document(itemId).update("notes", notes).await()
+            actionItemDao.updateSyncStatus(itemId, SyncStatus.SYNCED)
+        } catch (_: Exception) { /* SyncWorker will retry */ }
     }
 
-    suspend fun createItem(title: String) {
-        val data = hashMapOf(
-            "title" to title,
-            "completed" to false,
+    // ── Deletes — Room hard-delete + Firestore soft-delete ───────────────────
+
+    suspend fun deleteItem(itemId: String) {
+        actionItemDao.hardDelete(itemId)
+        try {
+            collection().document(itemId).update(
+                mapOf("isDeleted" to true, "deletedAt" to FieldValue.serverTimestamp())
+            ).await()
+        } catch (_: Exception) { /* deleted locally; cloud copy remains for recovery */ }
+    }
+
+    suspend fun deleteItems(itemIds: List<String>) {
+        itemIds.forEach { actionItemDao.hardDelete(it) }
+        try {
+            val batch = firestore.batch()
+            val softDelete = mapOf("isDeleted" to true, "deletedAt" to FieldValue.serverTimestamp())
+            itemIds.forEach { id -> batch.update(collection().document(id), softDelete) }
+            batch.commit().await()
+        } catch (_: Exception) { /* deleted locally */ }
+    }
+
+    suspend fun markCompleted(itemIds: List<String>, completed: Boolean) {
+        itemIds.forEach { id -> actionItemDao.updateCompleted(id, completed, SyncStatus.PENDING_UPDATE) }
+        try {
+            val batch = firestore.batch()
+            itemIds.forEach { id -> batch.update(collection().document(id), "completed", completed) }
+            batch.commit().await()
+            itemIds.forEach { id -> actionItemDao.updateSyncStatus(id, SyncStatus.SYNCED) }
+        } catch (_: Exception) { /* SyncWorker will retry */ }
+    }
+
+    // ── SyncWorker support ───────────────────────────────────────────────────
+
+    suspend fun pushActionItemCloud(entity: ActionItemEntity) {
+        collection().document(entity.id).set(mapOf(
+            "title" to entity.title,
+            "completed" to entity.completed,
+            "recordingId" to entity.recordingId,
             "isDeleted" to false,
-            "createdAt" to Timestamp.now(),
-        )
-        collection().add(data).await()
+            "createdAt" to (entity.createdAt.toTimestamp() ?: FieldValue.serverTimestamp()),
+            "notes" to entity.notes,
+            "dueDate" to entity.dueDate.toTimestamp(),
+            "deadline" to entity.deadline.toTimestamp(),
+            "sharedFromUid" to entity.sharedFromUid,
+            "sharedFromName" to entity.sharedFromName,
+        )).await()
+        actionItemDao.updateSyncStatus(entity.id, SyncStatus.SYNCED)
     }
 
-    suspend fun getActionItem(itemId: String): ActionItem? =
-        collection().document(itemId).get().await()
-            .toObject(ActionItem::class.java)
-
-    fun observeByRecordingId(recordingId: String): Flow<List<ActionItem>> = callbackFlow {
-        val registration = collection()
-            .whereEqualTo("isDeleted", false)
-            .whereEqualTo("recordingId", recordingId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Timber.e(error, "observeByRecordingId")
-                    return@addSnapshotListener
-                }
-                val items = (snapshot?.toObjects(ActionItem::class.java) ?: emptyList())
-                    .sortedBy { it.createdAt }
-                trySend(items)
-            }
-        awaitClose { registration.remove() }
+    suspend fun pushActionItemUpdate(entity: ActionItemEntity) {
+        collection().document(entity.id).update(mapOf(
+            "title" to entity.title,
+            "completed" to entity.completed,
+            "notes" to entity.notes,
+            "dueDate" to entity.dueDate.toTimestamp(),
+            "deadline" to entity.deadline.toTimestamp(),
+        )).await()
+        actionItemDao.updateSyncStatus(entity.id, SyncStatus.SYNCED)
     }
 
-    suspend fun getByRecordingId(recordingId: String): List<ActionItem> {
-        return collection()
-            .whereEqualTo("isDeleted", false)
-            .whereEqualTo("recordingId", recordingId)
-            .get().await()
-            .toObjects(ActionItem::class.java)
-            .sortedBy { it.createdAt }
-    }
+    // ── Unchanged — cloud-function / cross-user calls ─────────────────────────
 
     suspend fun retryExtractActionItems(recordingId: String, timezone: String): Int {
         val result = functions
@@ -198,19 +255,4 @@ class ActionItemRepository @Inject constructor(
             .limit(1)
             .get().await()
             .documents.isNotEmpty()
-
-    fun observeSharedTasks(): Flow<List<ActionItem>> = callbackFlow {
-        val registration = collection()
-            .whereEqualTo("isDeleted", false)
-            .whereNotEqualTo("sharedFromUid", null)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Timber.e(error, "observeSharedTasks")
-                    return@addSnapshotListener
-                }
-                trySend(snapshot?.toObjects(ActionItem::class.java) ?: emptyList())
-            }
-        awaitClose { registration.remove() }
-    }
 }

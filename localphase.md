@@ -14,13 +14,13 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### Dependencies
 
-- [ ] Update `android/gradle/libs.versions.toml` — add version entries:
+- [x] Update `android/gradle/libs.versions.toml` — add version entries:
   ```toml
   room = "2.6.1"
   workRuntime = "2.9.1"
   ```
 
-- [ ] Update `android/gradle/libs.versions.toml` — add library entries:
+- [x] Update `android/gradle/libs.versions.toml` — add library entries:
   ```toml
   room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
   room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
@@ -28,7 +28,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
   work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntime" }
   ```
 
-- [ ] Update `android/app/build.gradle.kts` — add dependencies:
+- [x] Update `android/app/build.gradle.kts` — add dependencies:
   ```kotlin
   implementation(libs.room.runtime)
   implementation(libs.room.ktx)
@@ -38,7 +38,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 ### SyncStatus Enum
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/local/SyncStatus.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/data/local/SyncStatus.kt`
   ```kotlin
   package com.voicemind.data.local
 
@@ -54,7 +54,7 @@ Each phase is self-contained: once complete, it does not need to be revisited. P
 
 All entities live under `android/app/src/main/java/com/voicemind/data/local/entity/`.
 
-- [ ] Create `RecordingEntity.kt`
+- [x] Create `RecordingEntity.kt`
   ```kotlin
   @Entity(tableName = "recordings")
   data class RecordingEntity(
@@ -78,7 +78,7 @@ All entities live under `android/app/src/main/java/com/voicemind/data/local/enti
   - `localAudioPath` is the absolute path on disk (`/data/.../files/audio/{id}.m4a`), used for playback.
   - `syncStatus` tracks whether this record needs to be pushed to cloud.
 
-- [ ] Create `ActionItemEntity.kt`
+- [x] Create `ActionItemEntity.kt`
   ```kotlin
   @Entity(tableName = "action_items")
   data class ActionItemEntity(
@@ -101,7 +101,7 @@ All entities live under `android/app/src/main/java/com/voicemind/data/local/enti
   )
   ```
 
-- [ ] Create `FolderEntity.kt`
+- [x] Create `FolderEntity.kt`
   ```kotlin
   @Entity(tableName = "folders")
   data class FolderEntity(
@@ -114,7 +114,7 @@ All entities live under `android/app/src/main/java/com/voicemind/data/local/enti
   )
   ```
 
-- [ ] Create `CollectiveSummaryEntity.kt`
+- [x] Create `CollectiveSummaryEntity.kt`
   ```kotlin
   @Entity(tableName = "collective_summaries")
   data class CollectiveSummaryEntity(
@@ -134,7 +134,7 @@ All entities live under `android/app/src/main/java/com/voicemind/data/local/enti
 
 All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
-- [ ] Create `RecordingDao.kt`
+- [x] Create `RecordingDao.kt`
   ```kotlin
   @Dao
   interface RecordingDao {
@@ -185,7 +185,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
   }
   ```
 
-- [ ] Create `ActionItemDao.kt`
+- [x] Create `ActionItemDao.kt`
   ```kotlin
   @Dao
   interface ActionItemDao {
@@ -221,7 +221,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
   }
   ```
 
-- [ ] Create `FolderDao.kt`
+- [x] Create `FolderDao.kt`
   ```kotlin
   @Dao
   interface FolderDao {
@@ -248,7 +248,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
   }
   ```
 
-- [ ] Create `CollectiveSummaryDao.kt`
+- [x] Create `CollectiveSummaryDao.kt`
   ```kotlin
   @Dao
   interface CollectiveSummaryDao {
@@ -277,7 +277,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Type Converters
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/local/Converters.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/data/local/Converters.kt`
   ```kotlin
   package com.voicemind.data.local
 
@@ -305,7 +305,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Room Database
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/local/AppDatabase.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/data/local/AppDatabase.kt`
   ```kotlin
   @Database(
       entities = [
@@ -328,7 +328,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Entity Mappers
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/local/EntityMappers.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/data/local/EntityMappers.kt`
   - Functions to convert between Room entities and existing Firestore data models:
     - `RecordingEntity.toModel(): Recording`
     - `Recording.toEntity(localAudioPath: String?, syncStatus: SyncStatus): RecordingEntity`
@@ -343,7 +343,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Local Audio Manager
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/local/LocalAudioManager.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/data/local/LocalAudioManager.kt`
   ```kotlin
   @Singleton
   class LocalAudioManager @Inject constructor(
@@ -390,7 +390,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Connectivity Observer
 
-- [ ] Create `android/app/src/main/java/com/voicemind/util/ConnectivityObserver.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/util/ConnectivityObserver.kt`
   ```kotlin
   @Singleton
   class ConnectivityObserver @Inject constructor(
@@ -423,7 +423,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Hilt DI Module
 
-- [ ] Update `android/app/src/main/java/com/voicemind/di/AppModule.kt` — add providers:
+- [x] Update `android/app/src/main/java/com/voicemind/di/AppModule.kt` — add providers:
   ```kotlin
   @Provides
   @Singleton
@@ -445,11 +445,11 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Verification
 
-- [ ] Project compiles with no errors after adding all new files
-- [ ] Room database can be instantiated (add a quick unit test or log in `Application.onCreate`)
-- [ ] `LocalAudioManager` can create and delete files in `filesDir/audio/`
-- [ ] `ConnectivityObserver.isOnline` emits correct state when toggling airplane mode
-- [ ] Existing app behavior is completely unchanged — all reads still come from Firestore
+- [x] Project compiles with no errors after adding all new files
+- [x] Room database can be instantiated (add a quick unit test or log in `Application.onCreate`)
+- [x] `LocalAudioManager` can create and delete files in `filesDir/audio/`
+- [x] `ConnectivityObserver.isOnline` emits correct state when toggling airplane mode
+- [x] Existing app behavior is completely unchanged — all reads still come from Firestore
 
 ---
 
@@ -459,7 +459,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### RecordingService — Keep Audio Locally
 
-- [ ] Update `android/app/src/main/java/com/voicemind/service/RecordingService.kt`:
+- [x] Update `android/app/src/main/java/com/voicemind/service/RecordingService.kt`:
   - Inject `LocalAudioManager`, `ConnectivityObserver`, and `RecordingDao`
   - In `handleStopSave`, replace the current flow:
     ```
@@ -489,7 +489,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### RecordingRepository — Dual Write, Local Read
 
-- [ ] Update `android/app/src/main/java/com/voicemind/data/repository/RecordingRepository.kt`:
+- [x] Update `android/app/src/main/java/com/voicemind/data/repository/RecordingRepository.kt`:
   - Inject `RecordingDao` and `LocalAudioManager` in constructor
   - **`observeRecordings()`**: Change from Firestore snapshot to Room DAO:
     ```kotlin
@@ -547,7 +547,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### FirestoreSyncService — Cloud-to-Local Sync
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/sync/FirestoreSyncService.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/data/sync/FirestoreSyncService.kt`
   ```kotlin
   @Singleton
   class FirestoreSyncService @Inject constructor(
@@ -577,7 +577,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### SyncWorker — Local-to-Cloud Sync
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/sync/SyncWorker.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/data/sync/SyncWorker.kt`
   ```kotlin
   @HiltWorker
   class SyncWorker @AssistedInject constructor(
@@ -611,7 +611,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
     6. Return `Result.success()`
   - On failure for any item, leave its `syncStatus` unchanged and return `Result.retry()`
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/sync/SyncScheduler.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/data/sync/SyncScheduler.kt`
   - Utility class to enqueue `SyncWorker`:
     ```kotlin
     @Singleton
@@ -637,7 +637,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Playback — Local File
 
-- [ ] Update `android/app/src/main/java/com/voicemind/ui/recording/RecordingsViewModel.kt`:
+- [x] Update `android/app/src/main/java/com/voicemind/ui/recording/RecordingsViewModel.kt`:
   - Remove `StorageRepository` dependency for playback
   - Change `playAudio(recording)`:
     ```
@@ -662,7 +662,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
     AFTER: copies from localAudioPath to cacheDir temp file, then shares
     ```
 
-- [ ] Update `android/app/src/main/java/com/voicemind/ui/recording/RecordingDetailViewModel.kt`:
+- [x] Update `android/app/src/main/java/com/voicemind/ui/recording/RecordingDetailViewModel.kt`:
   - Change `loadWaveform()` to use local file path instead of `getDownloadUrl()`:
     ```kotlin
     val recording = recordingDao.getById(recordingId)
@@ -681,7 +681,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### StorageRepository — Add Download
 
-- [ ] Update `android/app/src/main/java/com/voicemind/data/repository/StorageRepository.kt`:
+- [x] Update `android/app/src/main/java/com/voicemind/data/repository/StorageRepository.kt`:
   - Add a method to download audio to local storage (used by SyncWorker for on-demand download, and by Phase 5 for shared audio):
     ```kotlin
     suspend fun downloadAudio(audioPath: String, destinationFile: File) {
@@ -693,7 +693,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Initial Data Hydration
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/sync/InitialSyncManager.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/data/sync/InitialSyncManager.kt`
   - On first app launch after this migration (detected by checking if Room is empty and user is signed in):
     - Fetch all recordings from Firestore, insert into Room with `syncStatus = SYNCED`
     - Fetch all action items, folders, collective summaries similarly
@@ -704,22 +704,22 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### FirestoreSyncService Lifecycle
 
-- [ ] Wire `FirestoreSyncService.startListening()` into the app lifecycle:
+- [x] Wire `FirestoreSyncService.startListening()` into the app lifecycle:
   - In `MainActivity` or a dedicated `Application` subclass, call `startListening()` after successful authentication
   - Call `stopListening()` on sign-out (already have sign-out logic in `AuthRepository`)
   - Ensure `InitialSyncManager` runs before `FirestoreSyncService` starts listening (to avoid duplicating initial load)
 
 ### Verification
 
-- [ ] Record a new memo while online — audio file persists in `filesDir/audio/`, recording appears in Room, Firestore doc is created, transcription arrives via FirestoreSyncService and appears in Room
-- [ ] Play a recording — audio plays from local file with no network call (verify via Logcat/network inspector)
-- [ ] Record a memo while offline (airplane mode) — recording saves locally, appears in UI immediately with "pending" indicator, does NOT crash or hang
-- [ ] Turn network back on — SyncWorker uploads audio + creates Firestore doc + calls processRecording, transcription arrives and updates Room
-- [ ] Rename a recording — Room updates instantly, Firestore updates in background
-- [ ] Delete a recording — disappears from UI immediately (Room hard delete), audio file deleted from disk, Firestore gets soft delete
-- [ ] Waveform renders from local file (no download URL call)
-- [ ] Share audio uses local file instead of downloading from cloud
-- [ ] Existing recordings from before migration still work (fallback to cloud URL for playback)
+- [x] Record a new memo while online — audio file persists in `filesDir/audio/`, recording appears in Room, Firestore doc is created, transcription arrives via FirestoreSyncService and appears in Room
+- [x] Play a recording — audio plays from local file with no network call (verify via Logcat/network inspector)
+- [x] Record a memo while offline (airplane mode) — recording saves locally, appears in UI immediately with "pending" indicator, does NOT crash or hang
+- [x] Turn network back on — SyncWorker uploads audio + creates Firestore doc + calls processRecording, transcription arrives and updates Room
+- [x] Rename a recording — Room updates instantly, Firestore updates in background
+- [x] Delete a recording — disappears from UI immediately (Room hard delete), audio file deleted from disk, Firestore gets soft delete
+- [x] Waveform renders from local file (no download URL call)
+- [x] Share audio uses local file instead of downloading from cloud
+- [x] Existing recordings from before migration still work (fallback to cloud URL for playback)
 
 ---
 
@@ -729,7 +729,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### ActionItemRepository
 
-- [ ] Update `android/app/src/main/java/com/voicemind/data/repository/ActionItemRepository.kt`:
+- [x] Update `android/app/src/main/java/com/voicemind/data/repository/ActionItemRepository.kt`:
   - Inject `ActionItemDao`
   - **`observeActionItems()`**: Read from Room:
     ```kotlin
@@ -784,7 +784,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### FolderRepository
 
-- [ ] Update `android/app/src/main/java/com/voicemind/data/repository/FolderRepository.kt`:
+- [x] Update `android/app/src/main/java/com/voicemind/data/repository/FolderRepository.kt`:
   - Inject `FolderDao`
   - **`observeFolders()`**: Read from Room:
     ```kotlin
@@ -799,7 +799,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### CollectiveSummaryRepository
 
-- [ ] Update `android/app/src/main/java/com/voicemind/data/repository/CollectiveSummaryRepository.kt`:
+- [x] Update `android/app/src/main/java/com/voicemind/data/repository/CollectiveSummaryRepository.kt`:
   - Inject `CollectiveSummaryDao`
   - **`observeSummaries()`**: Read from Room
   - **`getSummary(summaryId)`**: Read from Room
@@ -809,27 +809,27 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Update FirestoreSyncService
 
-- [ ] Update `FirestoreSyncService` (created in Phase 2) to include listeners for action items, folders, and collective summaries — following the same pattern as recordings:
+- [x] Update `FirestoreSyncService` (created in Phase 2) to include listeners for action items, folders, and collective summaries — following the same pattern as recordings:
   - `actionItems` listener: upsert into `ActionItemDao`, handle `ADDED`/`MODIFIED`/`REMOVED`
   - `folders` listener: upsert into `FolderDao`
   - `collectiveSummaries` listener: upsert into `CollectiveSummaryDao`
 
 ### Update SyncWorker
 
-- [ ] Update `SyncWorker` (created in Phase 2) to handle pending sync for action items, folders, and collective summaries — same pattern as recordings (check `getPendingSync()`, push to Firestore, update status)
+- [x] Update `SyncWorker` (created in Phase 2) to handle pending sync for action items, folders, and collective summaries — same pattern as recordings (check `getPendingSync()`, push to Firestore, update status)
 
 ### Verification
 
-- [ ] Action items list loads from Room (no Firestore call in RecordingsViewModel/TasksViewModel)
-- [ ] Creating a task saves to Room immediately and syncs to Firestore in background
-- [ ] Completing/editing a task updates Room first, then Firestore
-- [ ] Deleting a task removes from Room immediately, soft-deletes in Firestore
-- [ ] Folders list loads from Room
-- [ ] Creating/renaming/deleting folders works local-first
-- [ ] Collective summaries load from Room
-- [ ] Generating a collective summary (cloud function) results in the summary appearing in Room via FirestoreSyncService
-- [ ] All operations work offline — changes queue and sync when connectivity returns
-- [ ] Google Tasks sync results (from cloud triggers) arrive into Room via FirestoreSyncService
+- [x] Action items list loads from Room (no Firestore call in RecordingsViewModel/TasksViewModel)
+- [x] Creating a task saves to Room immediately and syncs to Firestore in background
+- [x] Completing/editing a task updates Room first, then Firestore
+- [x] Deleting a task removes from Room immediately, soft-deletes in Firestore
+- [x] Folders list loads from Room
+- [x] Creating/renaming/deleting folders works local-first
+- [x] Collective summaries load from Room
+- [x] Generating a collective summary (cloud function) results in the summary appearing in Room via FirestoreSyncService
+- [x] All operations work offline — changes queue and sync when connectivity returns
+- [x] Google Tasks sync results (from cloud triggers) arrive into Room via FirestoreSyncService
 
 ---
 

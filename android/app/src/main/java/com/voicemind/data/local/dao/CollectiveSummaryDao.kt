@@ -3,6 +3,7 @@ package com.voicemind.data.local.dao
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import com.voicemind.data.local.SyncStatus
 import com.voicemind.data.local.entity.CollectiveSummaryEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -29,4 +30,7 @@ interface CollectiveSummaryDao {
 
     @Query("DELETE FROM collective_summaries")
     suspend fun deleteAll()
+
+    @Query("UPDATE collective_summaries SET syncStatus = :status WHERE id = :id")
+    suspend fun updateSyncStatus(id: String, status: SyncStatus)
 }

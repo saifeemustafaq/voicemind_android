@@ -6,9 +6,14 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.firebase.functions.FirebaseFunctions
 import com.voicemind.data.local.SyncStatus
+import com.voicemind.data.local.dao.ActionItemDao
+import com.voicemind.data.local.dao.CollectiveSummaryDao
+import com.voicemind.data.local.dao.FolderDao
 import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.data.local.entity.RecordingEntity
 import com.voicemind.data.local.toModel
+import com.voicemind.data.repository.ActionItemRepository
+import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
@@ -25,8 +30,13 @@ class SyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val recordingDao: RecordingDao,
+    private val actionItemDao: ActionItemDao,
+    private val folderDao: FolderDao,
+    private val collectiveSummaryDao: CollectiveSummaryDao,
     private val storageRepository: StorageRepository,
     private val recordingRepository: RecordingRepository,
+    private val actionItemRepository: ActionItemRepository,
+    private val folderRepository: FolderRepository,
     private val navPreferenceRepository: NavPreferenceRepository,
     private val functions: FirebaseFunctions,
 ) : CoroutineWorker(appContext, workerParams) {
@@ -34,6 +44,9 @@ class SyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         return try {
             syncPendingRecordings()
+            syncPendingActionItems()
+            syncPendingFolders()
+            syncPendingSummaries()
             Result.success()
         } catch (e: Exception) {
             Timber.e(e, "SyncWorker failed")
@@ -50,6 +63,34 @@ class SyncWorker @AssistedInject constructor(
                 SyncStatus.SYNCED -> { /* no-op */ }
             }
         }
+    }
+
+    private suspend fun syncPendingActionItems() {
+        actionItemDao.getPendingSync().forEach { entity ->
+            when (entity.syncStatus) {
+                SyncStatus.PENDING_UPLOAD -> actionItemRepository.pushActionItemCloud(entity)
+                SyncStatus.PENDING_UPDATE -> actionItemRepository.pushActionItemUpdate(entity)
+                SyncStatus.PENDING_DELETE -> { /* Phase 4 */ }
+                SyncStatus.SYNCED -> { /* no-op */ }
+            }
+        }
+    }
+
+    private suspend fun syncPendingFolders() {
+        folderDao.getPendingSync().forEach { entity ->
+            when (entity.syncStatus) {
+                SyncStatus.PENDING_UPLOAD -> folderRepository.pushFolderCloud(entity)
+                SyncStatus.PENDING_UPDATE -> folderRepository.pushFolderUpdate(entity)
+                SyncStatus.PENDING_DELETE -> { /* Phase 4 */ }
+                SyncStatus.SYNCED -> { /* no-op */ }
+            }
+        }
+    }
+
+    private suspend fun syncPendingSummaries() {
+        // Summaries are cloud-generated — no PENDING_UPLOAD or PENDING_UPDATE cases.
+        // PENDING_DELETE soft-sync is Phase 4.
+        collectiveSummaryDao.getPendingSync().forEach { /* Phase 4 */ }
     }
 
     private suspend fun uploadRecording(entity: RecordingEntity) {

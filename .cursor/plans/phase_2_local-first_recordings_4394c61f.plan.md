@@ -156,7 +156,7 @@ Key method changes:
 **New injection:** `RecordingDao`
 
 - `**playAudio(recording)`** (line ~141): Check `recordingDao.getById(recording.id)?.localAudioPath`. If file exists locally, use `setDataSource(localPath)`. Otherwise fall back to `storageRepository.getDownloadUrl()` for pre-migration recordings.
-- `**shareAudio(context, recording)**` (line ~257): If local audio exists, copy from `localAudioPath` to cache dir instead of downloading from cloud URL.
+- `**shareAudio(context, recording)`** (line ~257): If local audio exists, copy from `localAudioPath` to cache dir instead of downloading from cloud URL.
 
 ### RecordingDetailViewModel
 

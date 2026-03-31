@@ -3,6 +3,7 @@ package com.voicemind.data.local.dao
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import com.voicemind.data.local.SyncStatus
 import com.voicemind.data.local.entity.FolderEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -29,4 +30,13 @@ interface FolderDao {
 
     @Query("DELETE FROM folders")
     suspend fun deleteAll()
+
+    @Query("UPDATE folders SET syncStatus = :status WHERE id = :id")
+    suspend fun updateSyncStatus(id: String, status: SyncStatus)
+
+    @Query("UPDATE folders SET name = :name, syncStatus = :syncStatus WHERE id = :id")
+    suspend fun updateName(id: String, name: String, syncStatus: SyncStatus)
+
+    @Query("SELECT COUNT(*) FROM folders WHERE isDeleted = 0")
+    suspend fun getCount(): Int
 }
