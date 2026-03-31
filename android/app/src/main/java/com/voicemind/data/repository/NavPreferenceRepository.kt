@@ -126,4 +126,26 @@ class NavPreferenceRepository @Inject constructor(
             else prefs[timezoneKey] = timezoneId
         }
     }
+
+    // ── Device setup ──────────────────────────────────────────────────────────
+
+    private val deviceSyncStrategyKey = stringPreferencesKey("device_sync_strategy")
+    private val deviceSetupCompleteKey = booleanPreferencesKey("device_setup_complete")
+
+    /** One of: "full", "on_demand", "metadata_only". Defaults to "on_demand". */
+    val deviceSyncStrategy: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[deviceSyncStrategyKey] ?: "on_demand"
+    }
+
+    val isDeviceSetupComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[deviceSetupCompleteKey] ?: false
+    }
+
+    suspend fun setDeviceSyncStrategy(strategy: String) {
+        context.dataStore.edit { prefs -> prefs[deviceSyncStrategyKey] = strategy }
+    }
+
+    suspend fun setDeviceSetupComplete(complete: Boolean) {
+        context.dataStore.edit { prefs -> prefs[deviceSetupCompleteKey] = complete }
+    }
 }

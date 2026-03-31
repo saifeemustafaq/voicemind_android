@@ -6,6 +6,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.voicemind.data.local.SyncStatus
 import com.voicemind.data.local.dao.CollectiveSummaryDao
+import com.voicemind.data.local.dao.PendingDeleteDao
+import com.voicemind.data.local.entity.PendingDeleteEntity
 import com.voicemind.data.local.toEntity
 import com.voicemind.data.local.toModel
 import com.voicemind.data.model.CollectiveSummary
@@ -24,6 +26,7 @@ class CollectiveSummaryRepository @Inject constructor(
     private val functions: FirebaseFunctions,
     private val authRepository: AuthRepository,
     private val collectiveSummaryDao: CollectiveSummaryDao,
+    private val pendingDeleteDao: PendingDeleteDao,
 ) {
     private fun collection() =
         firestore.collection("users/${requireNotNull(authRepository.currentUser) { "User must be signed in" }.uid}/collectiveSummaries")
@@ -63,12 +66,14 @@ class CollectiveSummaryRepository @Inject constructor(
     // ── Delete — Room hard-delete + Firestore soft-delete ────────────────────
 
     suspend fun deleteSummary(summaryId: String) {
+        pendingDeleteDao.insert(PendingDeleteEntity(entityType = "collectiveSummary", entityId = summaryId))
         collectiveSummaryDao.hardDelete(summaryId)
         try {
             collection().document(summaryId).update(
                 mapOf("isDeleted" to true, "deletedAt" to FieldValue.serverTimestamp())
             ).await()
-        } catch (_: Exception) { /* deleted locally; cloud copy remains for recovery */ }
+            pendingDeleteDao.deleteByEntity("collectiveSummary", summaryId)
+        } catch (_: Exception) { /* deleted locally; SyncWorker will push soft-delete */ }
     }
 
     // ── Unchanged — cross-user reads (Firestore) ──────────────────────────────

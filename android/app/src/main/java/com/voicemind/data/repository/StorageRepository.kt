@@ -2,7 +2,9 @@ package com.voicemind.data.repository
 
 import android.net.Uri
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
@@ -29,5 +31,11 @@ class StorageRepository @Inject constructor(
 
     suspend fun downloadAudio(audioPath: String, destinationFile: File) {
         storage.reference.child(audioPath).getFile(destinationFile).await()
+    }
+
+    suspend fun downloadFromUrl(url: String, destinationFile: File) = withContext(Dispatchers.IO) {
+        java.net.URL(url).openStream().use { input ->
+            destinationFile.outputStream().use { output -> input.copyTo(output) }
+        }
     }
 }

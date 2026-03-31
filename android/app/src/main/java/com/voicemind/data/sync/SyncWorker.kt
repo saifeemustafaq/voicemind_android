@@ -4,15 +4,20 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.functions.FirebaseFunctions
 import com.voicemind.data.local.SyncStatus
 import com.voicemind.data.local.dao.ActionItemDao
 import com.voicemind.data.local.dao.CollectiveSummaryDao
 import com.voicemind.data.local.dao.FolderDao
+import com.voicemind.data.local.dao.PendingDeleteDao
 import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.data.local.entity.RecordingEntity
 import com.voicemind.data.local.toModel
 import com.voicemind.data.repository.ActionItemRepository
+import com.voicemind.data.repository.AuthRepository
 import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
@@ -33,11 +38,14 @@ class SyncWorker @AssistedInject constructor(
     private val actionItemDao: ActionItemDao,
     private val folderDao: FolderDao,
     private val collectiveSummaryDao: CollectiveSummaryDao,
+    private val pendingDeleteDao: PendingDeleteDao,
     private val storageRepository: StorageRepository,
     private val recordingRepository: RecordingRepository,
     private val actionItemRepository: ActionItemRepository,
     private val folderRepository: FolderRepository,
     private val navPreferenceRepository: NavPreferenceRepository,
+    private val authRepository: AuthRepository,
+    private val firestore: FirebaseFirestore,
     private val functions: FirebaseFunctions,
 ) : CoroutineWorker(appContext, workerParams) {
 
@@ -47,6 +55,7 @@ class SyncWorker @AssistedInject constructor(
             syncPendingActionItems()
             syncPendingFolders()
             syncPendingSummaries()
+            syncPendingDeletes()
             Result.success()
         } catch (e: Exception) {
             Timber.e(e, "SyncWorker failed")
@@ -59,8 +68,7 @@ class SyncWorker @AssistedInject constructor(
             when (entity.syncStatus) {
                 SyncStatus.PENDING_UPLOAD -> uploadRecording(entity)
                 SyncStatus.PENDING_UPDATE -> pushRecordingUpdate(entity)
-                SyncStatus.PENDING_DELETE -> { /* Phase 4 */ }
-                SyncStatus.SYNCED -> { /* no-op */ }
+                SyncStatus.PENDING_DELETE, SyncStatus.SYNCED -> { /* no-op */ }
             }
         }
     }
@@ -70,8 +78,7 @@ class SyncWorker @AssistedInject constructor(
             when (entity.syncStatus) {
                 SyncStatus.PENDING_UPLOAD -> actionItemRepository.pushActionItemCloud(entity)
                 SyncStatus.PENDING_UPDATE -> actionItemRepository.pushActionItemUpdate(entity)
-                SyncStatus.PENDING_DELETE -> { /* Phase 4 */ }
-                SyncStatus.SYNCED -> { /* no-op */ }
+                SyncStatus.PENDING_DELETE, SyncStatus.SYNCED -> { /* no-op */ }
             }
         }
     }
@@ -81,16 +88,41 @@ class SyncWorker @AssistedInject constructor(
             when (entity.syncStatus) {
                 SyncStatus.PENDING_UPLOAD -> folderRepository.pushFolderCloud(entity)
                 SyncStatus.PENDING_UPDATE -> folderRepository.pushFolderUpdate(entity)
-                SyncStatus.PENDING_DELETE -> { /* Phase 4 */ }
-                SyncStatus.SYNCED -> { /* no-op */ }
+                SyncStatus.PENDING_DELETE, SyncStatus.SYNCED -> { /* no-op */ }
             }
         }
     }
 
     private suspend fun syncPendingSummaries() {
         // Summaries are cloud-generated — no PENDING_UPLOAD or PENDING_UPDATE cases.
-        // PENDING_DELETE soft-sync is Phase 4.
-        collectiveSummaryDao.getPendingSync().forEach { /* Phase 4 */ }
+        collectiveSummaryDao.getPendingSync().forEach { /* no-op */ }
+    }
+
+    private suspend fun syncPendingDeletes() {
+        val uid = authRepository.currentUser?.uid ?: return
+        pendingDeleteDao.getAll().forEach { pending ->
+            val collectionPath = when (pending.entityType) {
+                "recording" -> "recordings"
+                "actionItem" -> "actionItems"
+                "folder" -> "folders"
+                "collectiveSummary" -> "collectiveSummaries"
+                else -> return@forEach
+            }
+            try {
+                firestore.document("users/$uid/$collectionPath/${pending.entityId}")
+                    .update(mapOf("isDeleted" to true, "deletedAt" to FieldValue.serverTimestamp()))
+                    .await()
+                pendingDeleteDao.delete(pending.id)
+            } catch (e: FirebaseFirestoreException) {
+                if (e.code == FirebaseFirestoreException.Code.NOT_FOUND) {
+                    pendingDeleteDao.delete(pending.id)
+                } else {
+                    Timber.w(e, "SyncWorker: pending delete failed for %s/%s", pending.entityType, pending.entityId)
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "SyncWorker: pending delete failed for %s/%s", pending.entityType, pending.entityId)
+            }
+        }
     }
 
     private suspend fun uploadRecording(entity: RecordingEntity) {

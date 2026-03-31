@@ -6,7 +6,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.voicemind.data.local.SyncStatus
 import com.voicemind.data.local.dao.ActionItemDao
+import com.voicemind.data.local.dao.PendingDeleteDao
 import com.voicemind.data.local.entity.ActionItemEntity
+import com.voicemind.data.local.entity.PendingDeleteEntity
 import com.voicemind.data.local.toEpochMillis
 import com.voicemind.data.local.toModel
 import com.voicemind.data.local.toTimestamp
@@ -28,6 +30,7 @@ class ActionItemRepository @Inject constructor(
     private val functions: FirebaseFunctions,
     private val actionItemDao: ActionItemDao,
     private val syncScheduler: SyncScheduler,
+    private val pendingDeleteDao: PendingDeleteDao,
 ) {
     private fun collection() =
         firestore.collection("users/${requireNotNull(authRepository.currentUser) { "User must be signed in" }.uid}/actionItems")
@@ -131,22 +134,28 @@ class ActionItemRepository @Inject constructor(
     // ── Deletes — Room hard-delete + Firestore soft-delete ───────────────────
 
     suspend fun deleteItem(itemId: String) {
+        pendingDeleteDao.insert(PendingDeleteEntity(entityType = "actionItem", entityId = itemId))
         actionItemDao.hardDelete(itemId)
         try {
             collection().document(itemId).update(
                 mapOf("isDeleted" to true, "deletedAt" to FieldValue.serverTimestamp())
             ).await()
-        } catch (_: Exception) { /* deleted locally; cloud copy remains for recovery */ }
+            pendingDeleteDao.deleteByEntity("actionItem", itemId)
+        } catch (_: Exception) { /* deleted locally; SyncWorker will push soft-delete */ }
     }
 
     suspend fun deleteItems(itemIds: List<String>) {
-        itemIds.forEach { actionItemDao.hardDelete(it) }
+        itemIds.forEach { id ->
+            pendingDeleteDao.insert(PendingDeleteEntity(entityType = "actionItem", entityId = id))
+            actionItemDao.hardDelete(id)
+        }
         try {
             val batch = firestore.batch()
             val softDelete = mapOf("isDeleted" to true, "deletedAt" to FieldValue.serverTimestamp())
             itemIds.forEach { id -> batch.update(collection().document(id), softDelete) }
             batch.commit().await()
-        } catch (_: Exception) { /* deleted locally */ }
+            itemIds.forEach { id -> pendingDeleteDao.deleteByEntity("actionItem", id) }
+        } catch (_: Exception) { /* deleted locally; SyncWorker will push soft-deletes */ }
     }
 
     suspend fun markCompleted(itemIds: List<String>, completed: Boolean) {

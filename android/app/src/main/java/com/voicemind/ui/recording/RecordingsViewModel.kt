@@ -16,6 +16,8 @@ import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.CollectiveSummary
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
+import com.voicemind.data.local.LocalAudioManager
+import com.voicemind.data.local.SyncStatus
 import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.CollectiveSummaryRepository
@@ -23,6 +25,7 @@ import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
+import com.voicemind.util.ConnectivityObserver
 import com.google.firebase.functions.FirebaseFunctionsException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +38,14 @@ import kotlinx.coroutines.flow.update
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
+
+sealed interface NeedsInternetReason {
+    data object GenerateSummary : NeedsInternetReason
+    data object GenerateTasks : NeedsInternetReason
+    data object CollectiveSummarize : NeedsInternetReason
+    data object ShareWithUser : NeedsInternetReason
+    data object StillProcessing : NeedsInternetReason
+}
 
 sealed interface SummaryState {
     data object Idle : SummaryState
@@ -57,6 +68,7 @@ data class RecordingsListState(
     val folders: List<Folder> = emptyList(),
     val isLoading: Boolean = true,
     val playingRecordingId: String? = null,
+    val downloadingRecordingId: String? = null,
     val isPlaybackPaused: Boolean = false,
     val playbackPositionMs: Long = 0,
     val playbackDurationMs: Long = 0,
@@ -70,6 +82,8 @@ data class RecordingsListState(
     val collectiveSummarizeResult: CollectiveSummary? = null,
     val showMultiSelectHint: Boolean = false,
     val playbackSpeed: Float = 1.0f,
+    val needsInternetDialog: NeedsInternetReason? = null,
+    val shareWithUserTarget: Recording? = null,
 )
 
 @HiltViewModel
@@ -78,11 +92,13 @@ class RecordingsViewModel @Inject constructor(
     private val recordingRepository: RecordingRepository,
     private val folderRepository: FolderRepository,
     private val storageRepository: StorageRepository,
+    private val localAudioManager: LocalAudioManager,
     private val actionItemRepository: ActionItemRepository,
     private val collectiveSummaryRepository: CollectiveSummaryRepository,
     private val navPreferenceRepository: NavPreferenceRepository,
     private val playbackCommandRepository: PlaybackCommandRepository,
     private val recordingDao: RecordingDao,
+    private val connectivityObserver: ConnectivityObserver,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecordingsListState())
@@ -146,11 +162,25 @@ class RecordingsViewModel @Inject constructor(
         currentPlayingTitle = recording.title
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val localPath = recordingDao.getById(recording.id)?.localAudioPath
-                val dataSource = if (localPath != null && File(localPath).exists()) {
-                    localPath
-                } else {
-                    storageRepository.getDownloadUrl(recording.audioPath).toString()
+                val entity = recordingDao.getById(recording.id)
+                val localPath = entity?.localAudioPath
+                val needsDownload = localPath == null || !File(localPath).exists()
+                val strategy = if (needsDownload) navPreferenceRepository.deviceSyncStrategy.first() else null
+                if (needsDownload && strategy == "on_demand") {
+                    _state.update { it.copy(downloadingRecordingId = recording.id) }
+                }
+                val dataSource = when {
+                    !needsDownload -> localPath!!
+                    strategy == "on_demand" -> {
+                        val url = storageRepository.getDownloadUrl(recording.audioPath).toString()
+                        val tmpFile = java.io.File(context.cacheDir, "${recording.id}_dl.m4a")
+                        storageRepository.downloadFromUrl(url, tmpFile)
+                        val savedPath = localAudioManager.saveAudio(recording.id, tmpFile)
+                        recordingDao.updateLocalAudioPath(recording.id, savedPath)
+                        _state.update { it.copy(downloadingRecordingId = null) }
+                        savedPath
+                    }
+                    else -> storageRepository.getDownloadUrl(recording.audioPath).toString()
                 }
                 mediaPlayer = MediaPlayer().apply {
                     setDataSource(dataSource)
@@ -179,6 +209,7 @@ class RecordingsViewModel @Inject constructor(
                     prepareAsync()
                 }
             } catch (e: Exception) {
+                _state.update { it.copy(downloadingRecordingId = null) }
                 Timber.e("Playback failed: %s", e.message)
             }
         }
@@ -294,6 +325,18 @@ class RecordingsViewModel @Inject constructor(
         }
     }
 
+    fun requestShareWithUser(recording: Recording) {
+        if (!connectivityObserver.isCurrentlyOnline()) {
+            _state.update { it.copy(needsInternetDialog = NeedsInternetReason.ShareWithUser) }
+            return
+        }
+        _state.update { it.copy(shareWithUserTarget = recording) }
+    }
+
+    fun clearShareWithUser() {
+        _state.update { it.copy(shareWithUserTarget = null) }
+    }
+
     fun shareAudio(context: Context, recording: Recording) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -347,6 +390,16 @@ class RecordingsViewModel @Inject constructor(
 
     fun generateTasks(recording: Recording) {
         if (_sheetState.value.isGeneratingTasks) return
+        if (recording.transcription == null) {
+            if (!connectivityObserver.isCurrentlyOnline()) {
+                _state.update { it.copy(needsInternetDialog = NeedsInternetReason.GenerateTasks) }
+                return
+            }
+            if (recording.syncStatus != SyncStatus.SYNCED) {
+                _state.update { it.copy(needsInternetDialog = NeedsInternetReason.StillProcessing) }
+                return
+            }
+        }
         viewModelScope.launch(Dispatchers.IO) {
             _sheetState.update {
                 it.copy(isGeneratingTasks = true, generateTasksFailed = false, generateTasksNoResults = false)
@@ -378,6 +431,10 @@ class RecordingsViewModel @Inject constructor(
         }
     }
 
+    fun dismissNeedsInternetDialog() {
+        _state.update { it.copy(needsInternetDialog = null) }
+    }
+
     fun generateSummary(recording: Recording) {
         if (recording.summary != null) {
             _sheetState.value = _sheetState.value.copy(
@@ -386,6 +443,17 @@ class RecordingsViewModel @Inject constructor(
             return
         }
         if (_sheetState.value.summaryState is SummaryState.Loading) return
+
+        if (recording.transcription == null) {
+            if (!connectivityObserver.isCurrentlyOnline()) {
+                _state.update { it.copy(needsInternetDialog = NeedsInternetReason.GenerateSummary) }
+                return
+            }
+            if (recording.syncStatus != SyncStatus.SYNCED) {
+                _state.update { it.copy(needsInternetDialog = NeedsInternetReason.StillProcessing) }
+                return
+            }
+        }
 
         _sheetState.value = _sheetState.value.copy(summaryState = SummaryState.Loading)
         viewModelScope.launch(Dispatchers.IO) {
@@ -481,6 +549,10 @@ class RecordingsViewModel @Inject constructor(
     }
 
     fun collectiveSummarize(recordingIds: List<String>) {
+        if (!connectivityObserver.isCurrentlyOnline()) {
+            _state.update { it.copy(needsInternetDialog = NeedsInternetReason.CollectiveSummarize) }
+            return
+        }
         _state.value = _state.value.copy(
             isCollectiveSummarizing = true,
             collectiveSummarizeError = null,

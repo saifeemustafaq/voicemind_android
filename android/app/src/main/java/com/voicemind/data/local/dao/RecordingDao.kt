@@ -34,6 +34,9 @@ interface RecordingDao {
     @Query("SELECT * FROM recordings WHERE syncStatus != 'SYNCED'")
     suspend fun getPendingSync(): List<RecordingEntity>
 
+    @Query("SELECT COUNT(*) FROM recordings WHERE syncStatus != 'SYNCED'")
+    fun observePendingSyncCount(): Flow<Int>
+
     @Query("UPDATE recordings SET syncStatus = :status WHERE id = :id")
     suspend fun updateSyncStatus(id: String, status: SyncStatus)
 
@@ -54,6 +57,12 @@ interface RecordingDao {
 
     @Query("UPDATE recordings SET processingFailed = :failed WHERE id = :id")
     suspend fun updateProcessingFailed(id: String, failed: Boolean)
+
+    @Query("SELECT * FROM recordings WHERE isDeleted = 0 AND localAudioPath IS NULL AND audioPath != ''")
+    suspend fun getRecordingsNeedingAudioDownload(): List<RecordingEntity>
+
+    @Query("SELECT COUNT(*) FROM recordings WHERE isDeleted = 0")
+    suspend fun countAll(): Int
 
     @Query("DELETE FROM recordings")
     suspend fun deleteAll()

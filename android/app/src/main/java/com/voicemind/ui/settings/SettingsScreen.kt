@@ -64,6 +64,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.composables.icons.lucide.CheckCircle
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.RefreshCw
 import com.voicemind.BuildConfig
 import com.voicemind.data.repository.AuthRepository
 import kotlinx.coroutines.launch
@@ -94,6 +97,7 @@ fun SettingsScreen(
     val ntsSettings by settingsViewModel.ntsSettings.collectAsStateWithLifecycle()
     val discoverable by settingsViewModel.discoverable.collectAsStateWithLifecycle()
     val deleteState by settingsViewModel.deleteState.collectAsStateWithLifecycle()
+    val pendingSyncCount by settingsViewModel.pendingSyncCount.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showTimeZonePicker by remember { mutableStateOf(false) }
@@ -567,6 +571,44 @@ fun SettingsScreen(
                                 },
                             )
                         }
+                    }
+                }
+            }
+
+            // ── SYNC ─────────────────────────────────────────────────────
+            SettingsSectionHeader("SYNC")
+
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (pendingSyncCount == 0) {
+                        Icon(
+                            imageVector = Lucide.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(VmDimens.SpaceSm))
+                        Text(
+                            text = "All synced",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Lucide.RefreshCw,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(VmDimens.SpaceSm))
+                        Text(
+                            text = "$pendingSyncCount ${if (pendingSyncCount == 1) "item" else "items"} pending sync",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
                     }
                 }
             }

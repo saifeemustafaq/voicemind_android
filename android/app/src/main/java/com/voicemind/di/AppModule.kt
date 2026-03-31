@@ -10,6 +10,7 @@ import com.voicemind.data.local.AppDatabase
 import com.voicemind.data.local.dao.ActionItemDao
 import com.voicemind.data.local.dao.CollectiveSummaryDao
 import com.voicemind.data.local.dao.FolderDao
+import com.voicemind.data.local.dao.PendingDeleteDao
 import com.voicemind.data.local.dao.RecordingDao
 import dagger.Module
 import dagger.Provides
@@ -46,6 +47,7 @@ object AppModule {
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "voicemind.db")
+            .addMigrations(AppDatabase.MIGRATION_1_2)
             .fallbackToDestructiveMigration()
             .build()
 
@@ -60,4 +62,7 @@ object AppModule {
 
     @Provides
     fun provideCollectiveSummaryDao(db: AppDatabase): CollectiveSummaryDao = db.collectiveSummaryDao()
+
+    @Provides
+    fun providePendingDeleteDao(db: AppDatabase): PendingDeleteDao = db.pendingDeleteDao()
 }

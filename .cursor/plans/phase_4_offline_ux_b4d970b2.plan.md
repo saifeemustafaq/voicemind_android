@@ -4,31 +4,31 @@ overview: Phase 4 adds offline UX indicators (banner, pending processing badges,
 todos:
   - id: fix-phase3-bugs
     content: Fix pushFolderCloud timestamp bug + add connectivity-triggered SyncWorker in MainActivity
-    status: pending
+    status: done
   - id: offline-banner
     content: Create OfflineBanner composable + wire into both AppNavHost Scaffold modes
-    status: pending
+    status: done
   - id: pending-processing
     content: Add syncStatus to Recording model + EntityMappers, add processing status chip to RecordingRow
-    status: pending
+    status: done
   - id: needs-internet-dialogs
     content: Add connectivity checks + NeedsInternetReason state to RecordingsViewModel, show dialogs in RecordingsScreen and RecordingDetailScreen
-    status: pending
+    status: done
   - id: pending-delete-infra
     content: Create PendingDeleteEntity + PendingDeleteDao, update AppDatabase v1->v2 with migration, provide DAO in AppModule
-    status: pending
+    status: done
   - id: update-deletes
     content: Update delete methods in all 4 repositories to use PendingDeleteDao (insert before hard-delete, remove after Firestore succeeds)
-    status: pending
+    status: done
   - id: guard-reinsertion
     content: Update FirestoreSyncService to check pending_deletes before upserting in all 4 handlers
-    status: pending
+    status: done
   - id: sync-worker-deletes
     content: Update SyncWorker to process pending_deletes table + remove Phase 4 placeholder comments
-    status: pending
+    status: done
   - id: settings-sync-status
     content: (Optional) Add sync status row to SettingsScreen showing pending item count
-    status: pending
+    status: done
 isProject: false
 ---
 

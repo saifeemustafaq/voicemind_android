@@ -24,9 +24,11 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -116,7 +118,6 @@ fun RecordingDetailScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showMoveDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
-    var showShareDialog by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
 
     if (recording == null) {
@@ -168,7 +169,10 @@ fun RecordingDetailScreen(
                             DropdownMenuItem(
                                 text = { Text("Share with User") },
                                 leadingIcon = { Icon(Icons.Default.PersonAdd, null) },
-                                onClick = { menuExpanded = false; showShareDialog = true },
+                                onClick = {
+                                    menuExpanded = false
+                                    playbackViewModel.requestShareWithUser(recording)
+                                },
                             )
                             DropdownMenuItem(
                                 text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
@@ -436,11 +440,36 @@ fun RecordingDetailScreen(
         )
     }
 
-    if (showShareDialog) {
+    // Share with user — routed through ViewModel for connectivity guard
+    if (state.shareWithUserTarget?.id == recordingId) {
         ShareDialog(
             itemId = recordingId,
             itemType = "recording",
-            onDismiss = { showShareDialog = false },
+            onDismiss = { playbackViewModel.clearShareWithUser() },
+        )
+    }
+
+    // Needs-internet dialog
+    state.needsInternetDialog?.let { reason ->
+        val (title, body) = when (reason) {
+            NeedsInternetReason.GenerateSummary, NeedsInternetReason.GenerateTasks ->
+                "Internet Required" to "This recording hasn't been processed yet. Please connect to the internet so VoiceMind can transcribe the audio."
+            NeedsInternetReason.CollectiveSummarize ->
+                "Internet Required" to "Generating a collective summary requires an internet connection. Please connect and try again."
+            NeedsInternetReason.StillProcessing ->
+                "Still Processing" to "This recording is still being processed. Please wait a moment and try again."
+            NeedsInternetReason.ShareWithUser ->
+                "Internet Required" to "Sharing requires an internet connection. Please connect and try again."
+        }
+        AlertDialog(
+            onDismissRequest = { playbackViewModel.dismissNeedsInternetDialog() },
+            title = { Text(title) },
+            text = { Text(body) },
+            confirmButton = {
+                TextButton(onClick = { playbackViewModel.dismissNeedsInternetDialog() }) {
+                    Text("OK")
+                }
+            },
         )
     }
 }

@@ -29,7 +29,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.sync.FirestoreSyncService
 import com.voicemind.data.sync.InitialSyncManager
+import com.voicemind.data.sync.SyncScheduler
+import com.voicemind.util.ConnectivityObserver
 import com.voicemind.service.RecordingService
+import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.ui.auth.AuthViewModel
 import com.voicemind.ui.auth.SignInScreen
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +41,7 @@ import com.voicemind.ui.components.TasksSyncPromptDialog
 import com.voicemind.ui.components.PermissionRationaleDialog
 import com.voicemind.ui.main.MainViewModel
 import com.voicemind.ui.navigation.AppNavHost
+import com.voicemind.ui.setup.DeviceSetupScreen
 import com.voicemind.ui.theme.VoiceMindAITheme
 import com.voicemind.util.LocalAppTimeZone
 import dagger.hilt.android.AndroidEntryPoint
@@ -50,6 +54,9 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var navPreferenceRepository: NavPreferenceRepository
     @Inject lateinit var firestoreSyncService: FirestoreSyncService
     @Inject lateinit var initialSyncManager: InitialSyncManager
+    @Inject lateinit var connectivityObserver: ConnectivityObserver
+    @Inject lateinit var syncScheduler: SyncScheduler
+    @Inject lateinit var recordingDao: RecordingDao
 
     // --- Notification tap navigation ---
     private var openRecordingsOnStart by mutableStateOf(false)
@@ -90,6 +97,20 @@ class MainActivity : ComponentActivity() {
                 val isSignedIn by authViewModel.isSignedIn.collectAsStateWithLifecycle()
 
                 if (isSignedIn) {
+                    val isSetupComplete by navPreferenceRepository.isDeviceSetupComplete
+                        .collectAsStateWithLifecycle(initialValue = true)
+                    var roomIsEmpty by remember { mutableStateOf(false) }
+                    LaunchedEffect(isSetupComplete) {
+                        if (!isSetupComplete) {
+                            roomIsEmpty = withContext(Dispatchers.IO) { recordingDao.countAll() == 0 }
+                        }
+                    }
+
+                    if (!isSetupComplete && roomIsEmpty) {
+                        DeviceSetupScreen()
+                        return@CompositionLocalProvider
+                    }
+
                     val mainViewModel: MainViewModel = hiltViewModel()
                     val tasksConnected by mainViewModel.tasksConnected.collectAsStateWithLifecycle()
                     val pendingConsent by mainViewModel.pendingConsent.collectAsStateWithLifecycle()
@@ -103,6 +124,15 @@ class MainActivity : ComponentActivity() {
                         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@LaunchedEffect
                         withContext(Dispatchers.IO) { initialSyncManager.runIfNeeded() }
                         firestoreSyncService.startListening(uid)
+                    }
+
+                    // ── Connectivity-triggered sync ────────────────────────────────────────
+                    LaunchedEffect(Unit) {
+                        var wasOffline = !connectivityObserver.isCurrentlyOnline()
+                        connectivityObserver.isOnline.collect { online ->
+                            if (online && wasOffline) syncScheduler.enqueueSync()
+                            wasOffline = !online
+                        }
                     }
 
                     DisposableEffect(Unit) {
@@ -226,6 +256,7 @@ class MainActivity : ComponentActivity() {
                     AppNavHost(
                         onSignOut = { authViewModel.signOut() },
                         navPreferenceRepository = navPreferenceRepository,
+                        connectivityObserver = connectivityObserver,
                         openRecordingsOnStart = openRecordingsOnStart,
                         onRecordingsOpened = { openRecordingsOnStart = false },
                         openSharedItemsOnStart = openSharedItemsOnStart,

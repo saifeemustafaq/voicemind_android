@@ -5,6 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
+import com.voicemind.data.local.dao.ActionItemDao
+import com.voicemind.data.local.dao.CollectiveSummaryDao
+import com.voicemind.data.local.dao.FolderDao
+import com.voicemind.data.local.dao.PendingDeleteDao
+import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.data.repository.AuthRepository
 import com.voicemind.data.repository.GoogleTasksRepository
 import com.voicemind.data.repository.NavPreferenceRepository
@@ -16,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -36,7 +42,21 @@ class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val googleTasksRepository: GoogleTasksRepository,
     private val userSettingsRepository: UserSettingsRepository,
+    recordingDao: RecordingDao,
+    actionItemDao: ActionItemDao,
+    folderDao: FolderDao,
+    collectiveSummaryDao: CollectiveSummaryDao,
+    pendingDeleteDao: PendingDeleteDao,
 ) : ViewModel() {
+
+    val pendingSyncCount: StateFlow<Int> = combine(
+        recordingDao.observePendingSyncCount(),
+        actionItemDao.observePendingSyncCount(),
+        folderDao.observePendingSyncCount(),
+        collectiveSummaryDao.observePendingSyncCount(),
+        pendingDeleteDao.observeCount(),
+    ) { r, a, f, s, d -> r + a + f + s + d }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val userDisplayText: String
         get() = authRepository.currentUser?.email

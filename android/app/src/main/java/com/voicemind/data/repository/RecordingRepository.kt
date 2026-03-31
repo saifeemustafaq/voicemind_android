@@ -6,7 +6,9 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
 import com.voicemind.data.local.LocalAudioManager
 import com.voicemind.data.local.SyncStatus
+import com.voicemind.data.local.dao.PendingDeleteDao
 import com.voicemind.data.local.dao.RecordingDao
+import com.voicemind.data.local.entity.PendingDeleteEntity
 import com.voicemind.data.local.toEpochMillis
 import com.voicemind.data.local.toModel
 import com.voicemind.data.model.Recording
@@ -27,6 +29,7 @@ class RecordingRepository @Inject constructor(
     private val authRepository: AuthRepository,
     private val recordingDao: RecordingDao,
     private val localAudioManager: LocalAudioManager,
+    private val pendingDeleteDao: PendingDeleteDao,
 ) {
     private fun collection() =
         firestore.collection("users/${requireNotNull(authRepository.currentUser) { "User must be signed in" }.uid}/recordings")
@@ -79,17 +82,16 @@ class RecordingRepository @Inject constructor(
     }
 
     suspend fun deleteRecording(recording: Recording) {
+        pendingDeleteDao.insert(PendingDeleteEntity(entityType = "recording", entityId = recording.id))
         recordingDao.hardDelete(recording.id)
         localAudioManager.deleteAudio(recording.id)
         try {
             collection().document(recording.id).update(
-                mapOf(
-                    "isDeleted" to true,
-                    "deletedAt" to FieldValue.serverTimestamp(),
-                )
+                mapOf("isDeleted" to true, "deletedAt" to FieldValue.serverTimestamp())
             ).await()
+            pendingDeleteDao.deleteByEntity("recording", recording.id)
         } catch (_: Exception) {
-            // Deleted locally; cloud copy remains for recovery if needed.
+            // Deleted locally; SyncWorker will push soft-delete when online.
         }
     }
 

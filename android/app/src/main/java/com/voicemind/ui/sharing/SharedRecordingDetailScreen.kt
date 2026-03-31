@@ -32,6 +32,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -234,6 +235,19 @@ fun SharedRecordingDetailScreen(
                             .fillMaxWidth()
                             .height(80.dp),
                     )
+
+                    if (state.isDownloading) {
+                        Spacer(Modifier.height(VmDimens.SpaceSm))
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(VmDimens.SpaceXs))
+                        Text(
+                            text = "Downloading audio for offline playback...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
 
                     Spacer(Modifier.height(VmDimens.SpaceXl))
 

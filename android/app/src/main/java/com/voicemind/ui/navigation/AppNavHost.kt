@@ -1,5 +1,6 @@
 package com.voicemind.ui.navigation
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
@@ -24,6 +25,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.voicemind.data.repository.NavPreferenceRepository
+import com.voicemind.ui.common.OfflineBanner
+import com.voicemind.util.ConnectivityObserver
 import com.voicemind.ui.checklist.ChecklistScreen
 import com.voicemind.ui.checklist.TaskDetailScreen
 import com.voicemind.ui.folders.FolderDetailScreen
@@ -44,6 +47,7 @@ private const val TABS_ROUTE = "tabs"
 fun AppNavHost(
     onSignOut: () -> Unit,
     navPreferenceRepository: NavPreferenceRepository,
+    connectivityObserver: ConnectivityObserver,
     openRecordingsOnStart: Boolean = false,
     onRecordingsOpened: () -> Unit = {},
     openSharedItemsOnStart: Boolean = false,
@@ -60,6 +64,7 @@ fun AppNavHost(
     val useSidebar = useSidebarOrNull ?: return
     val startDestination = defaultLandingPageOrNull ?: return
     val orderedNavItems = navOrderOrNull?.let { Routes.orderedItems(it) } ?: Routes.drawerItems
+    val isOnline by connectivityObserver.isOnline.collectAsStateWithLifecycle()
 
     val navigateTo: (Routes) -> Unit = { destination ->
         val popped = navController.popBackStack(destination.route, inclusive = false)
@@ -118,11 +123,13 @@ fun AppNavHost(
             },
         ) {
             Scaffold { innerPadding ->
-                NavHost(
-                    navController = navController,
-                    startDestination = startDestination,
-                    modifier = Modifier.padding(innerPadding),
-                ) {
+                Column(modifier = Modifier.padding(innerPadding)) {
+                    OfflineBanner(isOnline = isOnline, currentRoute = currentRoute)
+                    NavHost(
+                        navController = navController,
+                        startDestination = startDestination,
+                        modifier = Modifier.weight(1f),
+                    ) {
                     composable(Routes.Recordings.route) {
                         RecordingsScreen(onOpenDrawer = onOpenDrawer, navController = navController, onSettings = onSettings)
                     }
@@ -147,6 +154,7 @@ fun AppNavHost(
                     }
                     detailRoutes(navController, onSignOut, onOpenDrawer)
                 }
+                } // Column
             }
         }
     } else {
@@ -195,11 +203,13 @@ fun AppNavHost(
                 )
             }
         ) { innerPadding ->
-            NavHost(
-                navController = navController,
-                startDestination = TABS_ROUTE,
-                modifier = Modifier.padding(innerPadding),
-            ) {
+            Column(modifier = Modifier.padding(innerPadding)) {
+                OfflineBanner(isOnline = isOnline, currentRoute = currentRoute)
+                NavHost(
+                    navController = navController,
+                    startDestination = TABS_ROUTE,
+                    modifier = Modifier.weight(1f),
+                ) {
                 composable(TABS_ROUTE) {
                     HorizontalPager(
                         state = pagerState,
@@ -230,6 +240,7 @@ fun AppNavHost(
                 }
                 detailRoutes(navController, onSignOut, onOpenDrawer = null)
             }
+            } // Column
         }
     }
 }

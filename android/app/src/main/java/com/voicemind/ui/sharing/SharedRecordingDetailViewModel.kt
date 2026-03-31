@@ -8,10 +8,12 @@ import androidx.lifecycle.viewModelScope
 import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
+import com.voicemind.data.local.LocalAudioManager
 import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.SharingRepository
+import com.voicemind.data.repository.StorageRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -51,6 +53,7 @@ data class SharedRecordingDetailUiState(
     val isGeneratingTasks: Boolean = false,
     val generatedTaskCount: Int? = null,
     val hasGeneratedTasks: Boolean = false,
+    val isDownloading: Boolean = false,
 )
 
 @HiltViewModel
@@ -58,6 +61,8 @@ class SharedRecordingDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val recordingRepository: RecordingRepository,
     private val sharingRepository: SharingRepository,
+    private val storageRepository: StorageRepository,
+    private val localAudioManager: LocalAudioManager,
     private val actionItemRepository: ActionItemRepository,
     private val folderRepository: FolderRepository,
 ) : ViewModel() {
@@ -122,16 +127,26 @@ class SharedRecordingDetailViewModel @Inject constructor(
                 Timber.w(e, "SharedRecordingDetailVM: hasGeneratedTasks check failed")
             }
 
-            // Fetch signed audio URL and extract waveform
+            // Fetch audio: prefer local cache, download if missing
+            val compositeId = "${ownerUid}_${recordingId}"
             try {
-                val url = sharingRepository.getSharedAudioUrl(ownerUid, recordingId)
-                urlFetchedAt = System.currentTimeMillis()
-                _state.update { it.copy(audioUrl = url, isExtractingWaveform = true) }
-                val bars = WaveformExtractor.extract(url)
+                val localPath = if (localAudioManager.sharedAudioExists(compositeId)) {
+                    localAudioManager.sharedAudioFile(compositeId).absolutePath
+                } else {
+                    _state.update { it.copy(isDownloading = true) }
+                    val url = sharingRepository.getSharedAudioUrl(ownerUid, recordingId)
+                    urlFetchedAt = System.currentTimeMillis()
+                    val destFile = localAudioManager.sharedAudioFile(compositeId)
+                    storageRepository.downloadFromUrl(url, destFile)
+                    _state.update { it.copy(isDownloading = false) }
+                    destFile.absolutePath
+                }
+                _state.update { it.copy(audioUrl = localPath, isExtractingWaveform = true) }
+                val bars = WaveformExtractor.extract(localPath)
                 _state.update { it.copy(waveformBars = bars, isExtractingWaveform = false) }
             } catch (e: Exception) {
                 Timber.e(e, "SharedRecordingDetailVM: audio init failed")
-                _state.update { it.copy(error = "Failed to load audio", isExtractingWaveform = false) }
+                _state.update { it.copy(error = "Failed to load audio", isDownloading = false, isExtractingWaveform = false) }
             }
         }
     }
@@ -281,6 +296,10 @@ class SharedRecordingDetailViewModel @Inject constructor(
     }
 
     private suspend fun getAudioUrlRefreshed(): String? {
+        val compositeId = "${ownerUid}_${recordingId}"
+        val localFile = localAudioManager.getSharedAudioFile(compositeId)
+        if (localFile != null) return localFile.absolutePath
+
         val current = _state.value.audioUrl
         if (current != null && System.currentTimeMillis() - urlFetchedAt < 50 * 60 * 1000L) {
             return current

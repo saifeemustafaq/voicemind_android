@@ -150,7 +150,6 @@ fun RecordingsScreen(
     var showRenameDialog by remember { mutableStateOf<Recording?>(null) }
     var showMoveDialog by remember { mutableStateOf<Recording?>(null) }
     var showDeleteConfirm by remember { mutableStateOf<Recording?>(null) }
-    var showShareDialog by remember { mutableStateOf<Recording?>(null) }
     var showBulkDeleteConfirm by remember { mutableStateOf(false) }
     var showBulkMoveDialog by remember { mutableStateOf(false) }
     var summarizingGroup by remember { mutableStateOf<String?>(null) }
@@ -316,6 +315,7 @@ fun RecordingsScreen(
                                         RecordingRow(
                                             recording = recording,
                                             isPlaying = listState.playingRecordingId == recording.id && !listState.isPlaybackPaused,
+                                            isDownloading = listState.downloadingRecordingId == recording.id,
                                             isMultiSelectActive = listState.isMultiSelectActive,
                                             isSelected = isSelected,
                                             onPlayPause = {
@@ -346,7 +346,7 @@ fun RecordingsScreen(
                                                     recordingsViewModel.shareTranscript(context, text)
                                                 }
                                             },
-                                            onShareWithUser = { showShareDialog = recording },
+                                            onShareWithUser = { recordingsViewModel.requestShareWithUser(recording) },
                                         )
                                         if (index < recordings.lastIndex) {
                                             HorizontalDivider(
@@ -459,11 +459,36 @@ fun RecordingsScreen(
         onDismissDelete = { showDeleteConfirm = null },
     )
 
-    showShareDialog?.let { recording ->
+    // Share with user — routed through ViewModel for connectivity guard
+    listState.shareWithUserTarget?.let { recording ->
         ShareDialog(
             itemId = recording.id,
             itemType = "recording",
-            onDismiss = { showShareDialog = null },
+            onDismiss = { recordingsViewModel.clearShareWithUser() },
+        )
+    }
+
+    // Needs-internet dialog
+    listState.needsInternetDialog?.let { reason ->
+        val (title, body) = when (reason) {
+            NeedsInternetReason.GenerateSummary, NeedsInternetReason.GenerateTasks ->
+                "Internet Required" to "This recording hasn't been processed yet. Please connect to the internet so VoiceMind can transcribe the audio."
+            NeedsInternetReason.CollectiveSummarize ->
+                "Internet Required" to "Generating a collective summary requires an internet connection. Please connect and try again."
+            NeedsInternetReason.StillProcessing ->
+                "Still Processing" to "This recording is still being processed. Please wait a moment and try again."
+            NeedsInternetReason.ShareWithUser ->
+                "Internet Required" to "Sharing requires an internet connection. Please connect and try again."
+        }
+        AlertDialog(
+            onDismissRequest = { recordingsViewModel.dismissNeedsInternetDialog() },
+            title = { Text(title) },
+            text = { Text(body) },
+            confirmButton = {
+                TextButton(onClick = { recordingsViewModel.dismissNeedsInternetDialog() }) {
+                    Text("OK")
+                }
+            },
         )
     }
 
@@ -846,6 +871,7 @@ private fun MultiSelectHintBanner(onDismiss: () -> Unit) {
 private fun RecordingRow(
     recording: Recording,
     isPlaying: Boolean,
+    isDownloading: Boolean = false,
     isMultiSelectActive: Boolean,
     isSelected: Boolean,
     onPlayPause: () -> Unit,
@@ -907,13 +933,22 @@ private fun RecordingRow(
                 }
             }
         } else {
-            IconButton(onClick = onPlayPause, modifier = Modifier.size(48.dp)) {
-                Icon(
-                    if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(36.dp),
-                )
+            if (isDownloading) {
+                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
+            } else {
+                IconButton(onClick = onPlayPause, modifier = Modifier.size(48.dp)) {
+                    Icon(
+                        if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
             }
         }
 
@@ -994,6 +1029,40 @@ private fun RecordingRow(
                     )
                 }
             }
+        }
+    }
+
+    // Processing status chip
+    val showStatusChip = recording.transcription == null && !recording.processingFailed
+    if (showStatusChip || recording.processingFailed) {
+        val (chipText, containerColor, contentColor) = when {
+            recording.processingFailed -> Triple(
+                "Processing failed",
+                MaterialTheme.colorScheme.errorContainer,
+                MaterialTheme.colorScheme.onErrorContainer,
+            )
+            recording.syncStatus == com.voicemind.data.local.SyncStatus.PENDING_UPLOAD -> Triple(
+                "Waiting for upload",
+                MaterialTheme.colorScheme.tertiaryContainer,
+                MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            else -> Triple(
+                "Processing...",
+                MaterialTheme.colorScheme.secondaryContainer,
+                MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
+        Surface(
+            color = containerColor,
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier.padding(start = 68.dp, end = 12.dp, bottom = 8.dp),
+        ) {
+            Text(
+                text = chipText,
+                style = MaterialTheme.typography.bodySmall,
+                color = contentColor,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            )
         }
     }
 

@@ -3,8 +3,11 @@ package com.voicemind.data.repository
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.voicemind.data.local.SyncStatus
+import com.voicemind.data.local.toTimestamp
 import com.voicemind.data.local.dao.FolderDao
+import com.voicemind.data.local.dao.PendingDeleteDao
 import com.voicemind.data.local.entity.FolderEntity
+import com.voicemind.data.local.entity.PendingDeleteEntity
 import com.voicemind.data.local.toModel
 import com.voicemind.data.model.Folder
 import com.voicemind.data.sync.SyncScheduler
@@ -21,6 +24,7 @@ class FolderRepository @Inject constructor(
     private val authRepository: AuthRepository,
     private val folderDao: FolderDao,
     private val syncScheduler: SyncScheduler,
+    private val pendingDeleteDao: PendingDeleteDao,
 ) {
     private fun collection() =
         firestore.collection("users/${requireNotNull(authRepository.currentUser) { "User must be signed in" }.uid}/folders")
@@ -66,12 +70,14 @@ class FolderRepository @Inject constructor(
 
     suspend fun deleteFolder(folderId: String) {
         if (folderId == Folder.UNFILED_ID) return
+        pendingDeleteDao.insert(PendingDeleteEntity(entityType = "folder", entityId = folderId))
         folderDao.hardDelete(folderId)
         try {
             collection().document(folderId).update(
                 mapOf("isDeleted" to true, "deletedAt" to FieldValue.serverTimestamp())
             ).await()
-        } catch (_: Exception) { /* deleted locally; cloud copy remains for recovery */ }
+            pendingDeleteDao.deleteByEntity("folder", folderId)
+        } catch (_: Exception) { /* deleted locally; SyncWorker will push soft-delete */ }
     }
 
     suspend fun seedDefaultsIfEmpty() {
@@ -117,7 +123,7 @@ class FolderRepository @Inject constructor(
         collection().document(entity.id).set(mapOf(
             "name" to entity.name,
             "isDeleted" to false,
-            "createdAt" to FieldValue.serverTimestamp(),
+            "createdAt" to (entity.createdAt.toTimestamp() ?: FieldValue.serverTimestamp()),
         )).await()
         folderDao.updateSyncStatus(entity.id, SyncStatus.SYNCED)
     }

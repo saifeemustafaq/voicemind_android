@@ -28,6 +28,9 @@ interface CollectiveSummaryDao {
     @Query("SELECT * FROM collective_summaries WHERE syncStatus != 'SYNCED'")
     suspend fun getPendingSync(): List<CollectiveSummaryEntity>
 
+    @Query("SELECT COUNT(*) FROM collective_summaries WHERE syncStatus != 'SYNCED'")
+    fun observePendingSyncCount(): Flow<Int>
+
     @Query("DELETE FROM collective_summaries")
     suspend fun deleteAll()
 

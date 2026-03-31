@@ -8,6 +8,7 @@ import com.voicemind.data.local.SyncStatus
 import com.voicemind.data.local.dao.ActionItemDao
 import com.voicemind.data.local.dao.CollectiveSummaryDao
 import com.voicemind.data.local.dao.FolderDao
+import com.voicemind.data.local.dao.PendingDeleteDao
 import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.data.local.entity.ActionItemEntity
 import com.voicemind.data.local.entity.FolderEntity
@@ -44,6 +45,7 @@ class FirestoreSyncService @Inject constructor(
     private val folderDao: FolderDao,
     private val collectiveSummaryDao: CollectiveSummaryDao,
     private val localAudioManager: LocalAudioManager,
+    private val pendingDeleteDao: PendingDeleteDao,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -131,6 +133,7 @@ class FirestoreSyncService @Inject constructor(
                 }
                 val existing = recordingDao.getById(cloud.id)
                 val entity = if (existing == null) {
+                    if (pendingDeleteDao.exists("recording", cloud.id)) return
                     cloud.toRoomEntity(localAudioPath = null, syncStatus = SyncStatus.SYNCED)
                 } else {
                     val keepLocalEdits = existing.syncStatus != SyncStatus.SYNCED
@@ -171,6 +174,7 @@ class FirestoreSyncService @Inject constructor(
                 }
                 val existing = actionItemDao.getById(cloud.id)
                 val entity = if (existing == null) {
+                    if (pendingDeleteDao.exists("actionItem", cloud.id)) return
                     cloud.toEntity(SyncStatus.SYNCED)
                 } else {
                     val keepLocalEdits = existing.syncStatus != SyncStatus.SYNCED
@@ -214,6 +218,7 @@ class FirestoreSyncService @Inject constructor(
                 }
                 val existing = folderDao.getById(cloud.id)
                 val entity = if (existing == null) {
+                    if (pendingDeleteDao.exists("folder", cloud.id)) return
                     cloud.toEntity(SyncStatus.SYNCED)
                 } else {
                     val keepLocalEdits = existing.syncStatus != SyncStatus.SYNCED
@@ -243,6 +248,8 @@ class FirestoreSyncService @Inject constructor(
                     return
                 }
                 // Summaries are entirely cloud-owned — always overwrite.
+                if (collectiveSummaryDao.getById(cloud.id) == null &&
+                    pendingDeleteDao.exists("collectiveSummary", cloud.id)) return
                 collectiveSummaryDao.upsert(cloud.toEntity(SyncStatus.SYNCED))
             }
             DocumentChange.Type.REMOVED -> collectiveSummaryDao.hardDelete(change.document.id)

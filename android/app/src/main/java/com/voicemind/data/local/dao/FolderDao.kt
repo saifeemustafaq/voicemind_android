@@ -28,6 +28,9 @@ interface FolderDao {
     @Query("SELECT * FROM folders WHERE syncStatus != 'SYNCED'")
     suspend fun getPendingSync(): List<FolderEntity>
 
+    @Query("SELECT COUNT(*) FROM folders WHERE syncStatus != 'SYNCED'")
+    fun observePendingSyncCount(): Flow<Int>
+
     @Query("DELETE FROM folders")
     suspend fun deleteAll()
 

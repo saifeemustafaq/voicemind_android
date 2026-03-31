@@ -3,6 +3,7 @@ package com.voicemind.ui.sharing
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
+import com.voicemind.data.local.LocalAudioManager
 import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.CollectiveSummaryRepository
 import com.voicemind.data.repository.RecordingRepository
@@ -52,6 +53,7 @@ data class SharedItemsUiState(
 @HiltViewModel
 class SharedItemsViewModel @Inject constructor(
     private val sharingRepository: SharingRepository,
+    private val localAudioManager: LocalAudioManager,
     private val recordingRepository: RecordingRepository,
     private val actionItemRepository: ActionItemRepository,
     private val collectiveSummaryRepository: CollectiveSummaryRepository,
@@ -129,6 +131,10 @@ class SharedItemsViewModel @Inject constructor(
     fun dismiss(shareId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val item = _uiState.value.recordings.find { it.shareId == shareId }
+                if (item != null && item.itemType == "recording") {
+                    localAudioManager.deleteSharedAudio("${item.ownerUid}_${item.itemId}")
+                }
                 sharingRepository.dismissSharedItem(shareId)
             } catch (e: Exception) {
                 Timber.e(e, "Failed to dismiss shared item")

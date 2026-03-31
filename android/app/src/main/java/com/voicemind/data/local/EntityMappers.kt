@@ -32,6 +32,7 @@ fun RecordingEntity.toModel() = Recording(
     isDeleted = isDeleted,
     deletedAt = deletedAt.toTimestamp(),
     processingFailed = processingFailed,
+    syncStatus = syncStatus,
 )
 
 fun Recording.toEntity(

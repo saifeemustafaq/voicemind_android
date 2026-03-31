@@ -34,6 +34,9 @@ interface ActionItemDao {
     @Query("SELECT * FROM action_items WHERE syncStatus != 'SYNCED'")
     suspend fun getPendingSync(): List<ActionItemEntity>
 
+    @Query("SELECT COUNT(*) FROM action_items WHERE syncStatus != 'SYNCED'")
+    fun observePendingSyncCount(): Flow<Int>
+
     @Query("SELECT * FROM action_items WHERE isDeleted = 0 AND sharedFromUid IS NOT NULL ORDER BY createdAt DESC")
     fun observeSharedTasks(): Flow<List<ActionItemEntity>>
 
