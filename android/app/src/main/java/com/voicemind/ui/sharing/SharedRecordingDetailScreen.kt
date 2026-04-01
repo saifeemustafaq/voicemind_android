@@ -317,6 +317,10 @@ fun SharedRecordingDetailScreen(
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center,
                         )
+                        Spacer(Modifier.height(VmDimens.SpaceSm))
+                        FilledTonalButton(onClick = { viewModel.retryLoadAudio() }) {
+                            Text("Retry")
+                        }
                     }
 
                     Spacer(Modifier.height(VmDimens.SpaceXxl))

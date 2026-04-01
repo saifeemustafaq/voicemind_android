@@ -359,11 +359,16 @@ export const getSharedAudioUrl = onCall(async (request) => {
     throw new HttpsError("not-found", "Audio file path not found");
   }
 
-  const [url] = await storage.bucket().file(audioPath).getSignedUrl({
-    version: "v4",
-    action: "read",
-    expires: Date.now() + 60 * 60 * 1000,
-  });
+  const file = storage.bucket().file(audioPath);
+  const [metadata] = await file.getMetadata();
+  let token = metadata.metadata?.firebaseStorageDownloadTokens as string | undefined;
+  if (!token) {
+    token = randomBytes(16).toString("hex");
+    await file.setMetadata({ metadata: { firebaseStorageDownloadTokens: token } });
+  }
+  const bucket = storage.bucket().name;
+  const encodedPath = encodeURIComponent(audioPath);
+  const url = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media&token=${token}`;
 
   return { url };
 });

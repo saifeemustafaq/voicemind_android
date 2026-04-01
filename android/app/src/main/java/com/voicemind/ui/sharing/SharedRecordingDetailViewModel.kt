@@ -127,28 +127,39 @@ class SharedRecordingDetailViewModel @Inject constructor(
                 Timber.w(e, "SharedRecordingDetailVM: hasGeneratedTasks check failed")
             }
 
-            // Fetch audio: prefer local cache, download if missing
-            val compositeId = "${ownerUid}_${recordingId}"
-            try {
-                val localPath = if (localAudioManager.sharedAudioExists(compositeId)) {
-                    localAudioManager.sharedAudioFile(compositeId).absolutePath
-                } else {
-                    _state.update { it.copy(isDownloading = true) }
-                    val url = sharingRepository.getSharedAudioUrl(ownerUid, recordingId)
-                    urlFetchedAt = System.currentTimeMillis()
-                    val destFile = localAudioManager.sharedAudioFile(compositeId)
-                    storageRepository.downloadFromUrl(url, destFile)
-                    _state.update { it.copy(isDownloading = false) }
-                    destFile.absolutePath
-                }
-                _state.update { it.copy(audioUrl = localPath, isExtractingWaveform = true) }
-                val bars = WaveformExtractor.extract(localPath)
-                _state.update { it.copy(waveformBars = bars, isExtractingWaveform = false) }
-            } catch (e: Exception) {
-                Timber.e(e, "SharedRecordingDetailVM: audio init failed")
-                _state.update { it.copy(error = "Failed to load audio", isDownloading = false, isExtractingWaveform = false) }
-            }
+            loadAudio()
         }
+    }
+
+    private suspend fun loadAudio() {
+        val compositeId = "${ownerUid}_${recordingId}"
+        try {
+            val cachedFile = localAudioManager.sharedAudioFile(compositeId)
+            val localPath = if (cachedFile.exists() && cachedFile.length() > 0) {
+                cachedFile.absolutePath
+            } else {
+                cachedFile.delete()
+                _state.update { it.copy(isDownloading = true) }
+                val url = sharingRepository.getSharedAudioUrl(ownerUid, recordingId)
+                urlFetchedAt = System.currentTimeMillis()
+                storageRepository.downloadFromUrl(url, cachedFile)
+                _state.update { it.copy(isDownloading = false) }
+                cachedFile.absolutePath
+            }
+            _state.update { it.copy(audioUrl = localPath, isExtractingWaveform = true) }
+            val bars = WaveformExtractor.extract(localPath)
+            _state.update { it.copy(waveformBars = bars, isExtractingWaveform = false, error = null) }
+        } catch (e: Exception) {
+            Timber.e(e, "SharedRecordingDetailVM: audio load failed")
+            _state.update { it.copy(error = "Failed to load audio", isDownloading = false, isExtractingWaveform = false) }
+        }
+    }
+
+    fun retryLoadAudio() {
+        _state.update { it.copy(error = null, audioUrl = null) }
+        val compositeId = "${ownerUid}_${recordingId}"
+        localAudioManager.deleteSharedAudio(compositeId)
+        viewModelScope.launch(Dispatchers.IO) { loadAudio() }
     }
 
     fun playOrResume() {

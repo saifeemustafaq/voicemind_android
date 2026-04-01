@@ -34,8 +34,13 @@ class StorageRepository @Inject constructor(
     }
 
     suspend fun downloadFromUrl(url: String, destinationFile: File) = withContext(Dispatchers.IO) {
-        java.net.URL(url).openStream().use { input ->
-            destinationFile.outputStream().use { output -> input.copyTo(output) }
+        try {
+            java.net.URL(url).openStream().use { input ->
+                destinationFile.outputStream().use { output -> input.copyTo(output) }
+            }
+        } catch (e: Exception) {
+            destinationFile.delete()
+            throw e
         }
     }
 }
