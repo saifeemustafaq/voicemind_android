@@ -3,6 +3,7 @@ package com.voicemind.data.sync
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
@@ -29,7 +30,11 @@ class BulkDownloadWorker @AssistedInject constructor(
         val pending = recordingDao.getRecordingsNeedingAudioDownload()
         if (pending.isEmpty()) return Result.success()
 
-        setForeground(buildForegroundInfo(0, pending.size))
+        try {
+            setForeground(buildForegroundInfo(0, pending.size))
+        } catch (e: Exception) {
+            Timber.w(e, "BulkDownloadWorker: could not start foreground — running in background")
+        }
 
         var downloaded = 0
         pending.forEachIndexed { index, entity ->
@@ -44,7 +49,11 @@ class BulkDownloadWorker @AssistedInject constructor(
                     }
                 recordingDao.updateLocalAudioPath(entity.id, destFile.absolutePath)
                 downloaded++
-                setForeground(buildForegroundInfo(index + 1, pending.size))
+                try {
+                    setForeground(buildForegroundInfo(index + 1, pending.size))
+                } catch (e: Exception) {
+                    Timber.w(e, "BulkDownloadWorker: could not update foreground notification — continuing")
+                }
             } catch (e: Exception) {
                 Timber.w(e, "BulkDownloadWorker: failed to download audio for %s — skipping", entity.id)
             }
@@ -72,7 +81,7 @@ class BulkDownloadWorker @AssistedInject constructor(
             .setProgress(total, progress, progress == 0)
             .setOngoing(true)
             .build()
-        return ForegroundInfo(NOTIFICATION_ID, notification)
+        return ForegroundInfo(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
 
     companion object {

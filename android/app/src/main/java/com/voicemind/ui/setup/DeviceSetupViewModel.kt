@@ -22,7 +22,7 @@ import timber.log.Timber
 import javax.inject.Inject
 
 data class DeviceSetupUiState(
-    val selectedStrategy: String = "on_demand",
+    val hasAgreed: Boolean = false,
     val isConfirming: Boolean = false,
     val error: String? = null,
 )
@@ -37,19 +37,21 @@ class DeviceSetupViewModel @Inject constructor(
     private val _state = MutableStateFlow(DeviceSetupUiState())
     val state: StateFlow<DeviceSetupUiState> = _state
 
-    fun selectStrategy(strategy: String) {
-        _state.update { it.copy(selectedStrategy = strategy) }
+    fun toggleAgreed() {
+        _state.update { it.copy(hasAgreed = !it.hasAgreed) }
     }
 
     fun confirm() {
         _state.update { it.copy(isConfirming = true, error = null) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val strategy = _state.value.selectedStrategy
-                navPreferenceRepository.setDeviceSyncStrategy(strategy)
+                navPreferenceRepository.setDeviceSyncStrategy("full")
+                navPreferenceRepository.setLocalStorageConsentShown(true)
                 initialSyncManager.runIfNeeded()
-                if (strategy == "full") {
+                try {
                     enqueueBulkDownload()
+                } catch (e: Exception) {
+                    Timber.w(e, "DeviceSetupVM: failed to enqueue bulk download — continuing setup")
                 }
                 navPreferenceRepository.setDeviceSetupComplete(true)
                 _state.update { it.copy(isConfirming = false) }

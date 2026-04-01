@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
+import androidx.work.WorkManager
 import com.voicemind.data.local.AppDatabase
 import com.voicemind.data.local.LocalAudioManager
 import com.voicemind.data.local.dao.ActionItemDao
@@ -19,9 +20,13 @@ import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.NtsSettings
 import com.voicemind.data.repository.TasksConnectResult
 import com.voicemind.data.repository.UserSettingsRepository
+import com.voicemind.data.sync.BulkDownloadWorker
+import com.voicemind.data.sync.FirestoreSyncService
+import com.voicemind.data.sync.SyncScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +34,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.TimeZone
 import javax.inject.Inject
@@ -58,6 +64,7 @@ class SettingsViewModel @Inject constructor(
     private val userSettingsRepository: UserSettingsRepository,
     private val localAudioManager: LocalAudioManager,
     private val appDatabase: AppDatabase,
+    private val firestoreSyncService: FirestoreSyncService,
     recordingDao: RecordingDao,
     actionItemDao: ActionItemDao,
     folderDao: FolderDao,
@@ -100,14 +107,25 @@ class SettingsViewModel @Inject constructor(
 
     fun clearAllLocalData() {
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                localAudioManager.clearAllAudio()
-                appDatabase.clearAllTables()
-                navPreferenceRepository.setDeviceSetupComplete(false)
-                navPreferenceRepository.setInitialSyncComplete(false)
-                refreshStorageInfo()
-            } catch (e: Exception) {
-                Timber.e(e, "SettingsVM: clearAllLocalData failed")
+            withContext(NonCancellable) {
+                try {
+                    WorkManager.getInstance(context)
+                        .cancelUniqueWork(BulkDownloadWorker.WORK_NAME)
+                    WorkManager.getInstance(context)
+                        .cancelUniqueWork(SyncScheduler.WORK_NAME)
+
+                    firestoreSyncService.stopListening()
+
+                    localAudioManager.clearAllAudio()
+                    appDatabase.clearAllTables()
+
+                    navPreferenceRepository.setDeviceSetupComplete(false)
+                    navPreferenceRepository.setInitialSyncComplete(false)
+
+                    refreshStorageInfo()
+                } catch (e: Exception) {
+                    Timber.e(e, "SettingsVM: clearAllLocalData failed")
+                }
             }
         }
     }

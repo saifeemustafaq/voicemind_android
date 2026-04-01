@@ -655,7 +655,7 @@ fun SettingsScreen(
                         Text(
                             "This will remove all locally stored recordings, tasks, folders, and audio files from this device. " +
                             "Your data remains in the cloud and will re-sync on next launch. " +
-                            "You will be prompted to choose a sync strategy again."
+                            "You will be prompted to set up local storage again."
                         )
                     },
                     confirmButton = {

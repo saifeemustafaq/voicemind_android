@@ -132,9 +132,9 @@ class NavPreferenceRepository @Inject constructor(
     private val deviceSyncStrategyKey = stringPreferencesKey("device_sync_strategy")
     private val deviceSetupCompleteKey = booleanPreferencesKey("device_setup_complete")
 
-    /** One of: "full", "on_demand", "metadata_only". Defaults to "on_demand". */
+    /** One of: "full", "on_demand", "metadata_only". Defaults to "full". */
     val deviceSyncStrategy: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[deviceSyncStrategyKey] ?: "on_demand"
+        prefs[deviceSyncStrategyKey] ?: "full"
     }
 
     val isDeviceSetupComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
