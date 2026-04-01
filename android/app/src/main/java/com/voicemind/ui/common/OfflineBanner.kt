@@ -22,10 +22,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.ui.unit.dp
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.WifiOff
-import com.composables.icons.lucide.X
 
 /**
  * Compact banner shown when the device is offline.
@@ -64,7 +64,7 @@ fun OfflineBanner(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
                 Icon(
-                    imageVector = Lucide.WifiOff,
+                    imageVector = Icons.Default.WifiOff,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onTertiaryContainer,
                     modifier = Modifier.size(16.dp),
@@ -81,7 +81,7 @@ fun OfflineBanner(
                     modifier = Modifier.size(28.dp),
                 ) {
                     Icon(
-                        imageVector = Lucide.X,
+                        imageVector = Icons.Default.Close,
                         contentDescription = "Dismiss",
                         tint = MaterialTheme.colorScheme.onTertiaryContainer,
                         modifier = Modifier.size(16.dp),

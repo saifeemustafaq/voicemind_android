@@ -4,22 +4,22 @@ overview: Migrate VoiceMind from a fully cloud-dependent architecture to a local
 todos:
   - id: phase1-foundation
     content: "Phase 1: Room DB + entities/DAOs + LocalAudioManager + ConnectivityObserver + DI wiring"
-    status: pending
+    status: done
   - id: phase2-recordings
     content: "Phase 2: RecordingRepository local-first + RecordingService keeps audio + playback from local + SyncWorker + FirestoreSyncService"
-    status: pending
+    status: done
   - id: phase3-other-repos
     content: "Phase 3: ActionItemRepository + FolderRepository + CollectiveSummaryRepository local-first"
-    status: pending
+    status: done
   - id: phase4-offline-ux
     content: "Phase 4: Offline banner + pending processing indicators + needs-internet dialogs + hard-delete local / soft-delete cloud"
-    status: pending
+    status: done
   - id: phase5-shared-newdevice
     content: "Phase 5: Shared content local download + new device setup dialog with sync strategy choice"
-    status: pending
+    status: done
   - id: phase6-storage
     content: "Phase 6: Storage management screen + user consent dialog + cleanup tools"
-    status: pending
+    status: done
 isProject: false
 ---
 

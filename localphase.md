@@ -839,18 +839,18 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Connectivity State in UI
 
-- [ ] Create `android/app/src/main/java/com/voicemind/ui/common/OfflineBanner.kt`
+- [x] Create `android/app/src/main/java/com/voicemind/ui/common/OfflineBanner.kt`
   - A composable that shows a subtle top banner when `ConnectivityObserver.isOnline` is `false`
   - Text: "You're offline. Changes will sync when connected."
   - Amber/warning color, dismissable but reappears on navigation
   - Thin bar at the top of the screen, does not push content down significantly
 
-- [ ] Add `OfflineBanner` to the main scaffold in `MainActivity.kt` or the root navigation composable
+- [x] Add `OfflineBanner` to the main scaffold in `MainActivity.kt` or the root navigation composable
   - It should appear on every screen when offline
 
 ### Recording Pending Processing State
 
-- [ ] Update recording list item UI in `RecordingsScreen.kt`:
+- [x] Update recording list item UI in `RecordingsScreen.kt`:
   - When a recording has `transcription == null` AND `processingFailed == false` AND `syncStatus == PENDING_UPLOAD`:
     - Show a "Waiting for internet" chip/badge on the recording card
   - When a recording has `transcription == null` AND `processingFailed == false` AND `syncStatus == SYNCED`:
@@ -861,19 +861,19 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### "Needs Internet" Dialogs
 
-- [ ] When the user taps "Generate Summary" on a recording that has no transcription:
+- [x] When the user taps "Generate Summary" on a recording that has no transcription:
   - If offline: Show dialog — "This recording hasn't been processed yet. Please connect to the internet so VoiceMind can transcribe the audio and generate a summary."
   - If online but transcription is still pending: Show dialog — "This recording is still being processed. Please wait a moment and try again."
 
-- [ ] When the user taps "Generate Tasks" on a recording with no transcription:
+- [x] When the user taps "Generate Tasks" on a recording with no transcription:
   - Same dialog pattern as above
 
-- [ ] When the user tries to share a recording while offline:
+- [x] When the user tries to share a recording while offline:
   - Show dialog — "Sharing requires an internet connection. Please connect and try again."
 
 ### Delete Behavior — Final Implementation
 
-- [ ] Ensure all delete paths follow this pattern:
+- [x] Ensure all delete paths follow this pattern:
   | Data Type | Local (Room) | Local (File) | Cloud (Firestore) |
   |-----------|-------------|--------------|-------------------|
   | Recording | Hard delete from Room | Delete audio from disk | Soft delete (`isDeleted = true`) |
@@ -881,13 +881,13 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
   | Folder | Hard delete from Room | N/A | Soft delete |
   | Collective Summary | Hard delete from Room | N/A | Soft delete |
 
-- [ ] For offline deletes:
+- [x] For offline deletes:
   1. Hard delete from Room immediately (user sees it disappear)
   2. Delete local audio file if applicable
   3. If online: soft delete in Firestore immediately
   4. If offline: The item is already gone from local. When the user comes back online, we need to push the soft delete. **Strategy**: Before hard-deleting from Room, if offline, insert a record into a new `pending_deletes` Room table with `(entityType, entityId, deletedAt)`. SyncWorker processes this table when online.
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/local/entity/PendingDeleteEntity.kt`:
+- [x] Create `android/app/src/main/java/com/voicemind/data/local/entity/PendingDeleteEntity.kt`:
   ```kotlin
   @Entity(tableName = "pending_deletes")
   data class PendingDeleteEntity(
@@ -898,29 +898,29 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
   )
   ```
 
-- [ ] Create `PendingDeleteDao.kt` with `getAll()`, `insert()`, `delete(id)`, `deleteAll()`
+- [x] Create `PendingDeleteDao.kt` with `getAll()`, `insert()`, `delete(id)`, `deleteAll()`
 
-- [ ] Update `AppDatabase` to include `PendingDeleteEntity` and `PendingDeleteDao` (Room migration required — version 1 → 2)
+- [x] Update `AppDatabase` to include `PendingDeleteEntity` and `PendingDeleteDao` (Room migration required — version 1 → 2)
 
-- [ ] Update `SyncWorker` to process pending deletes: read from `PendingDeleteDao`, soft-delete in Firestore, then remove from pending deletes table
+- [x] Update `SyncWorker` to process pending deletes: read from `PendingDeleteDao`, soft-delete in Firestore, then remove from pending deletes table
 
 ### Sync Status in Settings (Optional)
 
-- [ ] Add a "Sync Status" row in `SettingsScreen.kt`:
+- [x] Add a "Sync Status" row in `SettingsScreen.kt`:
   - Shows "All synced" when no pending items
   - Shows "X items pending sync" when there are pending items
   - Tapping shows a brief breakdown
 
 ### Verification
 
-- [ ] Offline banner appears when airplane mode is on, disappears when turned off
-- [ ] Recording card shows "Waiting for internet" when recorded offline
-- [ ] Recording card shows "Processing..." when uploaded but transcript not yet received
-- [ ] "Generate Summary" on an unprocessed recording while offline shows the correct dialog
-- [ ] "Generate Tasks" on an unprocessed recording while offline shows the correct dialog
-- [ ] Deleting a recording while offline removes it from UI immediately, does NOT crash
-- [ ] Coming back online after offline delete correctly soft-deletes in Firestore
-- [ ] Deleting a recording while online removes from Room + audio file + soft-deletes Firestore
+- [x] Offline banner appears when airplane mode is on, disappears when turned off
+- [x] Recording card shows "Waiting for internet" when recorded offline
+- [x] Recording card shows "Processing..." when uploaded but transcript not yet received
+- [x] "Generate Summary" on an unprocessed recording while offline shows the correct dialog
+- [x] "Generate Tasks" on an unprocessed recording while offline shows the correct dialog
+- [x] Deleting a recording while offline removes it from UI immediately, does NOT crash
+- [x] Coming back online after offline delete correctly soft-deletes in Firestore
+- [x] Deleting a recording while online removes from Room + audio file + soft-deletes Firestore
 
 ---
 
@@ -930,7 +930,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Shared Audio — Download and Cache Locally
 
-- [ ] Update `android/app/src/main/java/com/voicemind/ui/sharing/SharedRecordingDetailViewModel.kt`:
+- [x] Update `android/app/src/main/java/com/voicemind/ui/sharing/SharedRecordingDetailViewModel.kt`:
   - When loading shared recording audio:
     ```
     BEFORE:
@@ -947,12 +947,12 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
          d. (Show download progress indicator in UI)
     ```
 
-- [ ] Update `SharingRepository.dismissSharedItem()`:
+- [x] Update `SharingRepository.dismissSharedItem()`:
   - After dismissing, also call `localAudioManager.deleteSharedAudio(shareId)` to clean up disk space
 
 ### Shared Items in Room (Optional Extension)
 
-- [ ] Create `SharedItemEntity.kt` in `data/local/entity/`:
+- [x] Create `SharedItemEntity.kt` in `data/local/entity/`:
   ```kotlin
   @Entity(tableName = "shared_items")
   data class SharedItemEntity(
@@ -971,11 +971,11 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
   - This allows viewing shared items offline
   - Requires `SharedItemDao` and Room migration
 
-- [ ] Update `FirestoreSyncService` to add a listener for `sharedWithMe` collection → Room
+- [x] Update `FirestoreSyncService` to add a listener for `sharedWithMe` collection → Room
 
 ### New Device / Reinstall Setup
 
-- [ ] Create `android/app/src/main/java/com/voicemind/ui/setup/DeviceSetupScreen.kt`:
+- [x] Create `android/app/src/main/java/com/voicemind/ui/setup/DeviceSetupScreen.kt`:
   - Full-screen dialog shown on first launch when:
     - User is authenticated (signed in)
     - Room database is empty (no recordings)
@@ -989,7 +989,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
   - Confirm button: "Set Up"
   - Note at bottom: "This choice cannot be changed without reinstalling the app."
 
-- [ ] Create `android/app/src/main/java/com/voicemind/ui/setup/DeviceSetupViewModel.kt`:
+- [x] Create `android/app/src/main/java/com/voicemind/ui/setup/DeviceSetupViewModel.kt`:
   - Holds selected option state
   - On confirm:
     - Saves choice to DataStore via `NavPreferenceRepository`:
@@ -997,7 +997,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
       - `deviceSetupComplete`: `true`
     - Triggers `InitialSyncManager` with the chosen strategy
 
-- [ ] Update `android/app/src/main/java/com/voicemind/data/repository/NavPreferenceRepository.kt`:
+- [x] Update `android/app/src/main/java/com/voicemind/data/repository/NavPreferenceRepository.kt`:
   - Add keys and methods:
     ```kotlin
     private val deviceSyncStrategyKey = stringPreferencesKey("device_sync_strategy")
@@ -1015,26 +1015,26 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
     suspend fun setDeviceSetupComplete(complete: Boolean) { ... }
     ```
 
-- [ ] Update `InitialSyncManager` (from Phase 2):
+- [x] Update `InitialSyncManager` (from Phase 2):
   - Accept sync strategy parameter
   - **"full"**: Fetch all metadata from Firestore → Room, then enqueue a `BulkDownloadWorker` that downloads every audio file from Storage to `LocalAudioManager`
   - **"on_demand"**: Fetch all metadata from Firestore → Room, set `localAudioPath = null`. Audio downloads on first play (the playback fallback in Phase 2 handles this, but now also saves the downloaded file locally for future plays)
   - **"metadata_only"**: Fetch all metadata from Firestore → Room, set `localAudioPath = null`. Audio always streams from cloud (no local caching)
 
-- [ ] Create `android/app/src/main/java/com/voicemind/data/sync/BulkDownloadWorker.kt`:
+- [x] Create `android/app/src/main/java/com/voicemind/data/sync/BulkDownloadWorker.kt`:
   - WorkManager worker that downloads all audio files for recordings where `localAudioPath == null`
   - Shows a notification with progress (X of Y files downloaded)
   - Runs with network constraint
   - Updates Room `localAudioPath` as each file completes
 
-- [ ] Wire `DeviceSetupScreen` into navigation:
+- [x] Wire `DeviceSetupScreen` into navigation:
   - In `AppNavHost.kt`, check `isDeviceSetupComplete` on launch
   - If false and user is signed in, show `DeviceSetupScreen` before proceeding to main app
   - After setup completes, navigate to main app
 
 ### On-Demand Download During Playback
 
-- [ ] Update playback fallback logic in `RecordingsViewModel.playAudio()` (Phase 2 code):
+- [x] Update playback fallback logic in `RecordingsViewModel.playAudio()` (Phase 2 code):
   - When `localAudioPath == null` and `deviceSyncStrategy == "on_demand"`:
     1. Download audio from Storage to `LocalAudioManager` in background
     2. Update Room `localAudioPath`
@@ -1045,14 +1045,14 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Verification
 
-- [ ] Opening a shared recording downloads audio locally; second play uses local file (no network)
-- [ ] Dismissing a shared item deletes the local audio file
-- [ ] Fresh install with existing account shows DeviceSetupScreen
-- [ ] Choosing "Download Everything" downloads all audio files with progress notification
-- [ ] Choosing "Download on Demand" syncs metadata only; audio downloads on first play
-- [ ] Choosing "Metadata Only" syncs metadata only; audio streams from cloud
-- [ ] Choice is persisted and not shown again on subsequent launches
-- [ ] Device setup cannot be changed without reinstalling
+- [x] Opening a shared recording downloads audio locally; second play uses local file (no network)
+- [x] Dismissing a shared item deletes the local audio file
+- [x] Fresh install with existing account shows DeviceSetupScreen
+- [x] Choosing "Download Everything" downloads all audio files with progress notification
+- [x] Choosing "Download on Demand" syncs metadata only; audio downloads on first play
+- [x] Choosing "Metadata Only" syncs metadata only; audio streams from cloud
+- [x] Choice is persisted and not shown again on subsequent launches
+- [x] Device setup cannot be changed without reinstalling
 
 ---
 
@@ -1062,7 +1062,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### User Consent on Upgrade
 
-- [ ] Create `android/app/src/main/java/com/voicemind/ui/setup/LocalStorageConsentDialog.kt`:
+- [x] Create `android/app/src/main/java/com/voicemind/ui/setup/LocalStorageConsentDialog.kt`:
   - Shown on first app launch after upgrading to the local-first version (detected: user is signed in, has Firestore data, but `deviceSetupComplete == false`)
   - Title: "New: Local Storage"
   - Body: "VoiceMind now stores your recordings locally on your device for faster access, offline playback, and reduced data usage. Your data is still backed up to the cloud."
@@ -1072,7 +1072,7 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Storage Usage Screen
 
-- [ ] Create `android/app/src/main/java/com/voicemind/ui/settings/StorageScreen.kt`:
+- [x] Create `android/app/src/main/java/com/voicemind/ui/settings/StorageScreen.kt`:
   - Accessible from Settings screen (add "Storage" row under a new "DATA" section)
   - Displays:
     - **Total local storage used**: `LocalAudioManager.getTotalSizeBytes()` + Room database file size
@@ -1085,13 +1085,13 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
     - **"Clear Shared Audio Cache"** button: Calls `localAudioManager.clearSharedAudio()`, shows confirmation dialog first
     - **"Clear All Local Data"** button: Calls `localAudioManager.clearAllAudio()` + Room `deleteAll()` on all DAOs + resets `deviceSetupComplete = false`. Shows warning dialog: "This will remove all local data. Your recordings are still safely stored in the cloud. You'll need to set up local storage again."
 
-- [ ] Create `android/app/src/main/java/com/voicemind/ui/settings/StorageViewModel.kt`:
+- [x] Create `android/app/src/main/java/com/voicemind/ui/settings/StorageViewModel.kt`:
   - Exposes storage size stats
   - Handles clear actions with confirmation state
 
 ### Settings Integration
 
-- [ ] Update `SettingsScreen.kt`:
+- [x] Update `SettingsScreen.kt`:
   - Add "DATA" section with:
     - "Storage" row → navigates to `StorageScreen`
     - Shows total storage used as subtitle (e.g., "Using 245 MB")
@@ -1099,17 +1099,17 @@ All DAOs live under `android/app/src/main/java/com/voicemind/data/local/dao/`.
 
 ### Storage Permission Notes
 
-- [ ] Confirm that `context.filesDir` (app-internal storage) does NOT require any runtime permissions on API 28+. This is the approach used by `LocalAudioManager`. No permission dialogs are needed.
-- [ ] If in the future external storage is desired (e.g., to survive app data clear), add `MANAGE_EXTERNAL_STORAGE` for API 30+ or use `MediaStore`. But for now, `filesDir` is sufficient and permission-free.
+- [x] Confirm that `context.filesDir` (app-internal storage) does NOT require any runtime permissions on API 28+. This is the approach used by `LocalAudioManager`. No permission dialogs are needed.
+- [x] If in the future external storage is desired (e.g., to survive app data clear), add `MANAGE_EXTERNAL_STORAGE` for API 30+ or use `MediaStore`. But for now, `filesDir` is sufficient and permission-free.
 
 ### Verification
 
-- [ ] Consent dialog appears on first launch after upgrade
-- [ ] Storage screen shows accurate breakdown of storage usage
-- [ ] "Clear Shared Audio Cache" removes shared audio files and frees space
-- [ ] "Clear All Local Data" wipes Room + audio files and triggers device setup flow on next launch
-- [ ] Storage row in Settings shows correct total size
-- [ ] No runtime permission dialogs appear for local storage
+- [x] Consent dialog appears on first launch after upgrade
+- [x] Storage screen shows accurate breakdown of storage usage
+- [x] "Clear Shared Audio Cache" removes shared audio files and frees space
+- [x] "Clear All Local Data" wipes Room + audio files and triggers device setup flow on next launch
+- [x] Storage row in Settings shows correct total size
+- [x] No runtime permission dialogs appear for local storage
 
 ---
 

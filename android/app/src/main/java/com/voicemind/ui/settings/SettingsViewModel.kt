@@ -1,10 +1,13 @@
 package com.voicemind.ui.settings
 
 import android.app.Activity
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
+import com.voicemind.data.local.AppDatabase
+import com.voicemind.data.local.LocalAudioManager
 import com.voicemind.data.local.dao.ActionItemDao
 import com.voicemind.data.local.dao.CollectiveSummaryDao
 import com.voicemind.data.local.dao.FolderDao
@@ -17,6 +20,7 @@ import com.voicemind.data.repository.NtsSettings
 import com.voicemind.data.repository.TasksConnectResult
 import com.voicemind.data.repository.UserSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,8 +29,17 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.util.TimeZone
 import javax.inject.Inject
+
+data class StorageInfo(
+    val ownAudioBytes: Long = 0,
+    val sharedAudioBytes: Long = 0,
+    val databaseBytes: Long = 0,
+) {
+    val totalBytes: Long get() = ownAudioBytes + sharedAudioBytes + databaseBytes
+}
 
 sealed interface DeleteAccountState {
     data object Idle : DeleteAccountState
@@ -38,10 +51,13 @@ sealed interface DeleteAccountState {
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val navPreferenceRepository: NavPreferenceRepository,
     private val authRepository: AuthRepository,
     private val googleTasksRepository: GoogleTasksRepository,
     private val userSettingsRepository: UserSettingsRepository,
+    private val localAudioManager: LocalAudioManager,
+    private val appDatabase: AppDatabase,
     recordingDao: RecordingDao,
     actionItemDao: ActionItemDao,
     folderDao: FolderDao,
@@ -57,6 +73,44 @@ class SettingsViewModel @Inject constructor(
         pendingDeleteDao.observeCount(),
     ) { r, a, f, s, d -> r + a + f + s + d }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // ── Storage ───────────────────────────────────────────────────────────────
+
+    private val _storageInfo = MutableStateFlow(StorageInfo())
+    val storageInfo: StateFlow<StorageInfo> = _storageInfo
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) { refreshStorageInfo() }
+    }
+
+    private fun refreshStorageInfo() {
+        _storageInfo.value = StorageInfo(
+            ownAudioBytes = localAudioManager.getOwnAudioSizeBytes(),
+            sharedAudioBytes = localAudioManager.getSharedAudioSizeBytes(),
+            databaseBytes = context.getDatabasePath("voicemind.db").length(),
+        )
+    }
+
+    fun clearSharedAudioCache() {
+        viewModelScope.launch(Dispatchers.IO) {
+            localAudioManager.clearSharedAudio()
+            refreshStorageInfo()
+        }
+    }
+
+    fun clearAllLocalData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                localAudioManager.clearAllAudio()
+                appDatabase.clearAllTables()
+                navPreferenceRepository.setDeviceSetupComplete(false)
+                navPreferenceRepository.setInitialSyncComplete(false)
+                refreshStorageInfo()
+            } catch (e: Exception) {
+                Timber.e(e, "SettingsVM: clearAllLocalData failed")
+            }
+        }
+    }
 
     val userDisplayText: String
         get() = authRepository.currentUser?.email

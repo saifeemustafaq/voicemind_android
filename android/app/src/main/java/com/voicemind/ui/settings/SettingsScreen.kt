@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -64,9 +65,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.composables.icons.lucide.CheckCircle
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.RefreshCw
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Sync
+import android.text.format.Formatter
 import com.voicemind.BuildConfig
 import com.voicemind.data.repository.AuthRepository
 import kotlinx.coroutines.launch
@@ -98,6 +99,7 @@ fun SettingsScreen(
     val discoverable by settingsViewModel.discoverable.collectAsStateWithLifecycle()
     val deleteState by settingsViewModel.deleteState.collectAsStateWithLifecycle()
     val pendingSyncCount by settingsViewModel.pendingSyncCount.collectAsStateWithLifecycle()
+    val storageInfo by settingsViewModel.storageInfo.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showTimeZonePicker by remember { mutableStateOf(false) }
@@ -106,6 +108,8 @@ fun SettingsScreen(
     var showReAuthDialog by remember { mutableStateOf(false) }
     var reAuthPassword by remember { mutableStateOf("") }
     var deleteError by remember { mutableStateOf<String?>(null) }
+    var showClearSharedConfirmDialog by remember { mutableStateOf(false) }
+    var showClearAllConfirmDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(deleteState) {
         when (val state = deleteState) {
@@ -191,37 +195,6 @@ fun SettingsScreen(
                         onClick = onSignOut,
                         enabled = !isDeleting,
                     )
-                    Spacer(modifier = Modifier.height(VmDimens.SpaceSm))
-                    if (isDeleting) {
-                        FilledTonalButton(
-                            onClick = {},
-                            enabled = false,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                                disabledContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                                disabledContentColor = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.5f),
-                            ),
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                            )
-                            Spacer(modifier = Modifier.width(VmDimens.SpaceSm))
-                            Text("Deleting Account...")
-                        }
-                    } else {
-                        FilledTonalButton(
-                            onClick = { showDeleteConfirmDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                            ),
-                        ) {
-                            Text("Delete Account")
-                        }
-                    }
                 }
             }
 
@@ -585,7 +558,7 @@ fun SettingsScreen(
                 ) {
                     if (pendingSyncCount == 0) {
                         Icon(
-                            imageVector = Lucide.CheckCircle,
+                            imageVector = Icons.Filled.CheckCircle,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp),
@@ -598,7 +571,7 @@ fun SettingsScreen(
                         )
                     } else {
                         Icon(
-                            imageVector = Lucide.RefreshCw,
+                            imageVector = Icons.Filled.Sync,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp),
@@ -613,7 +586,127 @@ fun SettingsScreen(
                 }
             }
 
+            // ── STORAGE ───────────────────────────────────────────────────
+            SettingsSectionHeader("STORAGE")
+
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    StorageRow(
+                        label = "Total",
+                        bytes = storageInfo.totalBytes,
+                        context = context,
+                        bold = true,
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = VmDimens.SpaceMd))
+
+                    StorageRow(label = "Own recordings", bytes = storageInfo.ownAudioBytes, context = context)
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceXs))
+                    StorageRow(label = "Shared audio", bytes = storageInfo.sharedAudioBytes, context = context)
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceXs))
+                    StorageRow(label = "Database", bytes = storageInfo.databaseBytes, context = context)
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = VmDimens.SpaceMd))
+
+                    FilledTonalButton(
+                        onClick = { showClearSharedConfirmDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Clear Shared Audio Cache")
+                    }
+
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceSm))
+
+                    FilledTonalButton(
+                        onClick = { showClearAllConfirmDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        ),
+                    ) {
+                        Text("Clear All Local Data")
+                    }
+                }
+            }
+
+            if (showClearSharedConfirmDialog) {
+                AlertDialog(
+                    onDismissRequest = { showClearSharedConfirmDialog = false },
+                    title = { Text("Clear Shared Audio Cache") },
+                    text = { Text("This will delete all locally cached shared recordings. They will be re-downloaded when you open them again.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showClearSharedConfirmDialog = false
+                            settingsViewModel.clearSharedAudioCache()
+                        }) { Text("Clear") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showClearSharedConfirmDialog = false }) { Text("Cancel") }
+                    },
+                )
+            }
+
+            if (showClearAllConfirmDialog) {
+                AlertDialog(
+                    onDismissRequest = { showClearAllConfirmDialog = false },
+                    title = { Text("Clear All Local Data") },
+                    text = {
+                        Text(
+                            "This will remove all locally stored recordings, tasks, folders, and audio files from this device. " +
+                            "Your data remains in the cloud and will re-sync on next launch. " +
+                            "You will be prompted to choose a sync strategy again."
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showClearAllConfirmDialog = false
+                                settingsViewModel.clearAllLocalData()
+                            },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                        ) { Text("Clear All") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showClearAllConfirmDialog = false }) { Text("Cancel") }
+                    },
+                )
+            }
+
             Spacer(modifier = Modifier.height(VmDimens.SpaceXl))
+
+            val isDeleting = deleteState is DeleteAccountState.Deleting
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isDeleting) {
+                    TextButton(onClick = {}, enabled = false) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 1.5.dp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.width(VmDimens.SpaceSm))
+                        Text(
+                            text = "Deleting Account...",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                } else {
+                    TextButton(onClick = { showDeleteConfirmDialog = true }) {
+                        Text(
+                            text = "Delete Account",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
 
             tasksError?.let { error ->
                 Snackbar(
@@ -660,7 +753,7 @@ fun SettingsScreen(
                                 showDeleteConfirmDialog = false
                                 settingsViewModel.deleteAccount()
                             },
-                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                            colors = ButtonDefaults.textButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
                         ) {
@@ -708,7 +801,7 @@ fun SettingsScreen(
                                 reAuthPassword = ""
                                 settingsViewModel.reauthAndDelete(email, password)
                             },
-                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                            colors = ButtonDefaults.textButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
                         ) {
@@ -761,6 +854,31 @@ private fun formatTime(hour: Int, minute: Int): String {
         else -> hour
     }
     return String.format(Locale.US, "%d:%02d %s", displayHour, minute, amPm)
+}
+
+@Composable
+private fun StorageRow(
+    label: String,
+    bytes: Long,
+    context: android.content.Context,
+    bold: Boolean = false,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = if (bold) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = Formatter.formatFileSize(context, bytes),
+            style = if (bold) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+            color = if (bold) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

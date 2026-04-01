@@ -14,6 +14,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -35,7 +38,9 @@ import com.voicemind.service.RecordingService
 import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.ui.auth.AuthViewModel
 import com.voicemind.ui.auth.SignInScreen
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.voicemind.ui.components.TasksSyncPromptDialog
 import com.voicemind.ui.components.PermissionRationaleDialog
@@ -251,6 +256,32 @@ class MainActivity : ComponentActivity() {
                                 },
                             )
                         }
+                    }
+
+                    // ── One-time local storage consent ────────────────────────────────────
+                    val isConsentShown by navPreferenceRepository.isLocalStorageConsentShown
+                        .collectAsStateWithLifecycle(initialValue = true)
+                    val consentScope = rememberCoroutineScope()
+
+                    if (!isConsentShown) {
+                        AlertDialog(
+                            onDismissRequest = {},
+                            title = { Text("Local Storage Enabled") },
+                            text = {
+                                Text(
+                                    "VoiceMind now stores your recordings and metadata locally on this device " +
+                                    "for instant playback and offline access. You can manage storage usage " +
+                                    "and clear local data at any time in Settings."
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    consentScope.launch(Dispatchers.IO) {
+                                        navPreferenceRepository.setLocalStorageConsentShown(true)
+                                    }
+                                }) { Text("Got It") }
+                            },
+                        )
                     }
 
                     AppNavHost(

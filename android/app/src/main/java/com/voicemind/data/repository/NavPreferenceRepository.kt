@@ -148,4 +148,16 @@ class NavPreferenceRepository @Inject constructor(
     suspend fun setDeviceSetupComplete(complete: Boolean) {
         context.dataStore.edit { prefs -> prefs[deviceSetupCompleteKey] = complete }
     }
+
+    // ── Local storage consent ─────────────────────────────────────────────────
+
+    private val localStorageConsentShownKey = booleanPreferencesKey("local_storage_consent_shown")
+
+    val isLocalStorageConsentShown: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[localStorageConsentShownKey] ?: false
+    }
+
+    suspend fun setLocalStorageConsentShown(shown: Boolean) {
+        context.dataStore.edit { prefs -> prefs[localStorageConsentShownKey] = shown }
+    }
 }
