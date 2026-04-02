@@ -15,7 +15,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.HorizontalDivider
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -36,6 +35,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
@@ -144,7 +144,6 @@ fun RecordingsScreen(
                 if (listState.isMultiSelectActive) {
                     MultiSelectTopBar(
                         selectedCount = listState.selectedRecordingIds.size,
-                        totalCount = listState.recordings.size,
                         isAllSelected = listState.selectedRecordingIds.size == listState.recordings.size,
                         isSummarizing = listState.isCollectiveSummarizing,
                         onClose = { recordingsViewModel.exitMultiSelect() },
@@ -243,12 +242,12 @@ fun RecordingsScreen(
                                             },
                                             modifier = Modifier.size(28.dp),
                                         ) {
-                                            androidx.compose.material3.Icon(
-                                                Icons.Default.AutoAwesome,
-                                                contentDescription = "Summarize $dateLabel recordings",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp),
-                                            )
+                                        Icon(
+                                            Icons.Default.AutoAwesome,
+                                            contentDescription = "Summarize $dateLabel recordings",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp),
+                                        )
                                         }
                                     }
                                 }
@@ -292,7 +291,7 @@ fun RecordingsScreen(
                                             onShareWithUser = { recordingsViewModel.requestShareWithUser(recording) },
                                         )
                                         if (index < recordings.lastIndex) {
-                                            androidx.compose.material3.HorizontalDivider(
+                                            HorizontalDivider(
                                                 modifier = Modifier.padding(start = 56.dp),
                                                 thickness = VmDimens.HairlineBorder,
                                                 color = MaterialTheme.colorScheme.outlineVariant,

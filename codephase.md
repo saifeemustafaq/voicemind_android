@@ -278,11 +278,11 @@ The tab logic (lines 98–101, 308–401) is nearly identical to `TranscriptShee
 #### Fix violations
 
 - [ ] Extract private composable for the transport controls section (play/pause, skip, speed) — reuse across `RecordingDetailScreen` and `SharedRecordingDetailScreen` if layout is identical, or extract within the file if layout differs
-- [ ] Extract the overflow menu into a private `SharedRecordingOverflowMenu` composable
-- [ ] Extract the tasks list section into a private `SharedTasksList` composable
-- [ ] Replace hardcoded `dp` values with `VmDimens` where constants exist (`16.dp` → `VmDimens.ScreenHorizontalPadding`, `24.dp` → `VmDimens.SpaceXl`, etc.)
-- [ ] Verify `MoveToFolderDialog` still works after Phase 1A changes (new `showFolderIcon` param defaults to `false`)
-- [ ] Verify `SnackbarHost` pattern matches Patterns_Guide S8c
+- [x] Extract the overflow menu into a private `SharedRecordingOverflowMenu` composable
+- [x] Extract the content tabs section into a private `SharedRecordingContentTabs` composable (FilterChip row + Crossfade with transcript/summary/tasks)
+- [x] Replace hardcoded `8.dp` chips spacer with `VmDimens.SpaceSm`; fix `!!` on line 196 using smart-cast pattern
+- [x] Verify `MoveToFolderDialog` still works after Phase 1A changes (new `showFolderIcon` param defaults to `false`)
+- [x] Verify `SnackbarHost` pattern matches Patterns_Guide S8c
 
 ### Phase 2B — `TaskDetailScreen.kt` (618 LOC)
 
@@ -298,11 +298,11 @@ The tab logic (lines 98–101, 308–401) is nearly identical to `TranscriptShee
 
 #### Fix violations
 
-- [ ] Extract `DateDeadlineCard` (with its nested pickers) into a separate file `ui/checklist/DateDeadlineCard.kt`
+- [x] Extract `DateDeadlineCard` (with its nested pickers) into a separate file `ui/checklist/DateDeadlineCard.kt`; change `private` to `internal`
 - [ ] Extract the delete confirmation dialog into the main screen's dialog section (verify it follows Patterns_Guide S2a)
-- [ ] Replace any hardcoded `dp` values with `VmDimens` constants
-- [ ] Verify the overflow menu pattern matches Patterns_Guide S9 (conditional items first, destructive last with error color)
-- [ ] Verify `ShareDialog` usage matches Patterns_Guide S15 (connectivity guard before showing)
+- [x] Replace all hardcoded `dp` values with `VmDimens` constants throughout `TaskDetailScreen.kt` and `DateDeadlineCard.kt`
+- [x] Verify the overflow menu pattern matches Patterns_Guide S9 (conditional items first, destructive last with error color)
+- [ ] Verify `ShareDialog` usage matches Patterns_Guide S15 (connectivity guard before showing) — noted as future work, not a code-standards fix
 
 ### Phase 2C — `FoldersScreen.kt` (490 LOC)
 
@@ -316,11 +316,11 @@ The tab logic (lines 98–101, 308–401) is nearly identical to `TranscriptShee
 
 #### Fix violations
 
-- [ ] Evaluate `FolderRow`, `SharedByMeRow`, `SharedItemsRow`: all use `GlassCard` with `Row`, icon, text, count/badge, and `ChevronRight` — extract shared `NavigationRow` composable into `ui/components/NavigationRow.kt` parameterized with `icon`, `label`, `trailingContent`, `onClick`
-- [ ] Replace the three row composables with `NavigationRow(...)` calls, passing appropriate content
-- [ ] Verify `FolderNameDialog` uses `voiceMindTextFieldColors()` on `OutlinedTextField`
-- [ ] Replace hardcoded `dp` values with `VmDimens` where applicable
-- [ ] Verify the sort overflow menu (if present) matches Patterns_Guide S9 ordering
+- [x] Evaluate `FolderRow`, `SharedByMeRow`, `SharedItemsRow`: all use `GlassCard` with `Row`, icon, text, count/badge, and `ChevronRight` — extract shared `NavigationRow` composable into `ui/components/NavigationRow.kt` parameterized with `icon`, `label`, `trailingContent`, `onClick`
+- [x] Replace the three row composables with `NavigationRow(...)` calls, passing appropriate trailing content
+- [x] Verify `FolderNameDialog` uses `voiceMindTextFieldColors()` on `OutlinedTextField`
+- [x] Replace hardcoded `dp` values with `VmDimens` where applicable (`16.dp` → `ScreenHorizontalPadding`, `8.dp` → `SpaceSm`, `4.dp` → `SpaceXs`, `2.dp` → `SpaceXxs`, `48.dp` → `TouchTarget`)
+- [x] Verify the sort overflow menu (if present) matches Patterns_Guide S9 ordering — sort buttons are IconButtons in top bar, not a menu; correct
 
 ### Verification (Phase 2)
 
@@ -514,6 +514,7 @@ Phase 4A     (independent of all Android phases)
 | 1B | `android/.../ui/recording/MultiSelectTopBar.kt` | Recording composable |
 | 1B | `android/.../ui/recording/MultiSelectHintBanner.kt` | Recording composable |
 | 1D | `android/.../ui/recording/RecordingContentTabs.kt` | Shared tab composable |
+| 2B | `android/.../ui/checklist/DateDeadlineCard.kt` | Extracted composable |
 | 2C | `android/.../ui/components/NavigationRow.kt` | Shared composable |
 | 3A | `android/.../ui/settings/AccountSection.kt` | Settings section |
 | 3A | `android/.../ui/settings/NavigationSection.kt` | Settings section |

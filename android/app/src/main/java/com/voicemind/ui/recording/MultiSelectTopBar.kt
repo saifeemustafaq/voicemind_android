@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun MultiSelectTopBar(
     selectedCount: Int,
-    @Suppress("UNUSED_PARAMETER") totalCount: Int,
     isAllSelected: Boolean,
     isSummarizing: Boolean,
     hasSelection: Boolean,
