@@ -36,14 +36,60 @@ function getItemCollection(itemType: string): string {
   throw new HttpsError("invalid-argument", `Invalid itemType: ${itemType}`);
 }
 
+function requireAuth(request: { auth?: { uid: string } }): string {
+  if (!request.auth) throw new HttpsError("unauthenticated", "User must be signed in");
+  return request.auth.uid;
+}
+
+async function requireSharedWith(
+  ownerUid: string,
+  collection: string,
+  itemId: string,
+  callerUid: string,
+): Promise<admin.firestore.DocumentData> {
+  const doc = await db.doc(`users/${ownerUid}/${collection}/${itemId}`).get();
+  if (!doc.exists) throw new HttpsError("not-found", "Item not found");
+  const data = doc.data()!;
+  if (!(data.sharedWith as string[] | undefined)?.includes(callerUid)) {
+    throw new HttpsError("permission-denied", "Not shared with you");
+  }
+  return data;
+}
+
+async function propagateOwnerItemDeleted(
+  ownerUid: string,
+  itemId: string,
+  itemType: string,
+  ownerItemDeleted: boolean,
+): Promise<admin.firestore.QuerySnapshot> {
+  const mySharesSnap = await db
+    .collection(`users/${ownerUid}/myShares`)
+    .where("itemId", "==", itemId)
+    .where("itemType", "==", itemType)
+    .where("isDeleted", "==", false)
+    .get();
+
+  if (!mySharesSnap.empty) {
+    for (let i = 0; i < mySharesSnap.docs.length; i += 250) {
+      const batch = db.batch();
+      mySharesSnap.docs.slice(i, i + 250).forEach((shareDoc) => {
+        const { recipientUid } = shareDoc.data() as { recipientUid: string };
+        batch.update(
+          db.doc(`users/${recipientUid}/sharedWithMe/${shareDoc.id}`),
+          { ownerItemDeleted },
+        );
+      });
+      await batch.commit();
+    }
+  }
+
+  return mySharesSnap;
+}
+
 // ── Exported Cloud Functions ─────────────────────────────────────────────────
 
 export const findUserByEmail = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be signed in");
-  }
-
-  const callerUid = request.auth.uid;
+  const callerUid = requireAuth(request);
   await checkRateLimit(callerUid);
 
   const { email } = request.data as { email?: string };
@@ -72,11 +118,7 @@ export const findUserByEmail = onCall(async (request) => {
 });
 
 export const shareItem = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be signed in");
-  }
-
-  const callerUid = request.auth.uid;
+  const callerUid = requireAuth(request);
   const { itemId, itemType, recipientUid } = request.data as {
     itemId?: string;
     itemType?: string;
@@ -203,11 +245,7 @@ export const shareItem = onCall(async (request) => {
 });
 
 export const revokeShare = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be signed in");
-  }
-
-  const callerUid = request.auth.uid;
+  const callerUid = requireAuth(request);
   const { shareId, recipientUid } = request.data as {
     shareId?: string;
     recipientUid?: string;
@@ -273,11 +311,7 @@ export const revokeShare = onCall(async (request) => {
 });
 
 export const dismissSharedItem = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be signed in");
-  }
-
-  const callerUid = request.auth.uid;
+  const callerUid = requireAuth(request);
   const { shareId } = request.data as { shareId?: string };
 
   if (!shareId) {
@@ -329,11 +363,7 @@ export const dismissSharedItem = onCall(async (request) => {
 });
 
 export const getSharedAudioUrl = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be signed in");
-  }
-
-  const callerUid = request.auth.uid;
+  const callerUid = requireAuth(request);
   const { ownerUid, recordingId } = request.data as {
     ownerUid?: string;
     recordingId?: string;
@@ -343,16 +373,7 @@ export const getSharedAudioUrl = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "ownerUid and recordingId are required");
   }
 
-  const recordingDoc = await db.doc(`users/${ownerUid}/recordings/${recordingId}`).get();
-  if (!recordingDoc.exists) {
-    throw new HttpsError("not-found", "Recording not found");
-  }
-
-  const data = recordingDoc.data()!;
-  const sharedWith = (data.sharedWith as string[]) || [];
-  if (!sharedWith.includes(callerUid)) {
-    throw new HttpsError("permission-denied", "Not shared with you");
-  }
+  const data = await requireSharedWith(ownerUid, "recordings", recordingId, callerUid);
 
   const audioPath = data.audioPath as string;
   if (!audioPath) {
@@ -374,11 +395,7 @@ export const getSharedAudioUrl = onCall(async (request) => {
 });
 
 export const duplicateSharedRecording = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be signed in");
-  }
-
-  const callerUid = request.auth.uid;
+  const callerUid = requireAuth(request);
   const { ownerUid, recordingId, destinationFolderId } = request.data as {
     ownerUid?: string;
     recordingId?: string;
@@ -389,17 +406,7 @@ export const duplicateSharedRecording = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "ownerUid, recordingId, and destinationFolderId are required");
   }
 
-  // Verify caller has access to the shared recording
-  const recordingDoc = await db.doc(`users/${ownerUid}/recordings/${recordingId}`).get();
-  if (!recordingDoc.exists) {
-    throw new HttpsError("not-found", "Recording not found");
-  }
-
-  const recordingData = recordingDoc.data()!;
-  const sharedWith = (recordingData.sharedWith as string[]) ?? [];
-  if (!sharedWith.includes(callerUid)) {
-    throw new HttpsError("permission-denied", "Not shared with you");
-  }
+  const recordingData = await requireSharedWith(ownerUid, "recordings", recordingId, callerUid);
 
   const newId = `rec-${Date.now()}-${randomBytes(4).toString("hex")}`;
   const newAudioPath = `users/${callerUid}/audio/${newId}.m4a`;
@@ -469,11 +476,7 @@ export const duplicateSharedRecording = onCall(async (request) => {
 });
 
 export const shareTask = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be signed in");
-  }
-
-  const callerUid = request.auth.uid;
+  const callerUid = requireAuth(request);
   const { taskId, recipientUid } = request.data as {
     taskId?: string;
     recipientUid?: string;
@@ -543,11 +546,7 @@ export const shareTask = onCall(async (request) => {
 export const generateTasksFromSharedRecording = onCall(
   { secrets: [openaiApiKey], timeoutSeconds: 120 },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "User must be signed in");
-    }
-
-    const callerUid = request.auth.uid;
+    const callerUid = requireAuth(request);
     const { ownerUid, recordingId, timezone } = request.data as {
       ownerUid?: string;
       recordingId?: string;
@@ -558,16 +557,7 @@ export const generateTasksFromSharedRecording = onCall(
       throw new HttpsError("invalid-argument", "ownerUid and recordingId are required");
     }
 
-    const recordingDoc = await db.doc(`users/${ownerUid}/recordings/${recordingId}`).get();
-    if (!recordingDoc.exists) {
-      throw new HttpsError("not-found", "Recording not found");
-    }
-
-    const recordingData = recordingDoc.data()!;
-    const sharedWith = (recordingData.sharedWith as string[]) ?? [];
-    if (!sharedWith.includes(callerUid)) {
-      throw new HttpsError("permission-denied", "Not shared with you");
-    }
+    const recordingData = await requireSharedWith(ownerUid, "recordings", recordingId, callerUid);
 
     const transcription = recordingData.transcription as string | undefined;
     if (!transcription || transcription.trim().length === 0) {
@@ -619,26 +609,8 @@ export const onCollectiveSummarySoftDeleted = onDocumentUpdated(
 
     const ownerItemDeleted = after.isDeleted === true;
 
-    const mySharesSnap = await db
-      .collection(`users/${uid}/myShares`)
-      .where("itemId", "==", summaryId)
-      .where("itemType", "==", "collectiveSummary")
-      .where("isDeleted", "==", false)
-      .get();
-
+    const mySharesSnap = await propagateOwnerItemDeleted(uid, summaryId, "collectiveSummary", ownerItemDeleted);
     if (mySharesSnap.empty) return;
-
-    for (let i = 0; i < mySharesSnap.docs.length; i += 250) {
-      const batch = db.batch();
-      mySharesSnap.docs.slice(i, i + 250).forEach((shareDoc) => {
-        const { recipientUid } = shareDoc.data() as { recipientUid: string };
-        batch.update(
-          db.doc(`users/${recipientUid}/sharedWithMe/${shareDoc.id}`),
-          { ownerItemDeleted }
-        );
-      });
-      await batch.commit();
-    }
   }
 );
 
@@ -669,26 +641,7 @@ export const onRecordingSoftDeleted = onDocumentUpdated(
 
     const ownerItemDeleted = after.isDeleted === true;
 
-    const mySharesSnap = await db
-      .collection(`users/${uid}/myShares`)
-      .where("itemId", "==", recordingId)
-      .where("itemType", "==", "recording")
-      .where("isDeleted", "==", false)
-      .get();
-
-    if (!mySharesSnap.empty) {
-      for (let i = 0; i < mySharesSnap.docs.length; i += 250) {
-        const batch = db.batch();
-        mySharesSnap.docs.slice(i, i + 250).forEach((shareDoc) => {
-          const { recipientUid } = shareDoc.data() as { recipientUid: string };
-          batch.update(
-            db.doc(`users/${recipientUid}/sharedWithMe/${shareDoc.id}`),
-            { ownerItemDeleted }
-          );
-        });
-        await batch.commit();
-      }
-    }
+    const mySharesSnap = await propagateOwnerItemDeleted(uid, recordingId, "recording", ownerItemDeleted);
 
     const actionItemsSnap = await db
       .collection(`users/${uid}/actionItems`)

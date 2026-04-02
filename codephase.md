@@ -417,7 +417,7 @@ Each section composable takes the relevant ViewModel state + callbacks as parame
 #### Audit findings
 
 - 10 exported callables/triggers in one file — high cognitive load but functionally coherent (all sharing-related)
-- Repeated `if (!request.auth)` + `throw new HttpsError("unauthenticated", ...)` pattern at the top of every `onCall` handler — 7 identical blocks
+- Repeated `if (!request.auth)` + `throw new HttpsError("unauthenticated", ...)` pattern at the top of every `onCall` handler — 8 identical blocks
 - Repeated `sharedWith` array check pattern (verify caller UID is in `sharedWith`) used in `getSharedAudioUrl`, `duplicateSharedRecording`, `generateTasksFromSharedRecording` — 3 identical blocks
 - `getItemCollection()` helper already extracted — good
 - `checkRateLimit()` helper already extracted — good
@@ -425,46 +425,46 @@ Each section composable takes the relevant ViewModel state + callbacks as parame
 
 #### Fix violations
 
-- [ ] Extract `requireAuth(request)` helper that throws `HttpsError("unauthenticated", ...)` and returns `request.auth.uid`:
+- [x] Extract `requireAuth(request)` helper that throws `HttpsError("unauthenticated", ...)` and returns `request.auth.uid`:
   ```typescript
   function requireAuth(request: CallableRequest): string {
     if (!request.auth) throw new HttpsError("unauthenticated", "User must be signed in");
     return request.auth.uid;
   }
   ```
-- [ ] Replace all 7 inline auth checks with `const callerUid = requireAuth(request)`
-- [ ] Extract `requireSharedWith(ownerUid, collection, itemId, callerUid)` helper that reads the document and verifies `callerUid` is in `sharedWith`:
+- [x] Replace all 8 inline auth checks with `const callerUid = requireAuth(request)`
+- [x] Extract `requireSharedWith(ownerUid, collection, itemId, callerUid)` helper that reads the document and verifies `callerUid` is in `sharedWith`:
   ```typescript
   async function requireSharedWith(
     ownerUid: string,
     collection: string,
     itemId: string,
     callerUid: string,
-  ): Promise<FirebaseFirestore.DocumentData> {
+  ): Promise<admin.firestore.DocumentData> {
     const doc = await db.doc(`users/${ownerUid}/${collection}/${itemId}`).get();
     if (!doc.exists) throw new HttpsError("not-found", "Item not found");
     const data = doc.data()!;
-    if (!data.sharedWith?.includes(callerUid)) throw new HttpsError("permission-denied", "Not shared with you");
+    if (!(data.sharedWith as string[] | undefined)?.includes(callerUid)) throw new HttpsError("permission-denied", "Not shared with you");
     return data;
   }
   ```
-- [ ] Replace inline sharedWith checks in `getSharedAudioUrl`, `duplicateSharedRecording`, `generateTasksFromSharedRecording` with `requireSharedWith(...)`
-- [ ] Extract `batchDeleteShares(ownerUid, itemId, itemType, sharedWith)` helper for the batch-delete pattern used by both soft-delete triggers:
+- [x] Replace inline sharedWith checks in `getSharedAudioUrl`, `duplicateSharedRecording`, `generateTasksFromSharedRecording` with `requireSharedWith(...)`
+- [x] Extract `propagateOwnerItemDeleted(ownerUid, itemId, itemType, ownerItemDeleted)` helper for the myShares query + batched sharedWithMe update pattern used by both soft-delete triggers (returns snapshot for downstream use):
   ```typescript
-  async function batchDeleteShares(
+  async function propagateOwnerItemDeleted(
     ownerUid: string,
     itemId: string,
     itemType: string,
-    sharedWith: string[],
-  ): Promise<void>
+    ownerItemDeleted: boolean,
+  ): Promise<admin.firestore.QuerySnapshot>
   ```
-- [ ] Replace inline batch-delete logic in `onRecordingSoftDeleted` and `onCollectiveSummarySoftDeleted` with `batchDeleteShares(...)`
-- [ ] Verify all Firestore collections and fields match `Android_Developer_Brief.md` S12:
+- [x] Replace inline batch-delete logic in `onRecordingSoftDeleted` and `onCollectiveSummarySoftDeleted` with `propagateOwnerItemDeleted(...)`
+- [x] Verify all Firestore collections and fields match `Android_Developer_Brief.md` S12:
   - `recordings`, `folders`, `actionItems`, `collectiveSummaries` under `users/{uid}/`
   - `sharedWithMe`, `myShares` under `users/{uid}/`
   - `rateLimits/{uid}` at root level
   - `deviceTokens` under `users/{uid}/`
-- [ ] Verify no new Firestore collections or fields have been invented (DeveloperGuide S14: "Don't invent Firebase collections or fields")
+- [x] Verify no new Firestore collections or fields have been invented (DeveloperGuide S14: "Don't invent Firebase collections or fields")
 
 ### Verification (Phase 4)
 
@@ -543,4 +543,4 @@ Phase 4A     (independent of all Android phases)
 | 3A | `SettingsScreen.kt` | Decompose into 9 section files, remove `rememberCoroutineScope`, fix `VmDimens`, move re-auth logic to ViewModel |
 | 3A | `SettingsViewModel.kt` | Add `initiateGoogleReAuth()`, `deleteError` StateFlow, `onDeleteError()`, `clearDeleteError()` |
 | 3B | `RecordingService.kt` | Replace `runBlocking` with cached timezone, verify wake lock timeout |
-| 4A | `functions/src/sharing.ts` | Extract `requireAuth`, `requireSharedWith`, `batchDeleteShares` helpers |
+| 4A | `functions/src/sharing.ts` | Extract `requireAuth`, `requireSharedWith`, `propagateOwnerItemDeleted` helpers |
