@@ -2,9 +2,14 @@ package com.voicemind.ui.settings
 
 import android.app.Activity
 import android.content.Context
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.identity.AuthorizationResult
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import androidx.work.WorkManager
 import com.voicemind.data.local.AppDatabase
@@ -312,6 +317,44 @@ class SettingsViewModel @Inject constructor(
 
     fun clearDeleteState() {
         _deleteState.value = DeleteAccountState.Idle
+    }
+
+    // ── Delete error (surfaces re-auth and credential failures) ──────────────
+
+    private val _deleteError = MutableStateFlow<String?>(null)
+    val deleteError: StateFlow<String?> = _deleteError
+
+    fun clearDeleteError() {
+        _deleteError.value = null
+    }
+
+    fun onDeleteError(message: String) {
+        _deleteError.value = message
+        _deleteState.value = DeleteAccountState.Idle
+    }
+
+    fun initiateGoogleReAuth(activity: Activity) {
+        viewModelScope.launch {
+            try {
+                val credentialManager = CredentialManager.create(context)
+                val googleIdOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(true)
+                    .setServerClientId(AuthRepository.WEB_CLIENT_ID)
+                    .build()
+                val request = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleIdOption)
+                    .build()
+                val result = credentialManager.getCredential(activity, request)
+                val idToken = GoogleIdTokenCredential.createFrom(result.credential.data).idToken
+                reauthAndDeleteWithGoogle(idToken)
+            } catch (e: GetCredentialCancellationException) {
+                _deleteError.value = "Account deletion cancelled."
+                _deleteState.value = DeleteAccountState.Idle
+            } catch (e: Exception) {
+                _deleteError.value = "Google re-authentication failed: ${e.message}"
+                _deleteState.value = DeleteAccountState.Idle
+            }
+        }
     }
 
     val isGoogleUser: Boolean get() = authRepository.isGoogleUser

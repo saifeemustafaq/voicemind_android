@@ -4,22 +4,22 @@ overview: "Execute Phase 3 of the code standards audit: decompose SettingsScreen
 todos:
   - id: 3a-sections
     content: "Phase 3A: Create 9 section composable files (AccountSection, NavigationSection, TimezoneSection, TaskSchedulingSection, PrivacySection, IntegrationsSection, SyncSection, StorageSection, DeleteAccountSection)"
-    status: pending
+    status: done
   - id: 3a-mvvm
     content: "Phase 3A: Move Google Credential Manager re-auth logic + deleteError state to SettingsViewModel"
-    status: pending
+    status: done
   - id: 3a-refactor
     content: "Phase 3A: Refactor SettingsScreen.kt to compose section calls, remove unused scope, fix VmDimens"
-    status: pending
+    status: done
   - id: 3b-runblocking
     content: "Phase 3B: Replace runBlocking with cached timezone in RecordingService.kt"
-    status: pending
+    status: done
   - id: 3b-verify
     content: "Phase 3B: Verify wake lock timeout, scope.cancel, mediaSession.release, logging (already correct)"
-    status: pending
+    status: done
   - id: mark-complete
     content: Mark completed Phase 3 items in codephase.md
-    status: pending
+    status: done
 isProject: false
 ---
 

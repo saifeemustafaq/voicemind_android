@@ -352,27 +352,28 @@ The tab logic (lines 98–101, 308–401) is nearly identical to `TranscriptShee
 
 #### Fix violations: Decompose into section composables
 
-- [ ] Create `ui/settings/AccountSection.kt` — private composable for Account card (sign out, user info)
-- [ ] Create `ui/settings/NavigationSection.kt` — private composable for sidebar toggle, landing page, tab order, all within one `GlassCard`
-- [ ] Create `ui/settings/NoteToSelfSection.kt` — private composable for NTS settings card
-- [ ] Create `ui/settings/TimezoneSection.kt` — private composable for timezone settings card
-- [ ] Create `ui/settings/IntegrationsSection.kt` — private composable for Google Tasks/Calendar connect cards
-- [ ] Create `ui/settings/PrivacySection.kt` — private composable for discoverability toggle
-- [ ] Create `ui/settings/StorageSection.kt` — private composable for storage management (uses existing `StorageRow`)
-- [ ] Create `ui/settings/DeleteAccountSection.kt` — private composable for delete account flow
+- [x] Create `ui/settings/AccountSection.kt` — private composable for Account card (sign out, user info)
+- [x] Create `ui/settings/NavigationSection.kt` — private composable for sidebar toggle, landing page, tab order, all within one `GlassCard`
+- [x] Create `ui/settings/TaskSchedulingSection.kt` — private composable for NTS settings card (replaces NoteToSelfSection.kt naming in plan)
+- [x] Create `ui/settings/TimezoneSection.kt` — private composable for timezone settings card
+- [x] Create `ui/settings/IntegrationsSection.kt` — private composable for Google Tasks/Calendar connect cards
+- [x] Create `ui/settings/PrivacySection.kt` — private composable for discoverability toggle
+- [x] Create `ui/settings/SyncSection.kt` — private composable for sync status
+- [x] Create `ui/settings/StorageSection.kt` — private composable for storage management (owns `StorageRow`)
+- [x] Create `ui/settings/DeleteAccountSection.kt` — private composable for delete account flow
 
 Each section composable takes the relevant ViewModel state + callbacks as parameters.
 
 #### Fix MVVM boundary violations
 
-- [ ] Move the Google Credential Manager re-auth logic (lines 119–135) into `SettingsViewModel` — the composable should call `settingsViewModel.initiateGoogleReAuth()` and the ViewModel handles `CredentialManager` via `@ApplicationContext`
-- [ ] Remove `rememberCoroutineScope()` from `SettingsScreen` — all async work should go through the ViewModel
-- [ ] Replace hardcoded `16.dp` with `VmDimens.ScreenHorizontalPadding`
+- [x] Move the Google Credential Manager re-auth logic (lines 119–135) into `SettingsViewModel` — composable calls `settingsViewModel.initiateGoogleReAuth(activity)`; ViewModel handles `CredentialManager`; `deleteError` moved to ViewModel `StateFlow`
+- [x] Remove `rememberCoroutineScope()` from `SettingsScreen` — all async work goes through the ViewModel
+- [x] Replace hardcoded `16.dp` with `VmDimens.ScreenHorizontalPadding`
 
 #### Post-decomposition target
 
-- [ ] `SettingsScreen.kt` should be ~150 lines: collecting state, rendering `VoiceMindTopAppBar`, composing section composables, hosting dialogs
-- [ ] Each section file should be ~60–120 lines
+- [x] `SettingsScreen.kt` is ~180 lines: collecting state, `LaunchedEffect` handlers, consent launcher, `VoiceMindTopAppBar`, section composable calls, error snackbars, version footer
+- [x] Each section file is ~40–130 lines
 
 ### Phase 3B — `RecordingService.kt` (499 LOC)
 
@@ -387,14 +388,11 @@ Each section composable takes the relevant ViewModel state + callbacks as parame
 
 #### Fix violations
 
-- [ ] Replace `runBlocking` (line 217) with a cached timezone value:
-  - In `init`, launch a coroutine that observes `navPreferenceRepository.appTimezone` and stores it in a `@Volatile var cachedTimezone: String`
-  - In `handleStopSave`, use `cachedTimezone` instead of `runBlocking { ... .first() }`
-  - Fallback to system default timezone if `cachedTimezone` hasn't been set yet
-- [ ] Verify `wakeLock.acquire()` has a timeout parameter (best practice to prevent indefinite wake lock)
-- [ ] Verify `scope.cancel()` is called in `onDestroy` — check for coroutine leaks
-- [ ] Review logging statements: verify no PII (file paths with user content, user email) is logged per DeveloperGuide S9
-- [ ] Verify `mediaSession.release()` is called in cleanup paths
+- [x] Replace `runBlocking` (line 217) with a cached timezone value: `@Volatile private var cachedTimezone` initialized to `TimeZone.getDefault()`; collected in `onCreate`; used directly in `handleStopSave`
+- [x] Verify `wakeLock.acquire()` has a timeout parameter — `acquire(4 * 60 * 60 * 1000L)` already correct
+- [x] Verify `scope.cancel()` is called in `onDestroy` — already correct (line 470)
+- [x] Review logging statements: no PII logged — already correct
+- [x] Verify `mediaSession.release()` is called in cleanup paths — already correct (line 472)
 
 ### Verification (Phase 3)
 
@@ -403,7 +401,7 @@ Each section composable takes the relevant ViewModel state + callbacks as parame
 - [ ] All settings toggles/pickers/buttons work
 - [ ] Account deletion flow works (Google re-auth now goes through ViewModel)
 - [ ] Recording service starts, records, stops, saves correctly
-- [ ] No `runBlocking` calls remain in service
+- [x] No `runBlocking` calls remain in service
 - [ ] No lint errors introduced
 
 ---
@@ -518,10 +516,11 @@ Phase 4A     (independent of all Android phases)
 | 2C | `android/.../ui/components/NavigationRow.kt` | Shared composable |
 | 3A | `android/.../ui/settings/AccountSection.kt` | Settings section |
 | 3A | `android/.../ui/settings/NavigationSection.kt` | Settings section |
-| 3A | `android/.../ui/settings/NoteToSelfSection.kt` | Settings section |
+| 3A | `android/.../ui/settings/TaskSchedulingSection.kt` | Settings section |
 | 3A | `android/.../ui/settings/TimezoneSection.kt` | Settings section |
 | 3A | `android/.../ui/settings/IntegrationsSection.kt` | Settings section |
 | 3A | `android/.../ui/settings/PrivacySection.kt` | Settings section |
+| 3A | `android/.../ui/settings/SyncSection.kt` | Settings section |
 | 3A | `android/.../ui/settings/StorageSection.kt` | Settings section |
 | 3A | `android/.../ui/settings/DeleteAccountSection.kt` | Settings section |
 
@@ -541,7 +540,7 @@ Phase 4A     (independent of all Android phases)
 | 2A | `SharedRecordingDetailScreen.kt` | Extract sub-composables, fix `VmDimens` |
 | 2B | `TaskDetailScreen.kt` | Extract `DateDeadlineCard`, fix `VmDimens` |
 | 2C | `FoldersScreen.kt` | Use shared `NavigationRow`, fix `VmDimens` |
-| 3A | `SettingsScreen.kt` | Decompose into 8 section files, move re-auth logic to ViewModel |
-| 3A | `SettingsViewModel.kt` | Add `initiateGoogleReAuth()` method |
+| 3A | `SettingsScreen.kt` | Decompose into 9 section files, remove `rememberCoroutineScope`, fix `VmDimens`, move re-auth logic to ViewModel |
+| 3A | `SettingsViewModel.kt` | Add `initiateGoogleReAuth()`, `deleteError` StateFlow, `onDeleteError()`, `clearDeleteError()` |
 | 3B | `RecordingService.kt` | Replace `runBlocking` with cached timezone, verify wake lock timeout |
 | 4A | `functions/src/sharing.ts` | Extract `requireAuth`, `requireSharedWith`, `batchDeleteShares` helpers |

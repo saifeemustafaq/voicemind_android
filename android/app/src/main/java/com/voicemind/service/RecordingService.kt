@@ -50,11 +50,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.util.Date
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -75,6 +75,8 @@ class RecordingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var timerJob: Job? = null
 
+    @Volatile private var cachedTimezone: TimeZone = TimeZone.getDefault()
+
     // Elapsed time — derived from wall-clock to prevent drift
     private var elapsedSeconds = 0L
     private var recordingStartedAt = 0L   // SystemClock.elapsedRealtime() at start/resume
@@ -91,6 +93,11 @@ class RecordingService : Service() {
         super.onCreate()
         createNotificationChannel()
         setupMediaSession()
+        scope.launch(Dispatchers.IO) {
+            navPreferenceRepository.appTimezone.collect { tzId ->
+                cachedTimezone = TimeZone.getTimeZone(tzId)
+            }
+        }
     }
 
     private fun setupMediaSession() {
@@ -214,9 +221,7 @@ class RecordingService : Service() {
         if (wakeLock?.isHeld != true) acquireWakeLock()
 
         // Resolve title and folder: explicit extras → pending values from ViewModel → defaults.
-        val fallbackTz = runBlocking {
-            java.util.TimeZone.getTimeZone(navPreferenceRepository.appTimezone.first())
-        }
+        val fallbackTz = cachedTimezone
         val title = titleOverride?.takeIf { it.isNotBlank() }
             ?: recordingStateRepository.pendingTitle.takeIf { it.isNotBlank() }
             ?: Date().toDefaultTitle(fallbackTz)
