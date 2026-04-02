@@ -88,6 +88,17 @@ private fun WidgetRoot(
 @Composable
 private fun SignedOutContent() {
     val context = LocalContext.current
+    PromptContent(
+        subtitle = "Sign in to record",
+        buttonLabel = "Sign In",
+        intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        },
+    )
+}
+
+@Composable
+private fun PromptContent(subtitle: String, buttonLabel: String, intent: Intent) {
     Text(
         text = "VoiceMind",
         style = TextStyle(
@@ -98,7 +109,7 @@ private fun SignedOutContent() {
     )
     Spacer(modifier = GlanceModifier.height(4.dp))
     Text(
-        text = "Sign in to record",
+        text = subtitle,
         style = TextStyle(
             color = WidgetColors.SecondaryLabel,
             fontSize = 11.sp,
@@ -111,17 +122,11 @@ private fun SignedOutContent() {
             .background(WidgetColors.Accent)
             .cornerRadius(16.dp)
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clickable(
-                actionStartActivity(
-                    Intent(context, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    }
-                )
-            ),
+            .clickable(actionStartActivity(intent)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Sign In",
+            text = buttonLabel,
             style = TextStyle(
                 color = WidgetColors.White,
                 fontWeight = FontWeight.Medium,
@@ -134,48 +139,14 @@ private fun SignedOutContent() {
 @Composable
 private fun MicPermissionContent() {
     val context = LocalContext.current
-    Text(
-        text = "VoiceMind",
-        style = TextStyle(
-            color = WidgetColors.Label,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-        ),
+    PromptContent(
+        subtitle = "Microphone access needed",
+        buttonLabel = "Open App",
+        intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(MainActivity.EXTRA_REQUEST_MIC_PERMISSION, true)
+        },
     )
-    Spacer(modifier = GlanceModifier.height(4.dp))
-    Text(
-        text = "Microphone access needed",
-        style = TextStyle(
-            color = WidgetColors.SecondaryLabel,
-            fontSize = 11.sp,
-            textAlign = TextAlign.Center,
-        ),
-    )
-    Spacer(modifier = GlanceModifier.height(12.dp))
-    Row(
-        modifier = GlanceModifier
-            .background(WidgetColors.Accent)
-            .cornerRadius(16.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clickable(
-                actionStartActivity(
-                    Intent(context, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        putExtra(MainActivity.EXTRA_REQUEST_MIC_PERMISSION, true)
-                    }
-                )
-            ),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = "Open App",
-            style = TextStyle(
-                color = WidgetColors.White,
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp,
-            ),
-        )
-    }
 }
 
 @Composable

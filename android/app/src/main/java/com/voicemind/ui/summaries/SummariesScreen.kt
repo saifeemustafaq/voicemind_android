@@ -316,7 +316,7 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
                 "Go to the Recordings screen.",
                 "Long-press a recording to enter multi-select mode.",
                 "Select one or more recordings.",
-                "Tap the \u2728 Summarize button in the toolbar.",
+                "Tap the Summarize button in the toolbar.",
                 "Your summary will appear here!",
             )
             steps.forEachIndexed { index, step ->

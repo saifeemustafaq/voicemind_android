@@ -166,7 +166,7 @@ fun SharedSummaryDetailScreen(
                 }
             }
             else -> {
-                val summary = state.summary!!
+                val summary = checkNotNull(state.summary)
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
