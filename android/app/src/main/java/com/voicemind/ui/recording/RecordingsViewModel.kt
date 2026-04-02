@@ -1,5 +1,7 @@
 package com.voicemind.ui.recording
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
@@ -25,6 +27,7 @@ import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
+import com.voicemind.ui.components.NeedsInternetReason
 import com.voicemind.util.ConnectivityObserver
 import com.google.firebase.functions.FirebaseFunctionsException
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,14 +41,6 @@ import kotlinx.coroutines.flow.update
 import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
-
-sealed interface NeedsInternetReason {
-    data object GenerateSummary : NeedsInternetReason
-    data object GenerateTasks : NeedsInternetReason
-    data object CollectiveSummarize : NeedsInternetReason
-    data object ShareWithUser : NeedsInternetReason
-    data object StillProcessing : NeedsInternetReason
-}
 
 sealed interface SummaryState {
     data object Idle : SummaryState
@@ -84,6 +79,7 @@ data class RecordingsListState(
     val playbackSpeed: Float = 1.0f,
     val needsInternetDialog: NeedsInternetReason? = null,
     val shareWithUserTarget: Recording? = null,
+    val snackbarMessage: String? = null,
 )
 
 @HiltViewModel
@@ -127,13 +123,13 @@ class RecordingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             folderRepository.observeFolders().collect { folders ->
-                _state.value = _state.value.copy(folders = folders)
+                _state.update { it.copy(folders = folders) }
             }
         }
         viewModelScope.launch {
             val dismissCount = navPreferenceRepository.multiSelectHintDismissCount.first()
             if (dismissCount % 5 == 0) {
-                _state.value = _state.value.copy(showMultiSelectHint = true)
+                _state.update { it.copy(showMultiSelectHint = true) }
             }
         }
     }
@@ -147,13 +143,13 @@ class RecordingsViewModel @Inject constructor(
                 recordingRepository.observeRecordings()
             }
             flow.collect { recordings ->
-                _state.value = _state.value.copy(recordings = recordings, isLoading = false)
+                _state.update { it.copy(recordings = recordings, isLoading = false) }
             }
         }
     }
 
     fun filterByFolder(folderId: String?) {
-        _state.value = _state.value.copy(filterFolderId = folderId, isLoading = true)
+        _state.update { it.copy(filterFolderId = folderId, isLoading = true) }
         observeRecordings(folderId)
     }
 
@@ -170,7 +166,7 @@ class RecordingsViewModel @Inject constructor(
                     _state.update { it.copy(downloadingRecordingId = recording.id) }
                 }
                 val dataSource = when {
-                    !needsDownload -> localPath!!
+                    !needsDownload -> requireNotNull(localPath) { "localPath should exist when needsDownload is false" }
                     strategy == "on_demand" -> {
                         val url = storageRepository.getDownloadUrl(recording.audioPath).toString()
                         val tmpFile = java.io.File(context.cacheDir, "${recording.id}_dl.m4a")
@@ -375,6 +371,17 @@ class RecordingsViewModel @Inject constructor(
         context.startActivity(Intent.createChooser(intent, "Share Transcript"))
     }
 
+    fun copyTranscriptToClipboard(recording: Recording) {
+        val text = recording.transcription ?: return
+        val clip = ClipData.newPlainText("Transcript", text)
+        (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(clip)
+        _state.update { it.copy(snackbarMessage = "Transcript copied") }
+    }
+
+    fun clearSnackbar() {
+        _state.update { it.copy(snackbarMessage = null) }
+    }
+
     fun openTranscriptSheet(recording: Recording) {
         _sheetState.value = TranscriptSheetState()
         if (recording.summary != null) {
@@ -437,9 +444,7 @@ class RecordingsViewModel @Inject constructor(
 
     fun generateSummary(recording: Recording) {
         if (recording.summary != null) {
-            _sheetState.value = _sheetState.value.copy(
-                summaryState = SummaryState.Loaded(recording.summary)
-            )
+            _sheetState.update { it.copy(summaryState = SummaryState.Loaded(recording.summary)) }
             return
         }
         if (_sheetState.value.summaryState is SummaryState.Loading) return
@@ -455,20 +460,16 @@ class RecordingsViewModel @Inject constructor(
             }
         }
 
-        _sheetState.value = _sheetState.value.copy(summaryState = SummaryState.Loading)
+        _sheetState.update { it.copy(summaryState = SummaryState.Loading) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val summary = recordingRepository.generateSummary(recording.id)
-                _sheetState.value = _sheetState.value.copy(
-                    summaryState = SummaryState.Loaded(summary)
-                )
+                _sheetState.update { it.copy(summaryState = SummaryState.Loaded(summary)) }
             } catch (e: Exception) {
                 Timber.e("Summary generation failed: %s", e.message)
-                _sheetState.value = _sheetState.value.copy(
-                    summaryState = SummaryState.Error(
-                        "Unable to generate summary. Please try again."
-                    )
-                )
+                _sheetState.update {
+                    it.copy(summaryState = SummaryState.Error("Unable to generate summary. Please try again."))
+                }
             }
         }
     }
@@ -476,74 +477,76 @@ class RecordingsViewModel @Inject constructor(
     // Multi-select
 
     fun dismissMultiSelectHint() {
-        _state.value = _state.value.copy(showMultiSelectHint = false)
+        _state.update { it.copy(showMultiSelectHint = false) }
         viewModelScope.launch {
             navPreferenceRepository.incrementMultiSelectHintDismissCount()
         }
     }
 
     fun enterMultiSelect(recordingId: String) {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             isMultiSelectActive = true,
             selectedRecordingIds = setOf(recordingId),
             showMultiSelectHint = false,
-        )
+        )}
         viewModelScope.launch {
             navPreferenceRepository.incrementMultiSelectHintDismissCount()
         }
     }
 
     fun toggleSelection(recordingId: String) {
-        val current = _state.value.selectedRecordingIds
-        _state.value = _state.value.copy(
-            selectedRecordingIds = if (recordingId in current) current - recordingId else current + recordingId
-        )
+        _state.update { state ->
+            state.copy(
+                selectedRecordingIds = if (recordingId in state.selectedRecordingIds)
+                    state.selectedRecordingIds - recordingId
+                else
+                    state.selectedRecordingIds + recordingId,
+            )
+        }
     }
 
     fun selectAll() {
-        _state.value = _state.value.copy(
-            selectedRecordingIds = _state.value.recordings.map { it.id }.toSet()
-        )
+        _state.update { it.copy(selectedRecordingIds = it.recordings.map { r -> r.id }.toSet()) }
     }
 
     fun deselectAll() {
-        _state.value = _state.value.copy(selectedRecordingIds = emptySet())
+        _state.update { it.copy(selectedRecordingIds = emptySet()) }
     }
 
     fun exitMultiSelect() {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             isMultiSelectActive = false,
             selectedRecordingIds = emptySet(),
             collectiveSummarizeError = null,
             collectiveSummarizeResult = null,
-        )
+        )}
     }
 
     fun bulkDelete(recordings: List<Recording>) {
-        _state.value = _state.value.copy(isBulkDeleting = true)
+        _state.update { it.copy(isBulkDeleting = true) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 recordings.forEach { if (_state.value.playingRecordingId == it.id) stopPlayback() }
                 recordingRepository.deleteRecordings(recordings)
-                _state.value = _state.value.copy(isBulkDeleting = false)
+                _state.update { it.copy(isBulkDeleting = false) }
                 exitMultiSelect()
             } catch (e: Exception) {
                 Timber.e("Bulk delete failed: %s", e.message)
-                _state.value = _state.value.copy(isBulkDeleting = false)
+                _state.update { it.copy(isBulkDeleting = false) }
             }
         }
     }
 
     fun bulkMoveToFolder(recordingIds: List<String>, folderId: String) {
-        _state.value = _state.value.copy(isBulkMoving = true)
+        _state.update { it.copy(isBulkMoving = true) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 recordingRepository.moveRecordingsToFolder(recordingIds, folderId)
-                _state.value = _state.value.copy(isBulkMoving = false)
+                _state.update { it.copy(isBulkMoving = false) }
                 exitMultiSelect()
             } catch (e: Exception) {
                 Timber.e("Bulk move failed: %s", e.message)
-                _state.value = _state.value.copy(isBulkMoving = false)
+                _state.update { it.copy(isBulkMoving = false) }
             }
         }
     }
@@ -553,18 +556,18 @@ class RecordingsViewModel @Inject constructor(
             _state.update { it.copy(needsInternetDialog = NeedsInternetReason.CollectiveSummarize) }
             return
         }
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             isCollectiveSummarizing = true,
             collectiveSummarizeError = null,
             collectiveSummarizeResult = null,
-        )
+        )}
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val result = collectiveSummaryRepository.generateCollectiveSummary(recordingIds)
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     isCollectiveSummarizing = false,
                     collectiveSummarizeResult = result,
-                )
+                )}
                 exitMultiSelect()
             } catch (e: Exception) {
                 Timber.e(e, "Collective summarize failed")
@@ -577,20 +580,20 @@ class RecordingsViewModel @Inject constructor(
                         "Summarization failed: ${e.message ?: e.code.name}"
                     else -> "Summarization failed: ${e.message ?: "Unknown error"}"
                 }
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     isCollectiveSummarizing = false,
                     collectiveSummarizeError = msg,
-                )
+                )}
             }
         }
     }
 
     fun clearCollectiveSummarizeError() {
-        _state.value = _state.value.copy(collectiveSummarizeError = null)
+        _state.update { it.copy(collectiveSummarizeError = null) }
     }
 
     fun clearCollectiveSummarizeResult() {
-        _state.value = _state.value.copy(collectiveSummarizeResult = null)
+        _state.update { it.copy(collectiveSummarizeResult = null) }
     }
 
     override fun onCleared() {

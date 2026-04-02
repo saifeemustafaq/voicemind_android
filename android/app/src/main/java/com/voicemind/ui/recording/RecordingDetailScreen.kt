@@ -1,6 +1,5 @@
 package com.voicemind.ui.recording
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,13 +21,9 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -44,7 +39,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,9 +54,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.voicemind.R
 import com.voicemind.ui.components.AudioWaveform
+import com.voicemind.ui.components.NeedsInternetDialog
 import com.voicemind.ui.components.SpeedBubble
 import com.voicemind.ui.components.formatMmSsDecimal
-
 import com.voicemind.ui.sharing.ShareDialog
 import androidx.compose.ui.res.painterResource
 
@@ -94,16 +88,6 @@ fun RecordingDetailScreen(
     val progress = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
 
     val sheetState by playbackViewModel.sheetState.collectAsStateWithLifecycle()
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val hasTasks = sheetState.actionItemsLoaded && sheetState.actionItems.isNotEmpty()
-    val tabs = listOf(TranscriptTab.Transcript, TranscriptTab.Summary) +
-        if (hasTasks) listOf(TranscriptTab.Tasks) else emptyList()
-    if (selectedTab >= tabs.size) selectedTab = 0
-
-    LaunchedEffect(hasTasks) {
-        if (hasTasks) selectedTab = tabs.indexOf(TranscriptTab.Tasks)
-    }
-
     LaunchedEffect(recording?.id) {
         recording?.let { playbackViewModel.openTranscriptSheet(it) }
     }
@@ -305,99 +289,15 @@ fun RecordingDetailScreen(
             Spacer(Modifier.height(24.dp))
 
             // Content tabs
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            RecordingContentTabs(
+                recording = recording,
+                sheetState = sheetState,
+                onGenerateSummary = { playbackViewModel.generateSummary(recording) },
+                onGenerateTasks = { playbackViewModel.generateTasks(recording) },
+                onRetryProcessing = { playbackViewModel.retryProcessing(recording) },
+                onRetrySummary = { playbackViewModel.generateSummary(recording) },
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    FilterChip(
-                        selected = selectedTab == index,
-                        onClick = {
-                            selectedTab = index
-                            if (tab == TranscriptTab.Summary) {
-                                playbackViewModel.generateSummary(recording)
-                            }
-                        },
-                        label = {
-                            Text(tab.label, style = MaterialTheme.typography.labelMedium)
-                        },
-                    )
-                }
-
-                if (!hasTasks && !recording.transcription.isNullOrBlank() && sheetState.actionItemsLoaded) {
-                    if (sheetState.isGeneratingTasks) {
-                        FilterChip(
-                            selected = false,
-                            onClick = {},
-                            enabled = false,
-                            label = {
-                                Text("Generating...", style = MaterialTheme.typography.labelMedium)
-                            },
-                            leadingIcon = {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(14.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            },
-                        )
-                    } else {
-                        FilterChip(
-                            selected = false,
-                            onClick = { playbackViewModel.generateTasks(recording) },
-                            label = {
-                                Text("Generate Tasks", style = MaterialTheme.typography.labelMedium)
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.AutoAwesome,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
-                                )
-                            },
-                        )
-                    }
-                }
-            }
-
-            if (!sheetState.isGeneratingTasks) {
-                when {
-                    sheetState.generateTasksNoResults -> {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            "No tasks could be identified. Try again or edit the transcript.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    sheetState.generateTasksFailed -> {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            "Something went wrong — tap Generate Tasks to try again.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Crossfade(
-                targetState = tabs.getOrNull(selectedTab) ?: TranscriptTab.Transcript,
-                label = "tab_content",
-            ) { tab ->
-                when (tab) {
-                    TranscriptTab.Transcript -> TranscriptContent(
-                        recording = recording,
-                        onRetry = { playbackViewModel.retryProcessing(recording) },
-                    )
-                    TranscriptTab.Summary -> SummaryContent(
-                        summaryState = sheetState.summaryState,
-                        onRetry = { playbackViewModel.generateSummary(recording) },
-                    )
-                    TranscriptTab.Tasks -> TasksContent(sheetState)
-                }
-            }
+            )
 
             Spacer(Modifier.height(24.dp))
         }
@@ -450,26 +350,8 @@ fun RecordingDetailScreen(
     }
 
     // Needs-internet dialog
-    state.needsInternetDialog?.let { reason ->
-        val (title, body) = when (reason) {
-            NeedsInternetReason.GenerateSummary, NeedsInternetReason.GenerateTasks ->
-                "Internet Required" to "This recording hasn't been processed yet. Please connect to the internet so VoiceMind can transcribe the audio."
-            NeedsInternetReason.CollectiveSummarize ->
-                "Internet Required" to "Generating a collective summary requires an internet connection. Please connect and try again."
-            NeedsInternetReason.StillProcessing ->
-                "Still Processing" to "This recording is still being processed. Please wait a moment and try again."
-            NeedsInternetReason.ShareWithUser ->
-                "Internet Required" to "Sharing requires an internet connection. Please connect and try again."
-        }
-        AlertDialog(
-            onDismissRequest = { playbackViewModel.dismissNeedsInternetDialog() },
-            title = { Text(title) },
-            text = { Text(body) },
-            confirmButton = {
-                TextButton(onClick = { playbackViewModel.dismissNeedsInternetDialog() }) {
-                    Text("OK")
-                }
-            },
-        )
-    }
+    NeedsInternetDialog(
+        reason = state.needsInternetDialog,
+        onDismiss = { playbackViewModel.dismissNeedsInternetDialog() },
+    )
 }

@@ -1,6 +1,5 @@
 package com.voicemind.ui.recording
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,18 +10,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -30,11 +26,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.voicemind.ui.components.voiceMindTextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,26 +56,14 @@ fun TranscriptSheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState by viewModel.sheetState.collectAsStateWithLifecycle()
-    var selectedTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(recording.id) {
         viewModel.openTranscriptSheet(recording)
     }
 
-    val hasTasks = sheetState.actionItemsLoaded && sheetState.actionItems.isNotEmpty()
-    val tabs = listOf(TranscriptTab.Transcript, TranscriptTab.Summary) +
-        if (hasTasks) listOf(TranscriptTab.Tasks) else emptyList()
-    if (selectedTab >= tabs.size) selectedTab = 0
-
-    LaunchedEffect(hasTasks) {
-        if (hasTasks) selectedTab = tabs.indexOf(TranscriptTab.Tasks)
-    }
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        // shape uses M3 default (extraLarge top corners)
-        // containerColor uses M3 default
     ) {
         Column(
             modifier = Modifier
@@ -88,107 +72,15 @@ fun TranscriptSheet(
         ) {
             Text(recording.title, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    FilterChip(
-                        selected = selectedTab == index,
-                        onClick = {
-                            selectedTab = index
-                            if (tab == TranscriptTab.Summary) {
-                                viewModel.generateSummary(recording)
-                            }
-                        },
-                        label = {
-                            Text(tab.label, style = MaterialTheme.typography.labelMedium)
-                        },
-                        // colors use M3 defaults: secondaryContainer for selected
-                    )
-                }
-
-                if (!hasTasks && !recording.transcription.isNullOrBlank() && sheetState.actionItemsLoaded) {
-                    if (sheetState.isGeneratingTasks) {
-                        FilterChip(
-                            selected = false,
-                            onClick = {},
-                            enabled = false,
-                            label = {
-                                Text("Generating...", style = MaterialTheme.typography.labelMedium)
-                            },
-                            leadingIcon = {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(14.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            },
-                        )
-                    } else {
-                        FilterChip(
-                            selected = false,
-                            onClick = { viewModel.generateTasks(recording) },
-                            label = {
-                                Text("Generate Tasks", style = MaterialTheme.typography.labelMedium)
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.AutoAwesome,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
-                                )
-                            },
-                        )
-                    }
-                }
-            }
-
-            if (!sheetState.isGeneratingTasks) {
-                when {
-                    sheetState.generateTasksNoResults -> {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            "No tasks could be identified. Try again or edit the transcript.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    sheetState.generateTasksFailed -> {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            "Something went wrong — tap Generate Tasks to try again.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Crossfade(
-                targetState = tabs.getOrNull(selectedTab) ?: TranscriptTab.Transcript,
-                label = "tab_content",
-            ) { tab ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    when (tab) {
-                        TranscriptTab.Transcript -> TranscriptContent(
-                            recording = recording,
-                            onRetry = { viewModel.retryProcessing(recording) },
-                        )
-                        TranscriptTab.Summary -> SummaryContent(
-                            summaryState = sheetState.summaryState,
-                            onRetry = { viewModel.generateSummary(recording) },
-                        )
-                        TranscriptTab.Tasks -> TasksContent(sheetState)
-                    }
-                }
-            }
+            RecordingContentTabs(
+                recording = recording,
+                sheetState = sheetState,
+                onGenerateSummary = { viewModel.generateSummary(recording) },
+                onGenerateTasks = { viewModel.generateTasks(recording) },
+                onRetryProcessing = { viewModel.retryProcessing(recording) },
+                onRetrySummary = { viewModel.generateSummary(recording) },
+                scrollableContent = true,
+            )
         }
     }
 }
@@ -404,6 +296,7 @@ fun RenameRecordingDialog(
                 onValueChange = { title = it.take(75) },
                 singleLine = true,
                 label = { Text("Title") },
+                colors = voiceMindTextFieldColors(),
                 modifier = Modifier.fillMaxWidth(),
             )
         },
@@ -422,6 +315,7 @@ fun MoveToFolderDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
     title: String = "Move to Folder",
+    showFolderIcon: Boolean = false,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -433,7 +327,22 @@ fun MoveToFolderDialog(
                         onClick = { onConfirm(folder.id) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(folder.name, modifier = Modifier.fillMaxWidth())
+                        if (showFolderIcon) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(
+                                    Icons.Default.Folder,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(folder.name, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                        } else {
+                            Text(folder.name, modifier = Modifier.fillMaxWidth())
+                        }
                     }
                 }
             }
