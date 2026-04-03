@@ -41,16 +41,21 @@ import com.voicemind.widget.common.PromptContent
 import com.voicemind.widget.common.WidgetColors
 import com.voicemind.widget.common.WidgetTitle
 import dagger.hilt.android.EntryPointAccessors
+import timber.log.Timber
 
 class ChecklistWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val entryPoint = EntryPointAccessors.fromApplication(
-            context.applicationContext,
-            ChecklistWidgetEntryPoint::class.java,
-        )
-        val dao = entryPoint.actionItemDao()
-        val allItems = dao.getAllNonDeleted()
+        val allItems: List<ActionItemEntity> = try {
+            val entryPoint = EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                ChecklistWidgetEntryPoint::class.java,
+            )
+            entryPoint.actionItemDao().getAllNonDeleted()
+        } catch (e: Exception) {
+            Timber.e(e, "ChecklistWidget: failed to load tasks")
+            emptyList()
+        }
 
         provideContent {
             val prefs = currentState<Preferences>()
@@ -230,7 +235,7 @@ private fun TaskRow(item: ActionItemEntity) {
 @Composable
 private fun EmptyState(isDoneTab: Boolean) {
     Column(
-        modifier = GlanceModifier.fillMaxSize(),
+        modifier = GlanceModifier.fillMaxWidth().padding(top = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalAlignment = Alignment.CenterVertically,
     ) {

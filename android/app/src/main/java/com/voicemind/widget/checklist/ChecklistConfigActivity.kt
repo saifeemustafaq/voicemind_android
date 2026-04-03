@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.lifecycle.lifecycleScope
+import com.google.firebase.auth.FirebaseAuth
 import com.voicemind.ui.theme.VoiceMindAITheme
 import kotlinx.coroutines.launch
 
@@ -111,7 +112,10 @@ class ChecklistConfigActivity : ComponentActivity() {
             val manager = GlanceAppWidgetManager(this@ChecklistConfigActivity)
             val glanceId = manager.getGlanceIdBy(appWidgetId)
 
+            val isSignedIn = FirebaseAuth.getInstance().currentUser != null
+
             updateAppWidgetState(this@ChecklistConfigActivity, glanceId) { prefs ->
+                prefs[ChecklistWidgetStateKeys.IS_SIGNED_IN] = isSignedIn
                 prefs[ChecklistWidgetStateKeys.SHOW_COMPLETED] = showCompleted
                 prefs[ChecklistWidgetStateKeys.SELECTED_TAB] = ChecklistWidgetStateKeys.TAB_TODO
             }
