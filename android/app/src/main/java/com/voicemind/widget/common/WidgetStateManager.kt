@@ -6,9 +6,13 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
 import com.voicemind.widget.checklist.ChecklistWidget
+import com.voicemind.widget.checklist.ChecklistWidgetEntryPoint
 import com.voicemind.widget.checklist.ChecklistWidgetStateKeys
+import com.voicemind.widget.checklist.WidgetItem
+import com.voicemind.widget.checklist.serializeWidgetItems
 import com.voicemind.widget.recording.RecordingWidget
 import com.voicemind.widget.recording.RecordingWidgetStateKeys
+import dagger.hilt.android.EntryPointAccessors
 import timber.log.Timber
 
 object WidgetStateManager {
@@ -54,9 +58,22 @@ object WidgetStateManager {
 
     suspend fun refreshChecklistWidgets(context: Context) {
         try {
+            val entryPoint = EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                ChecklistWidgetEntryPoint::class.java,
+            )
+            val items = entryPoint.actionItemDao().getAllNonDeleted()
+                .map { WidgetItem(it.id, it.title, it.completed) }
+            val json = serializeWidgetItems(items)
+
             val manager = GlanceAppWidgetManager(context)
             val ids = manager.getGlanceIds(ChecklistWidget::class.java)
-            ids.forEach { id -> ChecklistWidget().update(context, id) }
+            ids.forEach { id ->
+                updateAppWidgetState(context, id) { prefs ->
+                    prefs[ChecklistWidgetStateKeys.ITEMS_JSON] = json
+                }
+                ChecklistWidget().update(context, id)
+            }
         } catch (e: Exception) {
             Timber.e(e, "Failed to refresh checklist widgets")
         }

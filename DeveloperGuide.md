@@ -187,9 +187,28 @@ com.voicemind/
 
 ## 9) Logging and Debugging
 
+### Timber logging
 - Use `Timber` or `android.util.Log` with tag conventions (e.g. `TAG = "RecordingVM"`).
 - **Never log:** raw transcripts, audio file paths with user content, user email, or any PII.
 - Log only event-level info: "recordingStarted", "transcriptionFailed(code)", "uploadComplete".
+
+### On-device debugging with adb
+Prerequisite: `brew install android-platform-tools`. Connect phone via USB with USB Debugging enabled (Settings > Developer Options > USB Debugging).
+
+```bash
+adb devices                                              # verify connection
+adb logcat --pid=$(adb shell pidof com.voicemind)        # stream app logs
+adb logcat -s GlanceAppWidget:E AndroidRuntime:E         # widget errors only
+adb logcat -c && adb logcat --pid=$(adb shell pidof com.voicemind)  # clear + stream
+cd android && ./gradlew installDebug                     # install debug build
+```
+
+### Widget-specific debugging
+Glance widgets show a generic "Can't show content" message for any runtime error. The actual exception is only visible in logcat. Common widget failure causes:
+- Missing `GlanceTheme { }` wrapper (required for `CheckBox`, `Switch`, `RadioButton` default colors).
+- Uncaught exception in `provideGlance` (wrap data fetches in try-catch).
+- Glance preferences not initialized (e.g. `IS_SIGNED_IN` not set by the config activity).
+- `fillMaxSize()` on a Column child inside another Column can cause RemoteViews layout failures; use `defaultWeight()` inside `ColumnScope` instead.
 
 ---
 

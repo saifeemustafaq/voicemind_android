@@ -12,31 +12,33 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
-import androidx.glance.appwidget.CheckBox
+import androidx.glance.Image
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.lazy.LazyColumn
-import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
+import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
+import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
+import androidx.glance.text.TextDecoration
 import androidx.glance.text.TextStyle
 import com.voicemind.MainActivity
 import com.voicemind.R
-import com.voicemind.data.local.entity.ActionItemEntity
 import com.voicemind.widget.common.PromptContent
 import com.voicemind.widget.common.WidgetColors
 import com.voicemind.widget.common.WidgetTitle
@@ -46,15 +48,21 @@ import timber.log.Timber
 class ChecklistWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val allItems: List<ActionItemEntity> = try {
+        // Load from DB and seed DataStore so provideContent {} starts with fresh data.
+        // ToggleItemAction will subsequently write to DataStore directly, triggering
+        // an immediate reactive re-render without going through WorkManager.
+        try {
             val entryPoint = EntryPointAccessors.fromApplication(
                 context.applicationContext,
                 ChecklistWidgetEntryPoint::class.java,
             )
-            entryPoint.actionItemDao().getAllNonDeleted()
+            val items = entryPoint.actionItemDao().getAllNonDeleted()
+                .map { WidgetItem(it.id, it.title, it.completed) }
+            updateAppWidgetState(context, id) { prefs ->
+                prefs[ChecklistWidgetStateKeys.ITEMS_JSON] = serializeWidgetItems(items)
+            }
         } catch (e: Exception) {
             Timber.e(e, "ChecklistWidget: failed to load tasks")
-            emptyList()
         }
 
         provideContent {
@@ -64,7 +72,10 @@ class ChecklistWidget : GlanceAppWidget() {
             val selectedTab = prefs[ChecklistWidgetStateKeys.SELECTED_TAB]
                 ?: ChecklistWidgetStateKeys.TAB_TODO
 
-            val (todoItems, doneItems) = allItems.partition { !it.completed }
+            // Items are reactive: any DataStore write (ToggleItemAction, refreshChecklistWidgets)
+            // re-triggers this composable immediately.
+            val items = deserializeWidgetItems(prefs[ChecklistWidgetStateKeys.ITEMS_JSON] ?: "[]")
+            val (todoItems, doneItems) = items.partition { !it.completed }
 
             WidgetRoot(
                 isSignedIn = isSignedIn,
@@ -82,8 +93,8 @@ private fun WidgetRoot(
     isSignedIn: Boolean,
     showCompleted: Boolean,
     selectedTab: Int,
-    todoItems: List<ActionItemEntity>,
-    doneItems: List<ActionItemEntity>,
+    todoItems: List<WidgetItem>,
+    doneItems: List<WidgetItem>,
 ) {
     Column(
         modifier = GlanceModifier
@@ -121,8 +132,8 @@ private fun SignedOutContent() {
 private fun ChecklistContent(
     showCompleted: Boolean,
     selectedTab: Int,
-    todoItems: List<ActionItemEntity>,
-    doneItems: List<ActionItemEntity>,
+    todoItems: List<WidgetItem>,
+    doneItems: List<WidgetItem>,
 ) {
     WidgetTitle(text = "Tasks")
     Spacer(modifier = GlanceModifier.height(8.dp))
@@ -209,27 +220,60 @@ private fun TabButton(
 }
 
 @Composable
-private fun TaskList(items: List<ActionItemEntity>) {
-    LazyColumn {
-        items(items = items, itemId = { it.id.fold(0L) { acc, c -> acc * 31L + c.code } }) { item ->
-            TaskRow(item)
+private fun TaskList(items: List<WidgetItem>) {
+    LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
+        items.forEachIndexed { index, item ->
+            item(itemId = item.id.hashCode().toLong() and 0x7FFFFFFFL) {
+                Column {
+                    if (index > 0) {
+                        Spacer(modifier = GlanceModifier.height(6.dp))
+                    }
+                    TaskRow(item)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun TaskRow(item: ActionItemEntity) {
-    CheckBox(
-        checked = item.completed,
-        onCheckedChange = actionRunCallback<ToggleItemAction>(
-            actionParametersOf(
-                ToggleItemAction.ItemIdKey to item.id,
-                ToggleItemAction.CurrentCompletedKey to item.completed,
+private fun TaskRow(item: WidgetItem) {
+    val icon = if (item.completed) R.drawable.ic_check_circle else R.drawable.ic_circle_outline
+    val textColor = if (item.completed) WidgetColors.SecondaryLabel else WidgetColors.Label
+    val decoration = if (item.completed) TextDecoration.LineThrough else TextDecoration.None
+
+    Row(
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .cornerRadius(10.dp)
+            .background(WidgetColors.AccentContainer)
+            .clickable(
+                actionRunCallback<ToggleItemAction>(
+                    actionParametersOf(
+                        ToggleItemAction.ItemIdKey to item.id,
+                        ToggleItemAction.CurrentCompletedKey to item.completed,
+                    )
+                )
             )
-        ),
-        text = item.title,
-        modifier = GlanceModifier.fillMaxWidth().padding(vertical = 2.dp),
-    )
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            provider = ImageProvider(icon),
+            contentDescription = if (item.completed) "Completed" else "Incomplete",
+            modifier = GlanceModifier.size(22.dp),
+            contentScale = ContentScale.Fit,
+        )
+        Spacer(modifier = GlanceModifier.width(10.dp))
+        Text(
+            text = item.title,
+            style = TextStyle(
+                color = textColor,
+                fontSize = 15.sp,
+                textDecoration = decoration,
+            ),
+            maxLines = 2,
+        )
+    }
 }
 
 @Composable
