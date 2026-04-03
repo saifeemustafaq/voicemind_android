@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -91,5 +92,72 @@ class NavPreferenceRepository @Inject constructor(
         context.dataStore.edit { prefs ->
             prefs[navOrderKey] = routes.joinToString(",")
         }
+    }
+
+    // ── Initial sync ─────────────────────────────────────────────────────────
+
+    private val initialSyncCompleteKey = booleanPreferencesKey("initial_sync_complete")
+
+    val isInitialSyncComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[initialSyncCompleteKey] ?: false
+    }
+
+    suspend fun setInitialSyncComplete(value: Boolean) {
+        context.dataStore.edit { prefs -> prefs[initialSyncCompleteKey] = value }
+    }
+
+    // ── Timezone ─────────────────────────────────────────────────────────────
+
+    private val timezoneKey = stringPreferencesKey("timezone")
+
+    /** IANA timezone ID; falls back to device default when the user hasn't overridden it. */
+    val appTimezone: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[timezoneKey]?.takeIf { it.isNotEmpty() } ?: TimeZone.getDefault().id
+    }
+
+    val isAutoTimezone: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[timezoneKey].isNullOrEmpty()
+    }
+
+    /** Pass `null` to reset to device-automatic. */
+    suspend fun setTimezone(timezoneId: String?) {
+        context.dataStore.edit { prefs ->
+            if (timezoneId == null) prefs.remove(timezoneKey)
+            else prefs[timezoneKey] = timezoneId
+        }
+    }
+
+    // ── Device setup ──────────────────────────────────────────────────────────
+
+    private val deviceSyncStrategyKey = stringPreferencesKey("device_sync_strategy")
+    private val deviceSetupCompleteKey = booleanPreferencesKey("device_setup_complete")
+
+    /** One of: "full", "on_demand", "metadata_only". Defaults to "full". */
+    val deviceSyncStrategy: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[deviceSyncStrategyKey] ?: "full"
+    }
+
+    val isDeviceSetupComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[deviceSetupCompleteKey] ?: false
+    }
+
+    suspend fun setDeviceSyncStrategy(strategy: String) {
+        context.dataStore.edit { prefs -> prefs[deviceSyncStrategyKey] = strategy }
+    }
+
+    suspend fun setDeviceSetupComplete(complete: Boolean) {
+        context.dataStore.edit { prefs -> prefs[deviceSetupCompleteKey] = complete }
+    }
+
+    // ── Local storage consent ─────────────────────────────────────────────────
+
+    private val localStorageConsentShownKey = booleanPreferencesKey("local_storage_consent_shown")
+
+    val isLocalStorageConsentShown: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[localStorageConsentShownKey] ?: false
+    }
+
+    suspend fun setLocalStorageConsentShown(shown: Boolean) {
+        context.dataStore.edit { prefs -> prefs[localStorageConsentShownKey] = shown }
     }
 }

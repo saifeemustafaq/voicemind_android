@@ -1,6 +1,5 @@
 package com.voicemind.ui.folders
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,15 +23,19 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Badge
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,14 +54,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.voicemind.data.model.Folder
-import com.voicemind.ui.components.GlassCard
+import com.voicemind.ui.components.NavigationRow
 import com.voicemind.ui.components.VoiceMindTopAppBar
+import com.voicemind.ui.components.voiceMindTextFieldColors
 import com.voicemind.ui.theme.VmDimens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoldersScreen(
     onFolderClick: (String) -> Unit,
+    onSharedItemsClick: () -> Unit = {},
+    onSharedByMeClick: () -> Unit = {},
     viewModel: FoldersViewModel = hiltViewModel(),
     onOpenDrawer: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
@@ -67,6 +73,8 @@ fun FoldersScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf<Folder?>(null) }
     var showDeleteConfirm by remember { mutableStateOf<Folder?>(null) }
+    var showSharedWithMeOverview by remember { mutableStateOf(false) }
+    var showSharedByMeOverview by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -96,14 +104,29 @@ fun FoldersScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = VmDimens.ScreenHorizontalPadding)
             ) {
 
             val listState = rememberLazyListState()
             LaunchedEffect(state.sort) {
                 listState.animateScrollToItem(0)
             }
-            LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(VmDimens.SpaceSm)) {
+                item {
+                    SharedByMeRow(
+                        onClick = onSharedByMeClick,
+                        count = state.sharedByMeCount,
+                        onShowOverview = { showSharedByMeOverview = true },
+                    )
+                }
+                item {
+                    SharedItemsRow(
+                        onClick = onSharedItemsClick,
+                        unreadCount = state.sharedItemsUnreadCount,
+                        onShowOverview = { showSharedWithMeOverview = true },
+                    )
+                }
+                item { Spacer(modifier = Modifier.height(VmDimens.SpaceXs)) }
                 items(state.folders, key = { it.id }) { folder ->
                     FolderRow(
                         folder = folder,
@@ -131,8 +154,6 @@ fun FoldersScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(VmDimens.SpaceXl),
-            
-            
             shape = CircleShape,
         ) {
             Icon(Icons.Default.Add, contentDescription = "Create folder")
@@ -181,6 +202,26 @@ fun FoldersScreen(
             }
         )
     }
+
+    if (showSharedWithMeOverview) {
+        SharingOverviewDialog(
+            title = "Shared with Me",
+            overview = state.sharedWithMeOverview,
+            personLabel = "Unread",
+            personSuffix = "new",
+            onDismiss = { showSharedWithMeOverview = false },
+        )
+    }
+
+    if (showSharedByMeOverview) {
+        SharingOverviewDialog(
+            title = "Shared by Me",
+            overview = state.sharedByMeOverview,
+            personLabel = "Shared with",
+            personSuffix = "items",
+            onDismiss = { showSharedByMeOverview = false },
+        )
+    }
 }
 
 @Composable
@@ -193,70 +234,175 @@ private fun FolderRow(
     modifier: Modifier = Modifier,
 ) {
     val isUnfiled = folder.id == Folder.UNFILED_ID
-    var menuExpanded by remember { mutableStateOf(false) }
 
-    GlassCard(modifier = modifier.fillMaxWidth(), innerPadding = 0.dp, onClick = onClick) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Default.Folder,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
+    NavigationRow(
+        icon = Icons.Default.Folder,
+        label = folder.name,
+        onClick = onClick,
+        modifier = modifier,
+    ) {
+        if (recordingCount > 0) {
             Text(
-                text = folder.name,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 12.dp),
+                text = "$recordingCount",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = VmDimens.SpaceXs),
             )
-
-            if (recordingCount > 0) {
-                Text(
-                    text = "$recordingCount",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(end = 4.dp),
-                )
-            }
-
-            if (!isUnfiled) {
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Options")
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        shape = MaterialTheme.shapes.extraSmall,
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Rename") },
-                            onClick = { menuExpanded = false; onRename() },
-                            leadingIcon = { Icon(Icons.Default.Edit, null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                            onClick = { menuExpanded = false; onDelete() },
-                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
-                        )
-                    }
+        }
+        if (!isUnfiled) {
+            var menuExpanded by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Options")
                 }
-            } else {
-                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    shape = MaterialTheme.shapes.extraSmall,
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Rename") },
+                        onClick = { menuExpanded = false; onRename() },
+                        leadingIcon = { Icon(Icons.Default.Edit, null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        onClick = { menuExpanded = false; onDelete() },
+                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
                     )
                 }
             }
+        } else {
+            Box(modifier = Modifier.size(VmDimens.TouchTarget), contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun SharedByMeRow(onClick: () -> Unit, count: Int = 0, onShowOverview: () -> Unit = {}) {
+    NavigationRow(
+        icon = Icons.Default.Share,
+        label = "Shared by Me",
+        onClick = onClick,
+    ) {
+        if (count > 0) {
+            Text(
+                text = "$count",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = VmDimens.SpaceXs),
+            )
+        }
+        IconButton(onClick = onShowOverview) {
+            Icon(
+                Icons.Default.Visibility,
+                contentDescription = "Overview",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Box(modifier = Modifier.size(VmDimens.TouchTarget), contentAlignment = Alignment.Center) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SharedItemsRow(onClick: () -> Unit, unreadCount: Int = 0, onShowOverview: () -> Unit = {}) {
+    NavigationRow(
+        icon = Icons.Default.FolderShared,
+        label = "Shared with Me",
+        onClick = onClick,
+    ) {
+        if (unreadCount > 0) {
+            Badge { Text(unreadCount.toString()) }
+        }
+        IconButton(onClick = onShowOverview) {
+            Icon(
+                Icons.Default.Visibility,
+                contentDescription = "Overview",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Box(modifier = Modifier.size(VmDimens.TouchTarget), contentAlignment = Alignment.Center) {
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SharingOverviewDialog(
+    title: String,
+    overview: SharingOverview,
+    personLabel: String,
+    personSuffix: String,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("$title \u2014 Overview") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                OverviewStatRow("Recordings", overview.recordingCount)
+                OverviewStatRow("Tasks", overview.taskCount)
+                OverviewStatRow("Summaries", overview.summaryCount)
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = VmDimens.SpaceSm))
+
+                OverviewStatRow("Total", overview.total)
+
+                if (overview.perPerson.isNotEmpty()) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = VmDimens.SpaceSm))
+                    Text(
+                        text = personLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = VmDimens.SpaceXs),
+                    )
+                    overview.perPerson.forEach { stat ->
+                        OverviewStatRow(stat.name, stat.count, suffix = personSuffix)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+    )
+}
+
+@Composable
+private fun OverviewStatRow(label: String, count: Int, suffix: String? = null) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = VmDimens.SpaceXxs),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = if (suffix != null) "$count $suffix" else "$count",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -277,6 +423,7 @@ private fun FolderNameDialog(
                 onValueChange = { name = it },
                 singleLine = true,
                 label = { Text("Folder name") },
+                colors = voiceMindTextFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
         },

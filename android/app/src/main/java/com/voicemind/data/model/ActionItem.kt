@@ -13,5 +13,11 @@ data class ActionItem(
     val dueDate: Timestamp? = null,
     val deadline: Timestamp? = null,
     val notes: String? = null,
+    val googleTaskId: String? = null,
     val calendarEventId: String? = null,
+    val autoScheduled: Boolean = false,
+    val sharedFromUid: String? = null,
+    val sharedFromName: String? = null,
+    val isDeleted: Boolean = false,
+    val deletedAt: Timestamp? = null,
 )

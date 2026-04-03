@@ -3,16 +3,24 @@ package com.voicemind.util
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
-private val fullDateFormat = SimpleDateFormat("MMM dd, yyyy 'at' h:mm a", Locale.getDefault())
-private val shortDateFormat = SimpleDateFormat("MMM dd 'at' h:mm a", Locale.getDefault())
-private val defaultTitleFormat = SimpleDateFormat("MMM dd - h:mm a", Locale.getDefault())
-private val dateSectionFormat = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
+fun Date.toFullDateString(tz: TimeZone = TimeZone.getDefault()): String =
+    SimpleDateFormat("MMM dd, yyyy 'at' h:mm a", Locale.getDefault())
+        .apply { timeZone = tz }
+        .format(this)
 
-fun Date.toFullDateString(): String = fullDateFormat.format(this)
+fun Date.toShortDateString(tz: TimeZone = TimeZone.getDefault()): String =
+    SimpleDateFormat("MMM dd 'at' h:mm a", Locale.getDefault())
+        .apply { timeZone = tz }
+        .format(this)
 
-fun Date.toShortDateString(): String = shortDateFormat.format(this)
+fun Date.toDefaultTitle(tz: TimeZone = TimeZone.getDefault()): String =
+    SimpleDateFormat("MMM dd - h:mm a", Locale.getDefault())
+        .apply { timeZone = tz }
+        .format(this)
 
-fun Date.toDefaultTitle(): String = defaultTitleFormat.format(this)
-
-fun Date.toDateSectionKey(): String = dateSectionFormat.format(this)
+fun Date.toDateSectionKey(tz: TimeZone = TimeZone.getDefault()): String =
+    SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
+        .apply { timeZone = tz }
+        .format(this)

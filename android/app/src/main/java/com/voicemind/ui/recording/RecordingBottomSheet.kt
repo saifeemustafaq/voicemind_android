@@ -31,6 +31,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,9 +51,20 @@ import com.voicemind.ui.components.voiceMindTextFieldColors
 fun RecordingBottomSheet(
     viewModel: RecordingViewModel,
     onDismiss: () -> Unit,
+    onDismissAttempt: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { value ->
+            if (value == SheetValue.Hidden && (state.isRecording || state.isPaused)) {
+                onDismissAttempt()
+                false
+            } else {
+                true
+            }
+        },
+    )
 
     if (!state.showSheet) return
 

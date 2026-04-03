@@ -1,6 +1,6 @@
 # VoiceMind AI -- Android Kotlin/Compose Developer Guidelines
 
-**Use this with:** [Android_Developer_Brief.md](Android_Developer_Brief.md) (what to build, Firebase architecture, data models, flows) and [Style_Guide_Compose.md](Style_Guide_Compose.md) (colors, components, layout, Lucide icons, no emoji). This document covers language, architecture, concurrency, Firebase usage, and engineering practices.
+**Use this with:** [Android_Developer_Brief.md](Android_Developer_Brief.md) (architecture, data flow, sync, navigation), [Style_Guide.md](Style_Guide.md) (colors, typography, spacing, components), and [Patterns_Guide.md](Patterns_Guide.md) (UI interaction recipes and conventions). This document covers language, architecture, concurrency, Firebase usage, and engineering practices.
 
 ---
 
@@ -14,8 +14,8 @@
 - **DRY (Don't Repeat Yourself):** Never duplicate logic, layouts, or data transformations. If you write the same (or nearly the same) code twice, extract it into a shared function, composable, or utility. Before writing new code, search the codebase for existing implementations that solve the same problem.
 - **Reuse first, create second:** Always check `ui/components/`, repositories, and utility packages before building something new. Extend or parameterize an existing component rather than creating a near-copy.
 - **Keep it concise:** Leverage Kotlin's expressive features (scope functions, extension functions, default parameters, destructuring) to reduce boilerplate. Fewer lines of clear code is better than many lines of verbose code.
-- **Product alignment:** Feature scope, data models, and Firebase architecture come from **Android_Developer_Brief.md**. Do not invent collections, fields, or flows; use only what the brief defines.
-- **UI alignment:** Follow **Style_Guide_Compose.md**: 48dp minimum touch targets, no emoji in UI or code (use Lucide icons), M3 surface-based visuals with `MaterialTheme.colorScheme.*` and `MaterialTheme.shapes.*` throughout.
+- **Product alignment:** Architecture, data flow, and sync patterns come from **Android_Developer_Brief.md**. Do not invent collections, fields, or flows; use only what the codebase and brief define.
+- **UI alignment:** Follow **Style_Guide.md**: 48dp minimum touch targets, no emoji in UI or code (use Material Icons), M3 surface-based visuals with `MaterialTheme.colorScheme.*` and `MaterialTheme.shapes.*` throughout.
 
 ---
 
@@ -100,73 +100,73 @@ sealed interface TranscriptionResult {
 ## 5) Architecture (Clean + Practical)
 
 ### MVVM boundaries
-- **Composable (View):** Rendering + user events -> calls ViewModel.
+- **Composable (View):** Rendering + user events → calls ViewModel.
 - **ViewModel:** Holds `StateFlow<UiState>`, orchestrates use cases, maps errors to UI messages.
-- **Repository:** Abstracts data source (Firestore, Cloud Storage, OpenAI API). No Compose imports.
-- **Data source / service:** Firebase SDK calls, OpenAI HTTP calls, MediaRecorder wrapper.
+- **Repository:** Abstracts data source (Room + Firestore, Cloud Storage, Functions). No Compose imports. UI always reads from Room; writes go to Room then sync to Firestore.
+- **Data source / service:** Room DAOs, Firebase SDK calls, foreground services (recording, playback), sync workers.
 
 ### Dependency injection
-- Use **Hilt** (recommended) or manual DI with an `AppContainer`.
+- Use **Hilt** (`@HiltViewModel`, `@HiltWorker`, `@Inject`).
 - Inject repositories and services into ViewModels via constructor.
-- No singletons unless it's Android-provided (e.g. `Application` context).
+- Firebase instances and Room DAOs provided via `AppModule`.
 
-### Example layer structure
+### Layer structure
+
+See **Android_Developer_Brief.md §14** for the full package tree. Key layers:
 
 ```
 com.voicemind/
   data/
-    model/          -- Recording, Folder, ActionItem data classes
-    repository/     -- RecordingRepository, FolderRepository, ActionItemRepository
-    remote/         -- OpenAiService (transcription, title, extraction)
-  ui/
-    theme/          -- Color.kt, Theme.kt, Type.kt
-    home/           -- HomeScreen, HomeViewModel
-    recording/      -- RecordingListScreen, RecordingRow, RecordingBottomSheet
-    checklist/      -- ChecklistScreen, ActionItemRow, ChecklistViewModel
-    folders/        -- FoldersScreen, FolderDetailScreen, FoldersViewModel
-    settings/       -- SettingsScreen
-    components/     -- GlassCard, PrimaryButton, shared composables
-  audio/            -- AudioRecorderService (MediaRecorder wrapper)
-  di/               -- Hilt modules
+    model/          -- Firestore-serializable domain models
+    local/          -- Room database, DAOs, entities, EntityMappers, SyncStatus
+    repository/     -- Room-first repositories (dual-write to Firestore)
+    sync/           -- SyncWorker, FirestoreSyncService, InitialSyncManager
+  service/          -- RecordingService, PlaybackService, FCM
+  ui/               -- Screens, ViewModels, components, theme, navigation
+  audio/            -- AudioRecorder (MediaRecorder wrapper)
+  widget/           -- Glance recording widget
+  util/             -- ConnectivityObserver, formatting helpers
+  di/               -- Hilt modules (Firebase + Room providers)
 ```
 
 ---
 
 ## 6) Firebase Usage
 
+### Data flow (Room-first)
+- **UI reads from Room only.** Repositories expose `Flow<List<T>>` from Room DAOs. ViewModels collect these.
+- **Writes go to Room first**, then sync to Firestore via `SyncWorker`. Each entity has a `SyncStatus` (SYNCED, PENDING_UPLOAD, PENDING_UPDATE, PENDING_DELETE).
+- **Firestore snapshot listeners** (`FirestoreSyncService`) merge cloud changes into Room. This keeps Room up-to-date without the UI reading Firestore directly.
+- See **Android_Developer_Brief.md §2** for the full data flow diagram and conflict resolution rules.
+
 ### Firestore
-- Use the Firebase Android SDK (`com.google.firebase:firebase-firestore-ktx`).
-- Scope all paths under `users/{uid}/`. Get UID from `FirebaseAuth.getInstance().currentUser?.uid`.
-- Use **snapshot listeners** (`addSnapshotListener`) for real-time UI updates on recordings, folders, and action items.
-- Use `Timestamp` (Firestore) for `createdAt` fields; convert to `Date` or formatted string in the ViewModel.
-- Enable **offline persistence** (enabled by default). This gives the app basic offline read capability.
+- Scope all paths under `users/{uid}/`.
+- Don't add snapshot listeners in ViewModels or screens — they belong in `FirestoreSyncService`.
+- Use `Timestamp` (Firestore) for date fields; Room entities store these as `Long?` via `EntityMappers`.
 
 ### Cloud Storage
-- Use `com.google.firebase:firebase-storage-ktx`.
-- Upload audio to `users/{uid}/audio/{recordingId}.m4a`.
-- Get download URLs for playback via `storageRef.downloadUrl`.
+- Upload audio to `users/{uid}/audio/{recordingId}.m4a` via `StorageRepository`.
+- Local audio stored in `filesDir/audio/` via `LocalAudioManager`. Playback prefers local file, falls back to download URL.
 
 ### Authentication
-- Use `com.google.firebase:firebase-auth-ktx`.
-- Provide email/password sign-in and/or Google Sign-In.
-- Listen for auth state changes: `FirebaseAuth.getInstance().addAuthStateListener { ... }`.
+- Email/password + Google Sign-In (Credential Manager).
+- Auth state drives the app gate in `MainActivity`.
 - On sign-out, clear local state and navigate to sign-in.
 
-### Cloud Functions (optional, recommended)
-- If using a Cloud Function for transcription/extraction: call via `FirebaseFunctions.getInstance().getHttpsCallable("functionName")`.
-- Keep the OpenAI API key server-side in the Cloud Function.
-- If calling OpenAI directly from the client (simpler for MVP): store the key securely (e.g. Firebase Remote Config, BuildConfig field not checked into source control).
+### Cloud Functions
+- All AI processing is server-side: `processRecording`, `generateSummary`, `generateCollectiveSummary`.
+- Call via `FirebaseFunctions.getInstance().getHttpsCallable("functionName")`.
+- OpenAI API key stays server-side. Never in client code.
 
 ---
 
 ## 7) Audio Recording
 
-- Use `MediaRecorder` with output format `MPEG_4` and audio encoder `AAC` for `.m4a` output. This is well-supported on Android and accepted by OpenAI.
-- Configure `MediaRecorder` carefully: set audio source (`MIC`), output format, encoder, output file, sample rate (44100 recommended), encoding bit rate (128000).
+- Recording runs in a **foreground `RecordingService`** with `FOREGROUND_SERVICE_TYPE_MICROPHONE`, wake lock, and `MediaSession` for hardware button control.
+- `AudioRecorder` wraps `MediaRecorder`: format `MPEG_4`, encoder `AAC`, 44.1 kHz, 128 kbps, output `.m4a`.
 - Handle `MediaRecorder` lifecycle: `prepare()`, `start()`, `pause()`, `resume()`, `stop()`, `release()`. Release on stop/cancel.
-- Handle audio interruptions (phone call, other app taking audio focus): pause recording or show a warning.
 - Request `RECORD_AUDIO` permission at runtime (just-in-time, when user taps record). Handle denial gracefully with an explanation and Settings link.
-- Store temp recording files in the app's cache directory; delete after successful upload.
+- Temp files go in cache; after save, audio is copied to `filesDir/audio/` via `LocalAudioManager` and uploaded to Cloud Storage (or queued as `PENDING_UPLOAD` when offline).
 
 ---
 
@@ -187,9 +187,28 @@ com.voicemind/
 
 ## 9) Logging and Debugging
 
+### Timber logging
 - Use `Timber` or `android.util.Log` with tag conventions (e.g. `TAG = "RecordingVM"`).
 - **Never log:** raw transcripts, audio file paths with user content, user email, or any PII.
 - Log only event-level info: "recordingStarted", "transcriptionFailed(code)", "uploadComplete".
+
+### On-device debugging with adb
+Prerequisite: `brew install android-platform-tools`. Connect phone via USB with USB Debugging enabled (Settings > Developer Options > USB Debugging).
+
+```bash
+adb devices                                              # verify connection
+adb logcat --pid=$(adb shell pidof com.voicemind)        # stream app logs
+adb logcat -s GlanceAppWidget:E AndroidRuntime:E         # widget errors only
+adb logcat -c && adb logcat --pid=$(adb shell pidof com.voicemind)  # clear + stream
+cd android && ./gradlew installDebug                     # install debug build
+```
+
+### Widget-specific debugging
+Glance widgets show a generic "Can't show content" message for any runtime error. The actual exception is only visible in logcat. Common widget failure causes:
+- Missing `GlanceTheme { }` wrapper (required for `CheckBox`, `Switch`, `RadioButton` default colors).
+- Uncaught exception in `provideGlance` (wrap data fetches in try-catch).
+- Glance preferences not initialized (e.g. `IS_SIGNED_IN` not set by the config activity).
+- `fillMaxSize()` on a Column child inside another Column can cause RemoteViews layout failures; use `defaultWeight()` inside `ColumnScope` instead.
 
 ---
 
@@ -224,7 +243,7 @@ Before finalizing any change:
 - State ownership is correct (ViewModel owns, Composable reads).
 - Access control is sensible (`private` where possible).
 - No sensitive data in logs.
-- New UI follows **Style_Guide_Compose.md** (colors, touch targets, no emoji, M3 surface hierarchy).
+- New UI follows **Style_Guide.md** (colors, touch targets, no emoji, M3 surface hierarchy).
 - **No duplicated logic.** If similar code exists elsewhere, refactor into a shared function or composable.
 - **Existing components reused.** Check that `ui/components/`, repositories, and utilities were searched before introducing new ones.
 - **Code is concise.** No unnecessary wrapper functions, redundant variables, or verbose patterns that Kotlin can express more cleanly.
@@ -238,7 +257,7 @@ When adding code, include:
 - A brief note: what files changed.
 - How to run it (e.g. "Build & run on emulator or device").
 - If a new pattern was introduced, a short explanation (2-3 lines max).
-- Ensure new UI respects **Style_Guide_Compose.md**.
+- Ensure new UI respects **Style_Guide.md**.
 
 ---
 
@@ -246,11 +265,11 @@ When adding code, include:
 
 - Don't paste huge code blocks without integrating into existing structure.
 - Don't create duplicate models/repositories for similar concepts.
-- **Don't invent Firebase collections or fields.** All data shapes are defined in **Android_Developer_Brief.md**. Use those only.
+- **Don't invent Firebase collections or fields.** Data shapes are defined in the existing models and **Android_Developer_Brief.md**. Use those only.
 - Don't ignore Android API level constraints -- if using API 31+ features (e.g. `Modifier.blur`), provide a fallback or call it out.
 - Don't hardcode the OpenAI API key in source code. Use Cloud Functions, Remote Config, or BuildConfig (not checked into VCS).
-- Don't use emoji in UI, copy, or code; use Lucide icons (`com.composables.icons.lucide`) per **Style_Guide_Compose.md**.
-- Don't call Firestore or Storage on the main thread.
+- Don't use emoji in UI, copy, or code; use Material Icons (`androidx.compose.material.icons`) per **Style_Guide.md**.
+- Don't call Firestore, Storage, or Room on the main thread.
 - **Don't copy-paste code across features.** If two features need the same logic, extract it. Copy-pasting is a code smell that leads to divergent bugs.
 - **Don't create a new composable when a shared one already exists** in `ui/components/`. Search first, add parameters if needed, only then create new.
 - **Don't write verbose code when Kotlin offers a concise alternative.** Avoid manual loops where collection operators work, Java-style builders where `apply {}` works, or multiple overloads where default parameters work.
@@ -260,15 +279,18 @@ When adding code, include:
 
 ## 15) Suggested Defaults
 
-- **Min SDK:** 26 (Android 8.0) for broad reach. Increase to 28 or 29 if you want `MediaRecorder.pause/resume` without compat workarounds.
-- **Target SDK:** Latest stable (e.g. 34 or 35).
-- **Compose BOM:** Latest stable Compose BOM.
-- **Kotlin:** Latest stable (e.g. 2.0+).
-- **Build system:** Gradle with Kotlin DSL.
-- **DI:** Hilt.
-- **Networking (OpenAI):** Retrofit + OkHttp or Ktor. Keep it thin; only transcription + chat endpoints.
+- **Min SDK:** 28 (Android 9).
+- **Target / Compile SDK:** 35.
+- **Compose BOM:** 2025.12.00.
+- **Kotlin:** Latest stable (2.0+).
+- **Build system:** Gradle with Kotlin DSL + KSP.
+- **DI:** Hilt (including `hilt-work` for workers).
+- **Local database:** Room.
+- **Background work:** WorkManager (sync, bulk downloads).
+- **Widget:** Glance 1.1.1.
+- **Networking:** Retrofit + OkHttp (Cloud Functions are primary; direct API calls are thin).
 - **Image loading (if needed later):** Coil.
 
 ---
 
-*Follow this guide alongside Android_Developer_Brief.md and Style_Guide_Compose.md for a complete, consistent, production-ready Android app.*
+*Follow this guide alongside Android_Developer_Brief.md, Style_Guide.md, and Patterns_Guide.md for a complete, consistent, production-ready Android app.*

@@ -50,7 +50,7 @@ android {
             )
             firebaseAppDistribution {
                 releaseNotes = "Latest build of VoiceMind"
-                testers = "saifeesaifuddinq@gmail.com, saifeestudy@gmail.com"
+                testers = "saifeesaifuddinq@gmail.com, saifeestudy@gmail.com, studykalyani@gmail.com, kkalyanipawar@gmail.com"
             }
         }
     }
@@ -104,6 +104,11 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Firebase
     implementation(platform(libs.firebase.bom))
@@ -111,6 +116,7 @@ dependencies {
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.storage.ktx)
     implementation(libs.firebase.functions.ktx)
+    implementation(libs.firebase.messaging.ktx)
 
     // Google Sign-In (Credential Manager)
     implementation(libs.credentials)
@@ -138,6 +144,14 @@ dependencies {
     // Markdown rendering
     implementation("com.halilibo.compose-richtext:richtext-ui-material3:0.20.0")
     implementation("com.halilibo.compose-richtext:richtext-commonmark:0.20.0")
+
+    // Room
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
 
     // Logging
     implementation(libs.timber)

@@ -47,3 +47,17 @@ fun taskDetailRoute(itemId: String) = "task_detail/$itemId"
 const val RECORDING_DETAIL_ROUTE = "recording_detail/{recordingId}"
 
 fun recordingDetailRoute(recordingId: String) = "recording_detail/$recordingId"
+
+const val SHARED_ITEMS_ROUTE = "shared_items"
+
+const val SHARED_BY_ME_ROUTE = "shared_by_me"
+
+const val SHARED_RECORDING_DETAIL_ROUTE = "shared_recording/{ownerUid}/{recordingId}"
+
+fun sharedRecordingDetailRoute(ownerUid: String, recordingId: String) =
+    "shared_recording/$ownerUid/$recordingId"
+
+const val SHARED_SUMMARY_DETAIL_ROUTE = "shared_summary/{ownerUid}/{summaryId}"
+
+fun sharedSummaryDetailRoute(ownerUid: String, summaryId: String) =
+    "shared_summary/$ownerUid/$summaryId"

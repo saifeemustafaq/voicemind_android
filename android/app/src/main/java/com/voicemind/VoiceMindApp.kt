@@ -3,13 +3,15 @@ package com.voicemind
 import android.Manifest
 import android.app.Activity
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
-import androidx.glance.appwidget.GlanceAppWidgetManager
-import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.google.firebase.auth.FirebaseAuth
-import com.voicemind.widget.RecordingWidget
-import com.voicemind.widget.RecordingWidgetStateKeys
+import com.voicemind.widget.common.WidgetStateManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,9 +20,15 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import javax.inject.Inject
 
 @HiltAndroidApp
-class VoiceMindApp : Application() {
+class VoiceMindApp : Application(), Configuration.Provider {
+
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -29,8 +37,22 @@ class VoiceMindApp : Application() {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
+        createNotificationChannels()
         observeAuthForWidget()
         observeAppForegroundForWidget()
+    }
+
+    private fun createNotificationChannels() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "shared_items",
+                "Shared Items",
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "Notifications when someone shares items with you"
+            }
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
     }
 
     /**
@@ -58,7 +80,7 @@ class VoiceMindApp : Application() {
      *  - any other permission change made in system Settings
      *
      * onActivityResumed is the right hook because it fires the moment the activity window
-     * is interactive again — which is exactly when the permission state is finalised after
+     * is interactive again — which is exactly when the permission state is finalized after
      * the system permission dialog is dismissed.
      */
     private fun observeAppForegroundForWidget() {
@@ -78,18 +100,9 @@ class VoiceMindApp : Application() {
     }
 
     private suspend fun pushWidgetState(isSignedIn: Boolean) {
-        try {
-            val needsMicPermission = isSignedIn &&
-                checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
-            val manager = GlanceAppWidgetManager(this@VoiceMindApp)
-            val ids = manager.getGlanceIds(RecordingWidget::class.java)
-            ids.forEach { id ->
-                updateAppWidgetState(this@VoiceMindApp, id) { prefs ->
-                    prefs[RecordingWidgetStateKeys.IS_SIGNED_IN] = isSignedIn
-                    prefs[RecordingWidgetStateKeys.NEEDS_MIC_PERMISSION] = needsMicPermission
-                }
-                RecordingWidget().update(this@VoiceMindApp, id)
-            }
-        } catch (_: Exception) { }
+        val needsMicPermission = isSignedIn &&
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+        WidgetStateManager.pushAuthState(this@VoiceMindApp, isSignedIn, needsMicPermission)
+        WidgetStateManager.pushChecklistAuthState(this@VoiceMindApp, isSignedIn)
     }
 }

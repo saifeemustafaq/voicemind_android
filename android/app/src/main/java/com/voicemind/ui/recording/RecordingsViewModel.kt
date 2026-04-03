@@ -1,5 +1,7 @@
 package com.voicemind.ui.recording
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
@@ -16,12 +18,17 @@ import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.CollectiveSummary
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
+import com.voicemind.data.local.LocalAudioManager
+import com.voicemind.data.local.SyncStatus
+import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.CollectiveSummaryRepository
 import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
+import com.voicemind.ui.components.NeedsInternetReason
+import com.voicemind.util.ConnectivityObserver
 import com.google.firebase.functions.FirebaseFunctionsException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +40,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.update
 import timber.log.Timber
 import java.io.File
-import java.util.TimeZone
 import javax.inject.Inject
 
 sealed interface SummaryState {
@@ -57,6 +63,7 @@ data class RecordingsListState(
     val folders: List<Folder> = emptyList(),
     val isLoading: Boolean = true,
     val playingRecordingId: String? = null,
+    val downloadingRecordingId: String? = null,
     val isPlaybackPaused: Boolean = false,
     val playbackPositionMs: Long = 0,
     val playbackDurationMs: Long = 0,
@@ -70,6 +77,9 @@ data class RecordingsListState(
     val collectiveSummarizeResult: CollectiveSummary? = null,
     val showMultiSelectHint: Boolean = false,
     val playbackSpeed: Float = 1.0f,
+    val needsInternetDialog: NeedsInternetReason? = null,
+    val shareWithUserTarget: Recording? = null,
+    val snackbarMessage: String? = null,
 )
 
 @HiltViewModel
@@ -78,10 +88,13 @@ class RecordingsViewModel @Inject constructor(
     private val recordingRepository: RecordingRepository,
     private val folderRepository: FolderRepository,
     private val storageRepository: StorageRepository,
+    private val localAudioManager: LocalAudioManager,
     private val actionItemRepository: ActionItemRepository,
     private val collectiveSummaryRepository: CollectiveSummaryRepository,
     private val navPreferenceRepository: NavPreferenceRepository,
     private val playbackCommandRepository: PlaybackCommandRepository,
+    private val recordingDao: RecordingDao,
+    private val connectivityObserver: ConnectivityObserver,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecordingsListState())
@@ -93,6 +106,7 @@ class RecordingsViewModel @Inject constructor(
     private var mediaPlayer: MediaPlayer? = null
     private var recordingsJob: Job? = null
     private var positionPollJob: Job? = null
+    private var actionItemsJob: Job? = null
     private var currentPlayingTitle: String = ""
 
     init {
@@ -109,13 +123,13 @@ class RecordingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             folderRepository.observeFolders().collect { folders ->
-                _state.value = _state.value.copy(folders = folders)
+                _state.update { it.copy(folders = folders) }
             }
         }
         viewModelScope.launch {
             val dismissCount = navPreferenceRepository.multiSelectHintDismissCount.first()
             if (dismissCount % 5 == 0) {
-                _state.value = _state.value.copy(showMultiSelectHint = true)
+                _state.update { it.copy(showMultiSelectHint = true) }
             }
         }
     }
@@ -129,13 +143,13 @@ class RecordingsViewModel @Inject constructor(
                 recordingRepository.observeRecordings()
             }
             flow.collect { recordings ->
-                _state.value = _state.value.copy(recordings = recordings, isLoading = false)
+                _state.update { it.copy(recordings = recordings, isLoading = false) }
             }
         }
     }
 
     fun filterByFolder(folderId: String?) {
-        _state.value = _state.value.copy(filterFolderId = folderId, isLoading = true)
+        _state.update { it.copy(filterFolderId = folderId, isLoading = true) }
         observeRecordings(folderId)
     }
 
@@ -144,34 +158,29 @@ class RecordingsViewModel @Inject constructor(
         currentPlayingTitle = recording.title
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val url = storageRepository.getDownloadUrl(recording.audioPath)
-                mediaPlayer = MediaPlayer().apply {
-                    setDataSource(url.toString())
-                    setOnPreparedListener {
-                        it.start()
-                        _state.update { s -> s.copy(
-                            playingRecordingId = recording.id,
-                            isPlaybackPaused = false,
-                            playbackDurationMs = it.duration.toLong(),
-                            playbackPositionMs = 0,
-                        )}
-                        startPositionPolling()
-                        context.startForegroundService(
-                            PlaybackService.buildStartIntent(context, recording.title, isPlaying = true)
-                        )
-                    }
-                    setOnCompletionListener {
-                        positionPollJob?.cancel()
-                        _state.update { it.copy(
-                            playingRecordingId = null,
-                            isPlaybackPaused = false,
-                            playbackPositionMs = 0,
-                        )}
-                        context.startService(PlaybackService.buildStopIntent(context))
-                    }
-                    prepareAsync()
+                val entity = recordingDao.getById(recording.id)
+                val localPath = entity?.localAudioPath
+                val needsDownload = localPath == null || !File(localPath).exists()
+                val strategy = if (needsDownload) navPreferenceRepository.deviceSyncStrategy.first() else null
+                if (needsDownload && strategy == "on_demand") {
+                    _state.update { it.copy(downloadingRecordingId = recording.id) }
                 }
+                val dataSource = when {
+                    !needsDownload -> requireNotNull(localPath) { "localPath should exist when needsDownload is false" }
+                    strategy == "on_demand" -> {
+                        val url = storageRepository.getDownloadUrl(recording.audioPath).toString()
+                        val tmpFile = java.io.File(context.cacheDir, "${recording.id}_dl.m4a")
+                        storageRepository.downloadFromUrl(url, tmpFile)
+                        val savedPath = localAudioManager.saveAudio(recording.id, tmpFile)
+                        recordingDao.updateLocalAudioPath(recording.id, savedPath)
+                        _state.update { it.copy(downloadingRecordingId = null) }
+                        savedPath
+                    }
+                    else -> storageRepository.getDownloadUrl(recording.audioPath).toString()
+                }
+                mediaPlayer = buildAndPreparePlayer(dataSource, recording)
             } catch (e: Exception) {
+                _state.update { it.copy(downloadingRecordingId = null) }
                 Timber.e("Playback failed: %s", e.message)
             }
         }
@@ -255,6 +264,34 @@ class RecordingsViewModel @Inject constructor(
         _state.update { it.copy(playbackSpeed = speed) }
     }
 
+    private fun buildAndPreparePlayer(dataSource: String, recording: Recording): MediaPlayer =
+        MediaPlayer().apply {
+            setDataSource(dataSource)
+            setOnPreparedListener {
+                it.start()
+                _state.update { s -> s.copy(
+                    playingRecordingId = recording.id,
+                    isPlaybackPaused = false,
+                    playbackDurationMs = it.duration.toLong(),
+                    playbackPositionMs = 0,
+                )}
+                startPositionPolling()
+                context.startForegroundService(
+                    PlaybackService.buildStartIntent(context, recording.title, isPlaying = true)
+                )
+            }
+            setOnCompletionListener {
+                positionPollJob?.cancel()
+                _state.update { it.copy(
+                    playingRecordingId = null,
+                    isPlaybackPaused = false,
+                    playbackPositionMs = 0,
+                )}
+                context.startService(PlaybackService.buildStopIntent(context))
+            }
+            prepareAsync()
+        }
+
     private fun startPositionPolling() {
         positionPollJob?.cancel()
         positionPollJob = viewModelScope.launch {
@@ -287,13 +324,30 @@ class RecordingsViewModel @Inject constructor(
         }
     }
 
+    fun requestShareWithUser(recording: Recording) {
+        if (!connectivityObserver.isCurrentlyOnline()) {
+            _state.update { it.copy(needsInternetDialog = NeedsInternetReason.ShareWithUser) }
+            return
+        }
+        _state.update { it.copy(shareWithUserTarget = recording) }
+    }
+
+    fun clearShareWithUser() {
+        _state.update { it.copy(shareWithUserTarget = null) }
+    }
+
     fun shareAudio(context: Context, recording: Recording) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val url = storageRepository.getDownloadUrl(recording.audioPath)
                 val tempFile = File(context.cacheDir, "${recording.id}.m4a")
-                java.net.URL(url.toString()).openStream().use { input ->
-                    tempFile.outputStream().use { output -> input.copyTo(output) }
+                val localPath = recordingDao.getById(recording.id)?.localAudioPath
+                if (localPath != null && File(localPath).exists()) {
+                    File(localPath).copyTo(tempFile, overwrite = true)
+                } else {
+                    val url = storageRepository.getDownloadUrl(recording.audioPath)
+                    java.net.URL(url.toString()).openStream().use { input ->
+                        tempFile.outputStream().use { output -> input.copyTo(output) }
+                    }
                 }
                 val uri = FileProvider.getUriForFile(
                     context,
@@ -320,47 +374,51 @@ class RecordingsViewModel @Inject constructor(
         context.startActivity(Intent.createChooser(intent, "Share Transcript"))
     }
 
-    fun openTranscriptSheet(recording: Recording) {
-        _sheetState.value = TranscriptSheetState()
-        loadActionItems(recording.id)
-        if (recording.summary != null) {
-            _sheetState.value = _sheetState.value.copy(
-                summaryState = SummaryState.Loaded(recording.summary)
-            )
-        }
+    fun copyTranscriptToClipboard(recording: Recording) {
+        val text = recording.transcription ?: return
+        val clip = ClipData.newPlainText("Transcript", text)
+        (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(clip)
+        _state.update { it.copy(snackbarMessage = "Transcript copied") }
     }
 
-    fun loadActionItems(recordingId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val items = actionItemRepository.getByRecordingId(recordingId)
-                _sheetState.value = _sheetState.value.copy(
-                    actionItems = items,
-                    actionItemsLoaded = true,
-                )
-            } catch (e: Exception) {
-                Timber.e("Failed to load action items: %s", e.message)
-                _sheetState.value = _sheetState.value.copy(actionItemsLoaded = true)
+    fun clearSnackbar() {
+        _state.update { it.copy(snackbarMessage = null) }
+    }
+
+    fun openTranscriptSheet(recording: Recording) {
+        _sheetState.value = TranscriptSheetState()
+        if (recording.summary != null) {
+            _sheetState.update { it.copy(summaryState = SummaryState.Loaded(recording.summary)) }
+        }
+        actionItemsJob?.cancel()
+        actionItemsJob = viewModelScope.launch {
+            actionItemRepository.observeByRecordingId(recording.id).collect { items ->
+                _sheetState.update { it.copy(actionItems = items, actionItemsLoaded = true) }
             }
         }
     }
 
     fun generateTasks(recording: Recording) {
         if (_sheetState.value.isGeneratingTasks) return
+        if (recording.transcription == null) {
+            if (!connectivityObserver.isCurrentlyOnline()) {
+                _state.update { it.copy(needsInternetDialog = NeedsInternetReason.GenerateTasks) }
+                return
+            }
+            if (recording.syncStatus != SyncStatus.SYNCED) {
+                _state.update { it.copy(needsInternetDialog = NeedsInternetReason.StillProcessing) }
+                return
+            }
+        }
         viewModelScope.launch(Dispatchers.IO) {
             _sheetState.update {
                 it.copy(isGeneratingTasks = true, generateTasksFailed = false, generateTasksNoResults = false)
             }
             try {
-                val count = actionItemRepository.retryExtractActionItems(
-                    recording.id, TimeZone.getDefault().id
-                )
-                if (count > 0) {
-                    val items = actionItemRepository.getByRecordingId(recording.id)
-                    _sheetState.update { it.copy(actionItems = items, actionItemsLoaded = true) }
-                } else {
-                    _sheetState.update { it.copy(generateTasksNoResults = true) }
-                }
+                val tz = navPreferenceRepository.appTimezone.first()
+                val count = actionItemRepository.retryExtractActionItems(recording.id, tz)
+                // New items arrive via the snapshot listener; only handle the no-results case.
+                if (count == 0) _sheetState.update { it.copy(generateTasksNoResults = true) }
             } catch (e: Exception) {
                 Timber.e("generateTasks failed: %s", e.message)
                 _sheetState.update { it.copy(generateTasksFailed = true) }
@@ -370,29 +428,51 @@ class RecordingsViewModel @Inject constructor(
         }
     }
 
+    fun retryProcessing(recording: Recording) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                recordingRepository.updateProcessingFailed(recording.id, false)
+                val tz = navPreferenceRepository.appTimezone.first()
+                recordingRepository.invokeProcessRecording(recording.id, tz)
+            } catch (e: Exception) {
+                Timber.e("retryProcessing failed: %s", e.message)
+                try { recordingRepository.updateProcessingFailed(recording.id, true) } catch (_: Exception) {}
+            }
+        }
+    }
+
+    fun dismissNeedsInternetDialog() {
+        _state.update { it.copy(needsInternetDialog = null) }
+    }
+
     fun generateSummary(recording: Recording) {
         if (recording.summary != null) {
-            _sheetState.value = _sheetState.value.copy(
-                summaryState = SummaryState.Loaded(recording.summary)
-            )
+            _sheetState.update { it.copy(summaryState = SummaryState.Loaded(recording.summary)) }
             return
         }
         if (_sheetState.value.summaryState is SummaryState.Loading) return
 
-        _sheetState.value = _sheetState.value.copy(summaryState = SummaryState.Loading)
+        if (recording.transcription == null) {
+            if (!connectivityObserver.isCurrentlyOnline()) {
+                _state.update { it.copy(needsInternetDialog = NeedsInternetReason.GenerateSummary) }
+                return
+            }
+            if (recording.syncStatus != SyncStatus.SYNCED) {
+                _state.update { it.copy(needsInternetDialog = NeedsInternetReason.StillProcessing) }
+                return
+            }
+        }
+
+        _sheetState.update { it.copy(summaryState = SummaryState.Loading) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val summary = recordingRepository.generateSummary(recording.id)
-                _sheetState.value = _sheetState.value.copy(
-                    summaryState = SummaryState.Loaded(summary)
-                )
+                _sheetState.update { it.copy(summaryState = SummaryState.Loaded(summary)) }
             } catch (e: Exception) {
                 Timber.e("Summary generation failed: %s", e.message)
-                _sheetState.value = _sheetState.value.copy(
-                    summaryState = SummaryState.Error(
-                        "Unable to generate summary. Please try again."
-                    )
-                )
+                _sheetState.update {
+                    it.copy(summaryState = SummaryState.Error("Unable to generate summary. Please try again."))
+                }
             }
         }
     }
@@ -400,91 +480,97 @@ class RecordingsViewModel @Inject constructor(
     // Multi-select
 
     fun dismissMultiSelectHint() {
-        _state.value = _state.value.copy(showMultiSelectHint = false)
+        _state.update { it.copy(showMultiSelectHint = false) }
         viewModelScope.launch {
             navPreferenceRepository.incrementMultiSelectHintDismissCount()
         }
     }
 
     fun enterMultiSelect(recordingId: String) {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             isMultiSelectActive = true,
             selectedRecordingIds = setOf(recordingId),
             showMultiSelectHint = false,
-        )
+        )}
         viewModelScope.launch {
             navPreferenceRepository.incrementMultiSelectHintDismissCount()
         }
     }
 
     fun toggleSelection(recordingId: String) {
-        val current = _state.value.selectedRecordingIds
-        _state.value = _state.value.copy(
-            selectedRecordingIds = if (recordingId in current) current - recordingId else current + recordingId
-        )
+        _state.update { state ->
+            state.copy(
+                selectedRecordingIds = if (recordingId in state.selectedRecordingIds)
+                    state.selectedRecordingIds - recordingId
+                else
+                    state.selectedRecordingIds + recordingId,
+            )
+        }
     }
 
     fun selectAll() {
-        _state.value = _state.value.copy(
-            selectedRecordingIds = _state.value.recordings.map { it.id }.toSet()
-        )
+        _state.update { it.copy(selectedRecordingIds = it.recordings.map { r -> r.id }.toSet()) }
     }
 
     fun deselectAll() {
-        _state.value = _state.value.copy(selectedRecordingIds = emptySet())
+        _state.update { it.copy(selectedRecordingIds = emptySet()) }
     }
 
     fun exitMultiSelect() {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             isMultiSelectActive = false,
             selectedRecordingIds = emptySet(),
             collectiveSummarizeError = null,
             collectiveSummarizeResult = null,
-        )
+        )}
     }
 
     fun bulkDelete(recordings: List<Recording>) {
-        _state.value = _state.value.copy(isBulkDeleting = true)
+        _state.update { it.copy(isBulkDeleting = true) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 recordings.forEach { if (_state.value.playingRecordingId == it.id) stopPlayback() }
                 recordingRepository.deleteRecordings(recordings)
-                _state.value = _state.value.copy(isBulkDeleting = false)
+                _state.update { it.copy(isBulkDeleting = false) }
                 exitMultiSelect()
             } catch (e: Exception) {
                 Timber.e("Bulk delete failed: %s", e.message)
-                _state.value = _state.value.copy(isBulkDeleting = false)
+                _state.update { it.copy(isBulkDeleting = false) }
             }
         }
     }
 
     fun bulkMoveToFolder(recordingIds: List<String>, folderId: String) {
-        _state.value = _state.value.copy(isBulkMoving = true)
+        _state.update { it.copy(isBulkMoving = true) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 recordingRepository.moveRecordingsToFolder(recordingIds, folderId)
-                _state.value = _state.value.copy(isBulkMoving = false)
+                _state.update { it.copy(isBulkMoving = false) }
                 exitMultiSelect()
             } catch (e: Exception) {
                 Timber.e("Bulk move failed: %s", e.message)
-                _state.value = _state.value.copy(isBulkMoving = false)
+                _state.update { it.copy(isBulkMoving = false) }
             }
         }
     }
 
     fun collectiveSummarize(recordingIds: List<String>) {
-        _state.value = _state.value.copy(
+        if (!connectivityObserver.isCurrentlyOnline()) {
+            _state.update { it.copy(needsInternetDialog = NeedsInternetReason.CollectiveSummarize) }
+            return
+        }
+        _state.update { it.copy(
             isCollectiveSummarizing = true,
             collectiveSummarizeError = null,
             collectiveSummarizeResult = null,
-        )
+        )}
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val result = collectiveSummaryRepository.generateCollectiveSummary(recordingIds)
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     isCollectiveSummarizing = false,
                     collectiveSummarizeResult = result,
-                )
+                )}
                 exitMultiSelect()
             } catch (e: Exception) {
                 Timber.e(e, "Collective summarize failed")
@@ -497,20 +583,20 @@ class RecordingsViewModel @Inject constructor(
                         "Summarization failed: ${e.message ?: e.code.name}"
                     else -> "Summarization failed: ${e.message ?: "Unknown error"}"
                 }
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     isCollectiveSummarizing = false,
                     collectiveSummarizeError = msg,
-                )
+                )}
             }
         }
     }
 
     fun clearCollectiveSummarizeError() {
-        _state.value = _state.value.copy(collectiveSummarizeError = null)
+        _state.update { it.copy(collectiveSummarizeError = null) }
     }
 
     fun clearCollectiveSummarizeResult() {
-        _state.value = _state.value.copy(collectiveSummarizeResult = null)
+        _state.update { it.copy(collectiveSummarizeResult = null) }
     }
 
     override fun onCleared() {

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -48,10 +49,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.halilibo.richtext.markdown.Markdown
 import com.halilibo.richtext.ui.material3.RichText
 import com.voicemind.data.model.CollectiveSummary
+import com.voicemind.ui.sharing.ShareDialog
 import com.voicemind.ui.components.EmptyStateCard
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.VoiceMindTopAppBar
 import com.voicemind.ui.theme.VmDimens
+import com.voicemind.util.LocalAppTimeZone
 import com.voicemind.util.toShortDateString
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +66,7 @@ fun SummariesScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var showShareDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         VoiceMindTopAppBar(
@@ -73,7 +77,7 @@ fun SummariesScreen(
             onInfoClick = { viewModel.showInfoSheet() },
         )
 
-        Box(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
+        Box(modifier = Modifier.weight(1f).padding(horizontal = VmDimens.ScreenHorizontalPadding)) {
             when {
                 state.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -89,8 +93,8 @@ fun SummariesScreen(
                     }
                 }
                 else -> {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        item { Spacer(modifier = Modifier.height(4.dp)) }
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(VmDimens.SpaceSm)) {
+                        item { Spacer(modifier = Modifier.height(VmDimens.SpaceXs)) }
                         items(state.summaries, key = { it.id }) { summary ->
                             SummaryRow(
                                 summary = summary,
@@ -119,7 +123,18 @@ fun SummariesScreen(
             },
             onShare = { viewModel.share(context, summary.summary) },
             onDelete = { viewModel.deleteSummary(summary.id) },
+            onShareWithUser = { showShareDialog = true },
         )
+    }
+
+    if (showShareDialog) {
+        state.selectedSummary?.let { summary ->
+            ShareDialog(
+                itemId = summary.id,
+                itemType = "collectiveSummary",
+                onDismiss = { showShareDialog = false },
+            )
+        }
     }
 
     if (state.showInfoSheet) {
@@ -155,7 +170,7 @@ private fun SummaryRow(
             )
             summary.createdAt?.toDate()?.let { date ->
                 Text(
-                    text = date.toShortDateString(),
+                    text = date.toShortDateString(LocalAppTimeZone.current),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -172,6 +187,7 @@ private fun SummaryDetailSheet(
     onCopy: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
+    onShareWithUser: () -> Unit,
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -199,13 +215,16 @@ private fun SummaryDetailSheet(
                     IconButton(onClick = onShare) {
                         Icon(Icons.Default.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.primary)
                     }
+                    IconButton(onClick = onShareWithUser) {
+                        Icon(Icons.Default.PersonAdd, contentDescription = "Share with user", tint = MaterialTheme.colorScheme.primary)
+                    }
                     IconButton(onClick = { showDeleteConfirm = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
 
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 RichText {
@@ -213,27 +232,27 @@ private fun SummaryDetailSheet(
                 }
 
                 if (summary.recordingTitles.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceLg))
                     Text(
                         text = "Sources",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceXs))
                     summary.recordingTitles.forEach { title ->
                         Text(
                             text = "• $title",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 2.dp),
+                            modifier = Modifier.padding(vertical = VmDimens.SpaceXxs),
                         )
                     }
                 }
 
                 summary.createdAt?.toDate()?.let { date ->
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
                     Text(
-                        text = date.toShortDateString(),
+                        text = date.toShortDateString(LocalAppTimeZone.current),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -277,8 +296,8 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(horizontal = VmDimens.SpaceXl)
+                .padding(bottom = VmDimens.SpaceXxl),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -287,17 +306,17 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
                     modifier = Modifier.size(24.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.size(8.dp))
+                Spacer(modifier = Modifier.size(VmDimens.SpaceSm))
                 Text("How Summaries Work", style = MaterialTheme.typography.titleMedium)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceLg))
 
             val steps = listOf(
                 "Go to the Recordings screen.",
                 "Long-press a recording to enter multi-select mode.",
                 "Select one or more recordings.",
-                "Tap the \u2728 Summarize button in the toolbar.",
+                "Tap the Summarize button in the toolbar.",
                 "Your summary will appear here!",
             )
             steps.forEachIndexed { index, step ->
@@ -308,7 +327,7 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
 
             Text(
                 text = "Summaries are generated from the transcripts of your selected recordings.",

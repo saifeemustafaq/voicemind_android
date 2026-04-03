@@ -8,6 +8,8 @@ data class Folder(
     @DocumentId val id: String = "",
     val name: String = "",
     @ServerTimestamp val createdAt: Timestamp? = null,
+    val isDeleted: Boolean = false,
+    val deletedAt: Timestamp? = null,
 ) {
     companion object {
         const val UNFILED_ID = "unfiled"

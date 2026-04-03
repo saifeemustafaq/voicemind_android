@@ -9,5 +9,8 @@ data class CollectiveSummary(
     val summary: String = "",
     val recordingIds: List<String> = emptyList(),
     val recordingTitles: List<String> = emptyList(),
+    val sharedWith: List<String> = emptyList(),
     @ServerTimestamp val createdAt: Timestamp? = null,
+    val isDeleted: Boolean = false,
+    val deletedAt: Timestamp? = null,
 )

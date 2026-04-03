@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.voicemind.data.model.Folder
+import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingStateRepository
 import com.voicemind.service.RecordingService
 import com.voicemind.util.toDefaultTitle
@@ -11,8 +12,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.Date
+import java.util.TimeZone
 import javax.inject.Inject
 
 data class RecordingUiState(
@@ -28,9 +32,12 @@ data class RecordingUiState(
 class RecordingViewModel @Inject constructor(
     application: Application,
     private val stateRepository: RecordingStateRepository,
+    private val navPreferenceRepository: NavPreferenceRepository,
 ) : AndroidViewModel(application) {
 
     private val context get() = getApplication<Application>()
+    private fun appTimeZone(): TimeZone =
+        TimeZone.getTimeZone(runBlocking { navPreferenceRepository.appTimezone.first() })
 
     private val _uiState = MutableStateFlow(RecordingUiState())
     val uiState: StateFlow<RecordingUiState> = _uiState
@@ -55,7 +62,7 @@ class RecordingViewModel @Inject constructor(
                     // When recording starts externally (widget), seed a default title.
                     // When recording ends, clear the title.
                     title = when {
-                        isActive && current.title.isBlank() -> Date().toDefaultTitle()
+                        isActive && current.title.isBlank() -> Date().toDefaultTitle(appTimeZone())
                         !isActive && !saving -> ""
                         else -> current.title
                     },
@@ -71,7 +78,7 @@ class RecordingViewModel @Inject constructor(
     fun startRecording() {
         // Seed a default title and register it with the repository so the Service
         // picks it up even if the user doesn't edit it before tapping Stop.
-        val defaultTitle = Date().toDefaultTitle()
+        val defaultTitle = Date().toDefaultTitle(appTimeZone())
         _uiState.value = _uiState.value.copy(title = defaultTitle)
         stateRepository.pendingTitle = defaultTitle
         context.startForegroundService(

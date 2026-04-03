@@ -14,33 +14,56 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.auth.api.identity.Identity
+import com.google.firebase.auth.FirebaseAuth
 import com.voicemind.data.repository.NavPreferenceRepository
+import com.voicemind.data.sync.FirestoreSyncService
+import com.voicemind.data.sync.InitialSyncManager
+import com.voicemind.data.sync.SyncScheduler
+import com.voicemind.util.ConnectivityObserver
 import com.voicemind.service.RecordingService
+import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.ui.auth.AuthViewModel
 import com.voicemind.ui.auth.SignInScreen
-import com.voicemind.ui.components.CalendarSyncPromptDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.voicemind.ui.components.TasksSyncPromptDialog
 import com.voicemind.ui.components.PermissionRationaleDialog
 import com.voicemind.ui.main.MainViewModel
 import com.voicemind.ui.navigation.AppNavHost
+import com.voicemind.ui.setup.DeviceSetupScreen
 import com.voicemind.ui.theme.VoiceMindAITheme
+import com.voicemind.util.LocalAppTimeZone
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.TimeZone
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var navPreferenceRepository: NavPreferenceRepository
+    @Inject lateinit var firestoreSyncService: FirestoreSyncService
+    @Inject lateinit var initialSyncManager: InitialSyncManager
+    @Inject lateinit var connectivityObserver: ConnectivityObserver
+    @Inject lateinit var syncScheduler: SyncScheduler
+    @Inject lateinit var recordingDao: RecordingDao
 
     // --- Notification tap navigation ---
     private var openRecordingsOnStart by mutableStateOf(false)
+    private var openSharedItemsOnStart by mutableStateOf(false)
 
     // --- Permission check ---
     // Incremented in onResume to trigger the permission LaunchedEffect on every foreground.
@@ -55,24 +78,69 @@ class MainActivity : ComponentActivity() {
     private var micPermanentlyDenied by mutableStateOf(false)
     private var notificationPermanentlyDenied by mutableStateOf(false)
 
-    // --- Calendar prompt ---
+    // --- Tasks prompt ---
     // Dismissed once per cold start; resets when the Activity is recreated.
-    private var calendarPromptDismissed by mutableStateOf(false)
+    private var tasksPromptDismissed by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         openRecordingsOnStart =
             intent?.getBooleanExtra(RecordingService.EXTRA_OPEN_RECORDINGS, false) == true
+        openSharedItemsOnStart =
+            intent?.getBooleanExtra(EXTRA_OPEN_SHARED_ITEMS, false) == true
         enableEdgeToEdge()
         setContent {
+            val appTzId by navPreferenceRepository.appTimezone
+                .collectAsStateWithLifecycle(initialValue = TimeZone.getDefault().id)
+            val appTz = remember(appTzId) { TimeZone.getTimeZone(appTzId) }
+
             VoiceMindAITheme {
+                CompositionLocalProvider(LocalAppTimeZone provides appTz) {
                 val authViewModel: AuthViewModel = hiltViewModel()
                 val isSignedIn by authViewModel.isSignedIn.collectAsStateWithLifecycle()
 
                 if (isSignedIn) {
+                    val isSetupComplete by navPreferenceRepository.isDeviceSetupComplete
+                        .collectAsStateWithLifecycle(initialValue = true)
+                    var roomIsEmpty by remember { mutableStateOf(false) }
+                    LaunchedEffect(isSetupComplete) {
+                        if (!isSetupComplete) {
+                            roomIsEmpty = withContext(Dispatchers.IO) { recordingDao.countAll() == 0 }
+                        }
+                    }
+
+                    if (!isSetupComplete && roomIsEmpty) {
+                        DeviceSetupScreen()
+                        return@CompositionLocalProvider
+                    }
+
                     val mainViewModel: MainViewModel = hiltViewModel()
-                    val calendarConnected by mainViewModel.calendarConnected.collectAsStateWithLifecycle()
+                    val tasksConnected by mainViewModel.tasksConnected.collectAsStateWithLifecycle()
                     val pendingConsent by mainViewModel.pendingConsent.collectAsStateWithLifecycle()
+
+                    LaunchedEffect(Unit) {
+                        authViewModel.registerFcmToken()
+                    }
+
+                    // ── Local-first lifecycle ──────────────────────────────────────────────
+                    LaunchedEffect(Unit) {
+                        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@LaunchedEffect
+                        withContext(Dispatchers.IO) { initialSyncManager.runIfNeeded() }
+                        firestoreSyncService.startListening(uid)
+                    }
+
+                    // ── Connectivity-triggered sync ────────────────────────────────────────
+                    LaunchedEffect(Unit) {
+                        var wasOffline = !connectivityObserver.isCurrentlyOnline()
+                        connectivityObserver.isOnline.collect { online ->
+                            if (online && wasOffline) syncScheduler.enqueueSync()
+                            wasOffline = !online
+                        }
+                    }
+
+                    DisposableEffect(Unit) {
+                        onDispose { firestoreSyncService.stopListening() }
+                    }
 
                     // ── Permission request launcher ────────────────────────────────────────
                     val permissionLauncher = rememberLauncherForActivityResult(
@@ -120,7 +188,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // ── Google Calendar consent launcher ──────────────────────────────────
+                    // ── Google Tasks consent launcher ─────────────────────────────────────
                     val consentLauncher = rememberLauncherForActivityResult(
                         ActivityResultContracts.StartIntentSenderForResult()
                     ) { activityResult ->
@@ -139,7 +207,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // ── Dialog priority: permission rationale first, calendar second ──────
+                    // ── Dialog priority: permission rationale first, tasks second ──────────
                     when {
                         showPermissionRationale -> {
                             val allPermanentlyDenied =
@@ -174,29 +242,55 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        calendarConnected == false && !calendarPromptDismissed && !permissionsDismissedThisSession -> {
-                            CalendarSyncPromptDialog(
+                        tasksConnected == false && !tasksPromptDismissed && !permissionsDismissedThisSession -> {
+                            TasksSyncPromptDialog(
                                 onConnect = {
-                                    calendarPromptDismissed = true
-                                    mainViewModel.connectCalendar(this@MainActivity)
+                                    tasksPromptDismissed = true
+                                    mainViewModel.connectTasks(this@MainActivity)
                                 },
                                 onDismiss = {
-                                    calendarPromptDismissed = true
+                                    tasksPromptDismissed = true
                                     permissionsDismissedThisSession = true
                                 },
                             )
                         }
                     }
 
+                    // ── One-time local storage consent ────────────────────────────────────
+                    val isConsentShown by mainViewModel.isStorageConsentShown.collectAsStateWithLifecycle()
+
+                    if (!isConsentShown) {
+                        AlertDialog(
+                            onDismissRequest = {},
+                            title = { Text("Local Storage Enabled") },
+                            text = {
+                                Text(
+                                    "VoiceMind now stores your recordings and metadata locally on this device " +
+                                    "for instant playback and offline access. You can manage storage usage " +
+                                    "and clear local data at any time in Settings."
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    mainViewModel.acknowledgeStorageConsent()
+                                }) { Text("Got It") }
+                            },
+                        )
+                    }
+
                     AppNavHost(
                         onSignOut = { authViewModel.signOut() },
                         navPreferenceRepository = navPreferenceRepository,
+                        connectivityObserver = connectivityObserver,
                         openRecordingsOnStart = openRecordingsOnStart,
                         onRecordingsOpened = { openRecordingsOnStart = false },
+                        openSharedItemsOnStart = openSharedItemsOnStart,
+                        onSharedItemsOpened = { openSharedItemsOnStart = false },
                     )
                 } else {
                     SignInScreen(viewModel = authViewModel)
                 }
+            } // CompositionLocalProvider
             }
         }
     }
@@ -210,6 +304,9 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         if (intent.getBooleanExtra(RecordingService.EXTRA_OPEN_RECORDINGS, false)) {
             openRecordingsOnStart = true
+        }
+        if (intent.getBooleanExtra(EXTRA_OPEN_SHARED_ITEMS, false)) {
+            openSharedItemsOnStart = true
         }
         // Widget's "Open App" button on the mic-permission screen: the user explicitly wants
         // to grant the microphone permission, so clear any "dismissed this session" suppression.
@@ -230,5 +327,8 @@ class MainActivity : ComponentActivity() {
         /** Sent by the widget's "Open App" button when mic permission is missing.
          *  Clears any session-level suppression so the permission dialog fires immediately. */
         const val EXTRA_REQUEST_MIC_PERMISSION = "extra_request_mic_permission"
+
+        /** Sent by FCM notification tap to open the Shared Items screen. */
+        const val EXTRA_OPEN_SHARED_ITEMS = "extra_open_shared_items"
     }
 }

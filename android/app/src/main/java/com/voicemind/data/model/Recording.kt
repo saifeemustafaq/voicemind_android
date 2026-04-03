@@ -2,7 +2,9 @@ package com.voicemind.data.model
 
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.ServerTimestamp
+import com.voicemind.data.local.SyncStatus
 
 data class Recording(
     @DocumentId val id: String = "",
@@ -13,4 +15,8 @@ data class Recording(
     val summary: String? = null,
     val audioPath: String = "",
     val durationSeconds: Long = 0,
+    val isDeleted: Boolean = false,
+    val deletedAt: Timestamp? = null,
+    val processingFailed: Boolean = false,
+    @get:Exclude val syncStatus: SyncStatus = SyncStatus.SYNCED,
 )
