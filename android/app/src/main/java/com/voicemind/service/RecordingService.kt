@@ -333,13 +333,19 @@ class RecordingService : Service() {
         recordingStartedAt = SystemClock.elapsedRealtime()
         timerJob?.cancel()
         timerJob = scope.launch {
+            var lastWidgetSeconds = -1L
             while (true) {
                 delay(500)
                 val sessionSeconds = (SystemClock.elapsedRealtime() - recordingStartedAt) / 1000
                 elapsedSeconds = elapsedBeforePause + sessionSeconds
                 recordingStateRepository.onTimerTick(elapsedSeconds)
                 updateNotification()
-                pushWidgetState()
+                // Widget only needs 1-second resolution — skip the push when the second
+                // hasn't changed, halving DataStore writes and widget re-renders.
+                if (elapsedSeconds != lastWidgetSeconds) {
+                    lastWidgetSeconds = elapsedSeconds
+                    pushWidgetState()
+                }
             }
         }
     }

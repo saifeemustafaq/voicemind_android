@@ -295,7 +295,7 @@ Audio at `users/{uid}/audio/{recordingId}.m4a`. Upload via `StorageRepository`, 
 
 ## 13. Glance widget
 
-`RecordingWidget` — start/stop recording from home screen. State communicated via DataStore preferences (`RecordingWidgetStateKeys`). Colors from `WidgetColors` (brand-seeded M3 values, light-mode only — Glance limitation).
+`RecordingWidget` — start/stop recording from home screen. State communicated via DataStore preferences (`RecordingWidgetStateKeys`). Colors from `WidgetColors` (derived from `BrandColors`, light-mode only — Glance limitation). All widget state pushes go through `WidgetStateManager` (`widget/common/`); callers (`VoiceMindApp`, `RecordingService`) never write Glance state directly.
 
 ---
 
@@ -371,9 +371,15 @@ com.voicemind/
     RecordingExtensions.kt         Recording model extensions
     TimeFormat.kt                  Time formatting
   widget/
-    RecordingWidget.kt             Glance widget
-    RecordingWidgetStateKeys.kt    Widget DataStore keys
-    WidgetColors.kt                Widget color constants
+    common/
+      WidgetStateManager.kt        Centralized Glance state push logic
+      WidgetColors.kt              Widget colors derived from BrandColors
+      SharedWidgetContent.kt       PromptContent, WidgetTitle (layer-clean, no MainActivity import)
+    recording/
+      RecordingWidget.kt           Glance widget
+      RecordingWidgetReceiver.kt   GlanceAppWidgetReceiver for the recording widget
+      RecordingWidgetStateKeys.kt  Widget DataStore keys
+      (SignedOutContent, MicPermissionContent are private composables in RecordingWidget.kt)
 ```
 
 ---

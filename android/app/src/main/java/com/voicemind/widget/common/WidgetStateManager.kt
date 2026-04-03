@@ -16,9 +16,14 @@ object WidgetStateManager {
         isSignedIn: Boolean,
         needsMicPermission: Boolean,
     ) {
-        updateWidgetState<RecordingWidget>(context) { prefs ->
+        updateWidgetState(context, RecordingWidget()) { prefs ->
             prefs[RecordingWidgetStateKeys.IS_SIGNED_IN] = isSignedIn
             prefs[RecordingWidgetStateKeys.NEEDS_MIC_PERMISSION] = needsMicPermission
+            // Reset recording state so the widget never shows stale "Recording" UI
+            // after sign-out or app restart.
+            prefs[RecordingWidgetStateKeys.IS_RECORDING] = false
+            prefs[RecordingWidgetStateKeys.IS_PAUSED] = false
+            prefs[RecordingWidgetStateKeys.ELAPSED_SECONDS] = 0L
         }
     }
 
@@ -30,7 +35,7 @@ object WidgetStateManager {
         isPaused: Boolean,
         elapsedSeconds: Long,
     ) {
-        updateWidgetState<RecordingWidget>(context) { prefs ->
+        updateWidgetState(context, RecordingWidget()) { prefs ->
             prefs[RecordingWidgetStateKeys.IS_SIGNED_IN] = isSignedIn
             prefs[RecordingWidgetStateKeys.NEEDS_MIC_PERMISSION] = needsMicPermission
             prefs[RecordingWidgetStateKeys.IS_RECORDING] = isRecording
@@ -39,16 +44,17 @@ object WidgetStateManager {
         }
     }
 
-    private suspend inline fun <reified T : GlanceAppWidget> updateWidgetState(
+    private suspend fun updateWidgetState(
         context: Context,
-        crossinline block: (MutablePreferences) -> Unit,
+        widget: GlanceAppWidget,
+        block: (MutablePreferences) -> Unit,
     ) {
         try {
             val manager = GlanceAppWidgetManager(context)
-            val ids = manager.getGlanceIds(T::class.java)
+            val ids = manager.getGlanceIds(widget::class.java)
             ids.forEach { id ->
                 updateAppWidgetState(context, id) { prefs -> block(prefs) }
-                T::class.java.getDeclaredConstructor().newInstance().update(context, id)
+                widget.update(context, id)
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to update widget state")

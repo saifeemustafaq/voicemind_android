@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
-import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
@@ -19,33 +18,12 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
-import com.voicemind.MainActivity
 
-@Composable
-internal fun SignedOutContent() {
-    val context = LocalContext.current
-    PromptContent(
-        subtitle = "Sign in to record",
-        buttonLabel = "Sign In",
-        intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        },
-    )
-}
-
-@Composable
-internal fun MicPermissionContent() {
-    val context = LocalContext.current
-    PromptContent(
-        subtitle = "Microphone access needed",
-        buttonLabel = "Open App",
-        intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(MainActivity.EXTRA_REQUEST_MIC_PERMISSION, true)
-        },
-    )
-}
-
+/**
+ * Generic prompt layout: app title + subtitle + a single action button.
+ * The caller is responsible for building the [intent] — keeping this composable
+ * free of any app-layer (MainActivity) imports.
+ */
 @Composable
 internal fun PromptContent(subtitle: String, buttonLabel: String, intent: Intent) {
     WidgetTitle()

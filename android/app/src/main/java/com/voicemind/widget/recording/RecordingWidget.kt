@@ -1,6 +1,7 @@
 package com.voicemind.widget.recording
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -8,7 +9,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
@@ -33,11 +33,11 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
+import com.voicemind.MainActivity
 import com.voicemind.R
 import com.voicemind.service.RecordingService
 import com.voicemind.util.formatRecordingTime
-import com.voicemind.widget.common.MicPermissionContent
-import com.voicemind.widget.common.SignedOutContent
+import com.voicemind.widget.common.PromptContent
 import com.voicemind.widget.common.WidgetColors
 import com.voicemind.widget.common.WidgetTitle
 
@@ -52,9 +52,7 @@ class RecordingWidget : GlanceAppWidget() {
             val isPaused = prefs[RecordingWidgetStateKeys.IS_PAUSED] ?: false
             val elapsedSeconds = prefs[RecordingWidgetStateKeys.ELAPSED_SECONDS] ?: 0L
 
-            GlanceTheme {
-                WidgetRoot(isSignedIn, needsMicPermission, isRecording, isPaused, elapsedSeconds)
-            }
+            WidgetRoot(isSignedIn, needsMicPermission, isRecording, isPaused, elapsedSeconds)
         }
     }
 }
@@ -82,6 +80,31 @@ private fun WidgetRoot(
             else -> IdleContent()
         }
     }
+}
+
+@Composable
+private fun SignedOutContent() {
+    val context = LocalContext.current
+    PromptContent(
+        subtitle = "Sign in to record",
+        buttonLabel = "Sign In",
+        intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        },
+    )
+}
+
+@Composable
+private fun MicPermissionContent() {
+    val context = LocalContext.current
+    PromptContent(
+        subtitle = "Microphone access needed",
+        buttonLabel = "Open App",
+        intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(MainActivity.EXTRA_REQUEST_MIC_PERMISSION, true)
+        },
+    )
 }
 
 @Composable
