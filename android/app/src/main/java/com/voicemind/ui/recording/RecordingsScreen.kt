@@ -106,6 +106,7 @@ fun RecordingsScreen(
     var showBulkMoveDialog by remember { mutableStateOf(false) }
     var summarizingGroup by remember { mutableStateOf<String?>(null) }
     var showSummarizationPopup by remember { mutableStateOf(false) }
+    var showDismissConfirm by remember { mutableStateOf(false) }
     var showCompletionToast by remember { mutableStateOf(false) }
     var wasSummarizing by remember { mutableStateOf(false) }
 
@@ -389,7 +390,8 @@ fun RecordingsScreen(
         if (recState.showSheet) {
             RecordingBottomSheet(
                 viewModel = recordingViewModel,
-                onDismiss = { recordingViewModel.discardRecording() }
+                onDismiss = { showDismissConfirm = true },
+                onDismissAttempt = { showDismissConfirm = true },
             )
         }
     }
@@ -406,6 +408,20 @@ fun RecordingsScreen(
         onDismissMove = { showMoveDialog = null },
         onDismissDelete = { showDeleteConfirm = null },
     )
+
+    if (showDismissConfirm) {
+        DismissRecordingDialog(
+            onResume = { showDismissConfirm = false },
+            onStopAndSave = {
+                showDismissConfirm = false
+                recordingViewModel.stopAndSave()
+            },
+            onDelete = {
+                showDismissConfirm = false
+                recordingViewModel.discardRecording()
+            },
+        )
+    }
 
     // Share with user
     listState.shareWithUserTarget?.let { recording ->

@@ -374,3 +374,27 @@ fun DeleteRecordingDialog(
         },
     )
 }
+
+@Composable
+fun DismissRecordingDialog(
+    onResume: () -> Unit,
+    onStopAndSave: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onResume,
+        title = { Text("Recording in Progress") },
+        text = { Text("What would you like to do with the current recording?") },
+        confirmButton = {
+            TextButton(onClick = onResume) { Text("Resume") }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onDelete) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+                TextButton(onClick = onStopAndSave) { Text("Stop & Save") }
+            }
+        },
+    )
+}
