@@ -64,7 +64,7 @@ Each future widget (e.g. Checklist, QuickRecord) will get its own sub-package fo
 
 **File:** [android/app/src/main/java/com/voicemind/ui/theme/Color.kt](android/app/src/main/java/com/voicemind/ui/theme/Color.kt)
 
-Add a `BrandColors` object at the top of the existing file, **above** the current `M3Light_`* / `M3Dark_`* definitions. Then change the `M3Light_*` vals to reference `BrandColors` instead of hardcoded hex:
+Add a `BrandColors` object at the top of the existing file, **above** the current `M3Light_`* / `M3Dark_`* definitions. Then change the `M3Light_`* vals to reference `BrandColors` instead of hardcoded hex:
 
 ```kotlin
 object BrandColors {
