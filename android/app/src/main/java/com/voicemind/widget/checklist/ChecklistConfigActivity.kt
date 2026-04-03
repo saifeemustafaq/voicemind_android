@@ -29,13 +29,12 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.lifecycle.lifecycleScope
 import com.voicemind.ui.theme.VoiceMindAITheme
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 
 class ChecklistConfigActivity : ComponentActivity() {
 
-    private val scope = MainScope()
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,7 +107,7 @@ class ChecklistConfigActivity : ComponentActivity() {
     }
 
     private fun onConfirm(showCompleted: Boolean) {
-        scope.launch {
+        lifecycleScope.launch {
             val manager = GlanceAppWidgetManager(this@ChecklistConfigActivity)
             val glanceId = manager.getGlanceIdBy(appWidgetId)
 

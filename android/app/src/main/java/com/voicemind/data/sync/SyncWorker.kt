@@ -22,6 +22,7 @@ import com.voicemind.data.repository.FolderRepository
 import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
 import com.voicemind.data.repository.StorageRepository
+import com.voicemind.widget.common.WidgetStateManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -53,6 +54,7 @@ class SyncWorker @AssistedInject constructor(
         return try {
             syncPendingRecordings()
             syncPendingActionItems()
+            WidgetStateManager.refreshChecklistWidgets(applicationContext)
             syncPendingFolders()
             syncPendingSummaries()
             syncPendingDeletes()

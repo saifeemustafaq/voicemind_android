@@ -1,5 +1,6 @@
 package com.voicemind.data.sync
 
+import android.content.Context
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -19,6 +20,8 @@ import com.voicemind.data.model.ActionItem
 import com.voicemind.data.model.CollectiveSummary
 import com.voicemind.data.model.Folder
 import com.voicemind.data.model.Recording
+import com.voicemind.widget.common.WidgetStateManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,6 +42,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class FirestoreSyncService @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val firestore: FirebaseFirestore,
     private val recordingDao: RecordingDao,
     private val actionItemDao: ActionItemDao,
@@ -76,8 +80,10 @@ class FirestoreSyncService @Inject constructor(
                     Timber.e(error, "FirestoreSyncService: actionItemsListener error")
                     return@addSnapshotListener
                 }
-                snapshot?.documentChanges?.forEach { change ->
-                    scope.launch { handleActionItemChange(change) }
+                val changes = snapshot?.documentChanges ?: return@addSnapshotListener
+                scope.launch {
+                    changes.forEach { handleActionItemChange(it) }
+                    if (changes.isNotEmpty()) WidgetStateManager.refreshChecklistWidgets(context)
                 }
             }
 

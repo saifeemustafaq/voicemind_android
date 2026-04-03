@@ -206,7 +206,7 @@ private fun TabButton(
 @Composable
 private fun TaskList(items: List<ActionItemEntity>) {
     LazyColumn {
-        items(items = items, itemId = { it.id.hashCode().toLong() }) { item ->
+        items(items = items, itemId = { it.id.fold(0L) { acc, c -> acc * 31L + c.code } }) { item ->
             TaskRow(item)
         }
     }
@@ -235,7 +235,7 @@ private fun EmptyState(isDoneTab: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = if (isDoneTab) "No completed tasks" else "All done!",
+            text = if (isDoneTab) "All done!" else "No tasks yet",
             style = TextStyle(
                 color = WidgetColors.SecondaryLabel,
                 fontSize = 13.sp,

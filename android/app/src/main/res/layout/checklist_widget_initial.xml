@@ -11,7 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Tasks"
-        android:textColor="#FF000000"
+        android:textColor="@color/black"
         android:textSize="14sp"
         android:textStyle="bold" />
 
@@ -20,6 +20,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="Loading…"
-        android:textColor="#FF73777F"
+        android:textColor="@color/widget_text_secondary"
         android:textSize="12sp" />
 </LinearLayout>
