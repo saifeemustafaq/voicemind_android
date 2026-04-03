@@ -8,13 +8,10 @@ import android.app.NotificationManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import androidx.glance.appwidget.GlanceAppWidgetManager
-import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.google.firebase.auth.FirebaseAuth
-import com.voicemind.widget.RecordingWidget
-import com.voicemind.widget.RecordingWidgetStateKeys
+import com.voicemind.widget.common.WidgetStateManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -103,18 +100,8 @@ class VoiceMindApp : Application(), Configuration.Provider {
     }
 
     private suspend fun pushWidgetState(isSignedIn: Boolean) {
-        try {
-            val needsMicPermission = isSignedIn &&
-                checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
-            val manager = GlanceAppWidgetManager(this@VoiceMindApp)
-            val ids = manager.getGlanceIds(RecordingWidget::class.java)
-            ids.forEach { id ->
-                updateAppWidgetState(this@VoiceMindApp, id) { prefs ->
-                    prefs[RecordingWidgetStateKeys.IS_SIGNED_IN] = isSignedIn
-                    prefs[RecordingWidgetStateKeys.NEEDS_MIC_PERMISSION] = needsMicPermission
-                }
-                RecordingWidget().update(this@VoiceMindApp, id)
-            }
-        } catch (_: Exception) { /* widget host may not be bound yet */ }
+        val needsMicPermission = isSignedIn &&
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+        WidgetStateManager.pushAuthState(this@VoiceMindApp, isSignedIn, needsMicPermission)
     }
 }

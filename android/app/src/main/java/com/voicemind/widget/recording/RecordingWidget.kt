@@ -1,7 +1,6 @@
-package com.voicemind.widget
+package com.voicemind.widget.recording
 
 import android.content.Context
-import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -15,10 +14,7 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.action.actionStartService
-import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.currentState
@@ -37,10 +33,13 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
-import com.voicemind.MainActivity
 import com.voicemind.R
 import com.voicemind.service.RecordingService
 import com.voicemind.util.formatRecordingTime
+import com.voicemind.widget.common.MicPermissionContent
+import com.voicemind.widget.common.SignedOutContent
+import com.voicemind.widget.common.WidgetColors
+import com.voicemind.widget.common.WidgetTitle
 
 class RecordingWidget : GlanceAppWidget() {
 
@@ -86,80 +85,9 @@ private fun WidgetRoot(
 }
 
 @Composable
-private fun SignedOutContent() {
-    val context = LocalContext.current
-    PromptContent(
-        subtitle = "Sign in to record",
-        buttonLabel = "Sign In",
-        intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        },
-    )
-}
-
-@Composable
-private fun PromptContent(subtitle: String, buttonLabel: String, intent: Intent) {
-    Text(
-        text = "VoiceMind",
-        style = TextStyle(
-            color = WidgetColors.Label,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-        ),
-    )
-    Spacer(modifier = GlanceModifier.height(4.dp))
-    Text(
-        text = subtitle,
-        style = TextStyle(
-            color = WidgetColors.SecondaryLabel,
-            fontSize = 11.sp,
-            textAlign = TextAlign.Center,
-        ),
-    )
-    Spacer(modifier = GlanceModifier.height(12.dp))
-    Row(
-        modifier = GlanceModifier
-            .background(WidgetColors.Accent)
-            .cornerRadius(16.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clickable(actionStartActivity(intent)),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = buttonLabel,
-            style = TextStyle(
-                color = WidgetColors.White,
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp,
-            ),
-        )
-    }
-}
-
-@Composable
-private fun MicPermissionContent() {
-    val context = LocalContext.current
-    PromptContent(
-        subtitle = "Microphone access needed",
-        buttonLabel = "Open App",
-        intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(MainActivity.EXTRA_REQUEST_MIC_PERMISSION, true)
-        },
-    )
-}
-
-@Composable
 private fun IdleContent() {
     val context = LocalContext.current
-    Text(
-        text = "VoiceMind",
-        style = TextStyle(
-            color = WidgetColors.Label,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-        ),
-    )
+    WidgetTitle()
     Spacer(modifier = GlanceModifier.height(12.dp))
     Image(
         provider = ImageProvider(R.drawable.ic_mic_widget_btn),
@@ -223,7 +151,6 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Discard
         Image(
             provider = ImageProvider(R.drawable.ic_delete_widget_btn),
             contentDescription = "Discard recording",
@@ -239,7 +166,6 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long) {
 
         Spacer(modifier = GlanceModifier.width(20.dp))
 
-        // Pause / Resume
         Image(
             provider = ImageProvider(
                 if (isPaused) R.drawable.ic_resume_widget_btn else R.drawable.ic_pause_widget_btn
@@ -261,7 +187,6 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long) {
 
         Spacer(modifier = GlanceModifier.width(20.dp))
 
-        // Stop and save
         Image(
             provider = ImageProvider(R.drawable.ic_stop_widget_btn),
             contentDescription = "Stop and save",
@@ -275,10 +200,4 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long) {
                 ),
         )
     }
-}
-
-// Glance widget receiver — handles widget lifecycle (APPWIDGET_UPDATE etc.)
-// Button actions now go directly to RecordingService via actionStartService.
-class RecordingWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget = RecordingWidget()
 }

@@ -17,8 +17,6 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
-import androidx.glance.appwidget.GlanceAppWidgetManager
-import androidx.glance.appwidget.state.updateAppWidgetState
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.functions.FirebaseFunctions
 import com.voicemind.MainActivity
@@ -38,8 +36,7 @@ import com.voicemind.data.sync.SyncScheduler
 import com.voicemind.util.ConnectivityObserver
 import com.voicemind.util.formatRecordingTime
 import com.voicemind.util.toDefaultTitle
-import com.voicemind.widget.RecordingWidget
-import com.voicemind.widget.RecordingWidgetStateKeys
+import com.voicemind.widget.common.WidgetStateManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.CoroutineScope
@@ -348,26 +345,17 @@ class RecordingService : Service() {
     }
 
     private suspend fun pushWidgetState(needsMicPermission: Boolean = false) {
-        try {
-            val isSignedIn = FirebaseAuth.getInstance().currentUser != null
-            val hasMicPerm = checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-            val manager = GlanceAppWidgetManager(this@RecordingService)
-            val glanceIds = manager.getGlanceIds(RecordingWidget::class.java)
-            glanceIds.forEach { glanceId ->
-                updateAppWidgetState(this@RecordingService, glanceId) { prefs ->
-                    prefs[RecordingWidgetStateKeys.IS_SIGNED_IN] = isSignedIn
-                    prefs[RecordingWidgetStateKeys.NEEDS_MIC_PERMISSION] =
-                        needsMicPermission || !hasMicPerm
-                    prefs[RecordingWidgetStateKeys.IS_RECORDING] = isRecording
-                    prefs[RecordingWidgetStateKeys.IS_PAUSED] = isPaused
-                    prefs[RecordingWidgetStateKeys.ELAPSED_SECONDS] = elapsedSeconds
-                }
-                RecordingWidget().update(this@RecordingService, glanceId)
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to update widget state")
-        }
+        val isSignedIn = FirebaseAuth.getInstance().currentUser != null
+        val hasMicPerm = checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        WidgetStateManager.pushRecordingState(
+            context = this@RecordingService,
+            isSignedIn = isSignedIn,
+            needsMicPermission = needsMicPermission || !hasMicPerm,
+            isRecording = isRecording,
+            isPaused = isPaused,
+            elapsedSeconds = elapsedSeconds,
+        )
     }
 
     private fun acquireWakeLock() {

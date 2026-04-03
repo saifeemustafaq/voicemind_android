@@ -4,28 +4,28 @@ overview: Restructure the widget code into a scalable foundation with centralize
 todos:
   - id: brand-colors
     content: Add BrandColors object to Color.kt and refactor M3Light_*/M3Dark_* to reference it
-    status: in_progress
+    status: completed
   - id: widget-colors
     content: Move WidgetColors.kt to widget/common/ and refactor to use BrandColors instead of hardcoded hex
-    status: pending
+    status: completed
   - id: widget-state-manager
     content: Create WidgetStateManager.kt in widget/common/ with pushAuthState and pushRecordingState methods
-    status: pending
+    status: completed
   - id: shared-composables
     content: Create SharedWidgetContent.kt in widget/common/ with PromptContent, SignedOutContent, MicPermissionContent, WidgetTitle
-    status: pending
+    status: completed
   - id: move-recording-widget
     content: Move RecordingWidget.kt, RecordingWidgetStateKeys.kt to widget/recording/ package; extract RecordingWidgetReceiver to its own file
-    status: pending
+    status: completed
   - id: update-callers
     content: Refactor VoiceMindApp.pushWidgetState and RecordingService.pushWidgetState to use WidgetStateManager
-    status: pending
+    status: completed
   - id: update-manifest
     content: Update AndroidManifest.xml receiver path to .widget.recording.RecordingWidgetReceiver
-    status: pending
+    status: completed
   - id: verify-build
     content: Run compileDebugKotlin to verify everything compiles cleanly
-    status: pending
+    status: completed
 isProject: false
 ---
 

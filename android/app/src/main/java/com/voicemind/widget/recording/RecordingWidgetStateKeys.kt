@@ -1,4 +1,4 @@
-package com.voicemind.widget
+package com.voicemind.widget.recording
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey

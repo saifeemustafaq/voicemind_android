@@ -88,7 +88,7 @@
         </provider>
 
         <receiver
-            android:name=".widget.RecordingWidgetReceiver"
+            android:name=".widget.recording.RecordingWidgetReceiver"
             android:exported="true"
             android:label="@string/widget_name">
             <intent-filter>
