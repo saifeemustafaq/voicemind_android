@@ -178,32 +178,7 @@ class RecordingsViewModel @Inject constructor(
                     }
                     else -> storageRepository.getDownloadUrl(recording.audioPath).toString()
                 }
-                mediaPlayer = MediaPlayer().apply {
-                    setDataSource(dataSource)
-                    setOnPreparedListener {
-                        it.start()
-                        _state.update { s -> s.copy(
-                            playingRecordingId = recording.id,
-                            isPlaybackPaused = false,
-                            playbackDurationMs = it.duration.toLong(),
-                            playbackPositionMs = 0,
-                        )}
-                        startPositionPolling()
-                        context.startForegroundService(
-                            PlaybackService.buildStartIntent(context, recording.title, isPlaying = true)
-                        )
-                    }
-                    setOnCompletionListener {
-                        positionPollJob?.cancel()
-                        _state.update { it.copy(
-                            playingRecordingId = null,
-                            isPlaybackPaused = false,
-                            playbackPositionMs = 0,
-                        )}
-                        context.startService(PlaybackService.buildStopIntent(context))
-                    }
-                    prepareAsync()
-                }
+                mediaPlayer = buildAndPreparePlayer(dataSource, recording)
             } catch (e: Exception) {
                 _state.update { it.copy(downloadingRecordingId = null) }
                 Timber.e("Playback failed: %s", e.message)
@@ -288,6 +263,34 @@ class RecordingsViewModel @Inject constructor(
         } catch (_: Exception) {}
         _state.update { it.copy(playbackSpeed = speed) }
     }
+
+    private fun buildAndPreparePlayer(dataSource: String, recording: Recording): MediaPlayer =
+        MediaPlayer().apply {
+            setDataSource(dataSource)
+            setOnPreparedListener {
+                it.start()
+                _state.update { s -> s.copy(
+                    playingRecordingId = recording.id,
+                    isPlaybackPaused = false,
+                    playbackDurationMs = it.duration.toLong(),
+                    playbackPositionMs = 0,
+                )}
+                startPositionPolling()
+                context.startForegroundService(
+                    PlaybackService.buildStartIntent(context, recording.title, isPlaying = true)
+                )
+            }
+            setOnCompletionListener {
+                positionPollJob?.cancel()
+                _state.update { it.copy(
+                    playingRecordingId = null,
+                    isPlaybackPaused = false,
+                    playbackPositionMs = 0,
+                )}
+                context.startService(PlaybackService.buildStopIntent(context))
+            }
+            prepareAsync()
+        }
 
     private fun startPositionPolling() {
         positionPollJob?.cancel()

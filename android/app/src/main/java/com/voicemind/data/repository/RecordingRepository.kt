@@ -98,7 +98,7 @@ class RecordingRepository @Inject constructor(
     suspend fun updateProcessingFailed(recordingId: String, failed: Boolean) {
         recordingDao.updateProcessingFailed(recordingId, failed)
         try { collection().document(recordingId).update("processingFailed", failed).await() }
-        catch (_: Exception) { }
+        catch (_: Exception) { /* SyncWorker will retry */ }
     }
 
     // ── Used by SyncWorker to push PENDING_UPDATE to cloud ───────────────────

@@ -29,7 +29,7 @@ object WaveformExtractor {
 
             extractor.selectTrack(trackIdx)
             val format = extractor.getTrackFormat(trackIdx)
-            val mime = format.getString(MediaFormat.KEY_MIME)!!
+            val mime = requireNotNull(format.getString(MediaFormat.KEY_MIME)) { "audio track has no MIME type" }
 
             val codec = MediaCodec.createDecoderByType(mime)
             codec.configure(format, null, null, 0)
@@ -42,7 +42,7 @@ object WaveformExtractor {
             while (!sawEOS) {
                 val inIdx = codec.dequeueInputBuffer(10_000L)
                 if (inIdx >= 0) {
-                    val buf = codec.getInputBuffer(inIdx)!!
+                    val buf = requireNotNull(codec.getInputBuffer(inIdx)) { "input buffer $inIdx is null" }
                     val size = extractor.readSampleData(buf, 0)
                     if (size < 0) {
                         codec.queueInputBuffer(inIdx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
@@ -55,7 +55,7 @@ object WaveformExtractor {
 
                 val outIdx = codec.dequeueOutputBuffer(info, 10_000L)
                 if (outIdx >= 0) {
-                    val buf = codec.getOutputBuffer(outIdx)!!
+                    val buf = requireNotNull(codec.getOutputBuffer(outIdx)) { "output buffer $outIdx is null" }
                     val shorts = ShortArray(buf.remaining() / 2)
                     buf.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
                     pcm.addAll(shorts.toList())

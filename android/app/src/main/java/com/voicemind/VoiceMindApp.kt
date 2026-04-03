@@ -115,6 +115,6 @@ class VoiceMindApp : Application(), Configuration.Provider {
                 }
                 RecordingWidget().update(this@VoiceMindApp, id)
             }
-        } catch (_: Exception) { }
+        } catch (_: Exception) { /* widget host may not be bound yet */ }
     }
 }

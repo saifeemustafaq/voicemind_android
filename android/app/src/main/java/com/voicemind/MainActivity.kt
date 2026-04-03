@@ -38,9 +38,7 @@ import com.voicemind.service.RecordingService
 import com.voicemind.data.local.dao.RecordingDao
 import com.voicemind.ui.auth.AuthViewModel
 import com.voicemind.ui.auth.SignInScreen
-import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.voicemind.ui.components.TasksSyncPromptDialog
 import com.voicemind.ui.components.PermissionRationaleDialog
@@ -259,9 +257,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // ── One-time local storage consent ────────────────────────────────────
-                    val isConsentShown by navPreferenceRepository.isLocalStorageConsentShown
-                        .collectAsStateWithLifecycle(initialValue = true)
-                    val consentScope = rememberCoroutineScope()
+                    val isConsentShown by mainViewModel.isStorageConsentShown.collectAsStateWithLifecycle()
 
                     if (!isConsentShown) {
                         AlertDialog(
@@ -276,9 +272,7 @@ class MainActivity : ComponentActivity() {
                             },
                             confirmButton = {
                                 TextButton(onClick = {
-                                    consentScope.launch(Dispatchers.IO) {
-                                        navPreferenceRepository.setLocalStorageConsentShown(true)
-                                    }
+                                    mainViewModel.acknowledgeStorageConsent()
                                 }) { Text("Got It") }
                             },
                         )

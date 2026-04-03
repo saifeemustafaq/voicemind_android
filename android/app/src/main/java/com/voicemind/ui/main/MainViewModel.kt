@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.voicemind.data.repository.GoogleTasksRepository
+import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.TasksConnectResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val tasksRepository: GoogleTasksRepository,
+    private val navPreferenceRepository: NavPreferenceRepository,
 ) : ViewModel() {
 
     /**
@@ -32,6 +34,15 @@ class MainViewModel @Inject constructor(
      */
     val tasksConnected: StateFlow<Boolean?> = tasksRepository.observeTasksConnected()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val isStorageConsentShown: StateFlow<Boolean> = navPreferenceRepository.isLocalStorageConsentShown
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun acknowledgeStorageConsent() {
+        viewModelScope.launch(Dispatchers.IO) {
+            navPreferenceRepository.setLocalStorageConsentShown(true)
+        }
+    }
 
     /** Set when the Google consent resolution intent needs to be launched. */
     private val _pendingConsent = MutableStateFlow<AuthorizationResult?>(null)

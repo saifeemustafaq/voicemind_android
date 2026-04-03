@@ -82,7 +82,7 @@ class AudioRecorder @Inject constructor(
     fun release() {
         try {
             recorder?.release()
-        } catch (_: Exception) { }
+        } catch (_: Exception) { /* may throw if already released */ }
         recorder = null
         state = RecorderState.Idle
     }

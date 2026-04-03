@@ -72,9 +72,9 @@ fun DeviceSetupScreen(
                 )
             }
 
-            if (state.error != null) {
+            state.error?.let { error ->
                 Text(
-                    text = state.error!!,
+                    text = error,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
