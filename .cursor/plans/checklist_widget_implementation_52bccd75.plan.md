@@ -4,34 +4,34 @@ overview: Build a new Glance-based checklist widget that displays action items f
 todos:
   - id: entry-point
     content: Create ChecklistWidgetEntryPoint.kt -- Hilt @EntryPoint exposing ActionItemDao
-    status: pending
+    status: completed
   - id: state-keys
     content: Create ChecklistWidgetStateKeys.kt -- preference keys for SHOW_COMPLETED, SELECTED_TAB, IS_SIGNED_IN
-    status: pending
+    status: completed
   - id: actions
     content: Create ToggleItemAction.kt and SwitchTabAction.kt ActionCallbacks
-    status: pending
+    status: completed
   - id: widget-core
     content: Create ChecklistWidget.kt -- GlanceAppWidget with provideGlance reading Room + prefs, rendering tabs + LazyColumn + CheckBox items
-    status: pending
+    status: completed
   - id: receiver
     content: Create ChecklistWidgetReceiver.kt
-    status: pending
+    status: completed
   - id: config-activity
     content: Create ChecklistConfigActivity.kt -- configuration Activity with Compose UI for display mode selection
-    status: pending
+    status: completed
   - id: resources
     content: Create checklist_widget_info.xml, checklist_widget_initial.xml, add strings
-    status: pending
+    status: completed
   - id: manifest
     content: Update AndroidManifest.xml -- register receiver and config activity
-    status: pending
+    status: completed
   - id: state-manager
     content: Update WidgetStateManager.kt -- add checklist auth state push and refresh method
-    status: pending
+    status: completed
   - id: app-integration
     content: Update VoiceMindApp.kt -- push checklist auth state alongside recording widget state
-    status: pending
+    status: completed
 isProject: false
 ---
 

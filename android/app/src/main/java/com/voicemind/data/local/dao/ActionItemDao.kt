@@ -63,4 +63,7 @@ interface ActionItemDao {
 
     @Query("SELECT * FROM action_items WHERE isDeleted = 0 AND recordingId = :recordingId ORDER BY createdAt ASC")
     suspend fun getByRecordingId(recordingId: String): List<ActionItemEntity>
+
+    @Query("SELECT * FROM action_items WHERE isDeleted = 0 ORDER BY createdAt DESC")
+    suspend fun getAllNonDeleted(): List<ActionItemEntity>
 }

@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
+import com.voicemind.widget.checklist.ChecklistWidget
+import com.voicemind.widget.checklist.ChecklistWidgetStateKeys
 import com.voicemind.widget.recording.RecordingWidget
 import com.voicemind.widget.recording.RecordingWidgetStateKeys
 import timber.log.Timber
@@ -41,6 +43,22 @@ object WidgetStateManager {
             prefs[RecordingWidgetStateKeys.IS_RECORDING] = isRecording
             prefs[RecordingWidgetStateKeys.IS_PAUSED] = isPaused
             prefs[RecordingWidgetStateKeys.ELAPSED_SECONDS] = elapsedSeconds
+        }
+    }
+
+    suspend fun pushChecklistAuthState(context: Context, isSignedIn: Boolean) {
+        updateWidgetState(context, ChecklistWidget()) { prefs ->
+            prefs[ChecklistWidgetStateKeys.IS_SIGNED_IN] = isSignedIn
+        }
+    }
+
+    suspend fun refreshChecklistWidgets(context: Context) {
+        try {
+            val manager = GlanceAppWidgetManager(context)
+            val ids = manager.getGlanceIds(ChecklistWidget::class.java)
+            ids.forEach { id -> ChecklistWidget().update(context, id) }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to refresh checklist widgets")
         }
     }
 

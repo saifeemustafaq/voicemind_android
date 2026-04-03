@@ -103,5 +103,6 @@ class VoiceMindApp : Application(), Configuration.Provider {
         val needsMicPermission = isSignedIn &&
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
         WidgetStateManager.pushAuthState(this@VoiceMindApp, isSignedIn, needsMicPermission)
+        WidgetStateManager.pushChecklistAuthState(this@VoiceMindApp, isSignedIn)
     }
 }
