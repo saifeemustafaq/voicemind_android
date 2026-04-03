@@ -175,34 +175,15 @@ class SharedRecordingDetailViewModel @Inject constructor(
             val url = getAudioUrlRefreshed() ?: return@launch
             releaseMediaPlayer()
             try {
-                mediaPlayer = MediaPlayer().apply {
-                    setDataSource(url)
-                    setOnPreparedListener { player ->
-                        player.start()
-                        _state.update { s -> s.copy(
-                            isPlaying = true,
-                            isPaused = false,
-                            durationMs = player.duration.toLong(),
-                            positionMs = 0L,
-                            error = null,
-                        )}
-                        startPositionPolling()
+                mediaPlayer = buildAndPreparePlayer(url) { what, extra ->
+                    Timber.e("SharedRecordingDetailVM: MediaPlayer error what=$what extra=$extra")
+                    if (urlRetryCount < 1) {
+                        urlRetryCount++
+                        viewModelScope.launch(Dispatchers.IO) { retryWithFreshUrl() }
+                    } else {
+                        _state.update { it.copy(error = "Playback error", isPlaying = false, isPaused = false) }
                     }
-                    setOnCompletionListener {
-                        positionPollJob?.cancel()
-                        _state.update { s -> s.copy(isPlaying = false, isPaused = false, positionMs = 0L) }
-                    }
-                    setOnErrorListener { _, what, extra ->
-                        Timber.e("SharedRecordingDetailVM: MediaPlayer error what=$what extra=$extra")
-                        if (urlRetryCount < 1) {
-                            urlRetryCount++
-                            viewModelScope.launch(Dispatchers.IO) { retryWithFreshUrl() }
-                        } else {
-                            _state.update { it.copy(error = "Playback error", isPlaying = false, isPaused = false) }
-                        }
-                        true
-                    }
-                    prepareAsync()
+                    true
                 }
             } catch (e: Exception) {
                 Timber.e(e, "SharedRecordingDetailVM: play failed")
@@ -339,28 +320,41 @@ class SharedRecordingDetailViewModel @Inject constructor(
         }
         releaseMediaPlayer()
         try {
-            mediaPlayer = MediaPlayer().apply {
-                setDataSource(url)
-                setOnPreparedListener { player ->
-                    player.start()
-                    _state.update { s -> s.copy(isPlaying = true, isPaused = false, durationMs = player.duration.toLong()) }
-                    startPositionPolling()
-                }
-                setOnCompletionListener {
-                    positionPollJob?.cancel()
-                    _state.update { s -> s.copy(isPlaying = false, isPaused = false, positionMs = 0L) }
-                }
-                setOnErrorListener { _, what, extra ->
-                    Timber.e("SharedRecordingDetailVM: retry MediaPlayer error what=$what extra=$extra")
-                    _state.update { it.copy(error = "Playback error", isPlaying = false, isPaused = false) }
-                    true
-                }
-                prepareAsync()
+            mediaPlayer = buildAndPreparePlayer(url) { what, extra ->
+                Timber.e("SharedRecordingDetailVM: retry MediaPlayer error what=$what extra=$extra")
+                _state.update { it.copy(error = "Playback error", isPlaying = false, isPaused = false) }
+                true
             }
         } catch (e: Exception) {
             _state.update { it.copy(error = "Playback error") }
         }
     }
+
+    private fun buildAndPreparePlayer(url: String, onError: (what: Int, extra: Int) -> Boolean): MediaPlayer =
+        MediaPlayer().apply {
+            setDataSource(url)
+            setOnPreparedListener { player ->
+                player.start()
+                val speed = _state.value.playbackSpeed
+                if (speed != 1.0f) {
+                    player.playbackParams = PlaybackParams().setSpeed(speed)
+                }
+                _state.update { s -> s.copy(
+                    isPlaying = true,
+                    isPaused = false,
+                    durationMs = player.duration.toLong(),
+                    positionMs = 0L,
+                    error = null,
+                )}
+                startPositionPolling()
+            }
+            setOnCompletionListener {
+                positionPollJob?.cancel()
+                _state.update { s -> s.copy(isPlaying = false, isPaused = false, positionMs = 0L) }
+            }
+            setOnErrorListener { _, what, extra -> onError(what, extra) }
+            prepareAsync()
+        }
 
     private fun startPositionPolling() {
         positionPollJob?.cancel()

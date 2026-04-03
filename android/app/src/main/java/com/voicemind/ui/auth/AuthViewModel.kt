@@ -1,7 +1,14 @@
 package com.voicemind.ui.auth
 
+import android.app.Activity
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.voicemind.data.repository.AuthRepository
 import com.voicemind.data.repository.AuthResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,6 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 data class AuthUiState(
@@ -79,6 +87,32 @@ class AuthViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    fun signInWithGoogleCredential(activity: Activity) {
+        viewModelScope.launch {
+            try {
+                val credentialManager = CredentialManager.create(activity)
+                val googleIdOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(AuthRepository.WEB_CLIENT_ID)
+                    .build()
+                val request = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleIdOption)
+                    .build()
+                val result = credentialManager.getCredential(activity, request)
+                val idToken = GoogleIdTokenCredential.createFrom(result.credential.data).idToken
+                signInWithGoogle(idToken)
+            } catch (e: GetCredentialCancellationException) {
+                Timber.d("Google Sign-In cancelled by user")
+            } catch (e: NoCredentialException) {
+                Timber.e(e, "Google Sign-In: no credentials available")
+                setError("No Google accounts found. Please add a Google account to your device and try again.")
+            } catch (e: Exception) {
+                Timber.e(e, "Google Sign-In failed: ${e.message}")
+                setError("Google Sign-In failed: ${e.message}")
+            }
+        }
     }
 
     fun registerFcmToken() = authRepository.registerFcmToken()

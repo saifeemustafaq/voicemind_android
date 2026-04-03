@@ -19,6 +19,13 @@ function createOAuth2Client(refreshToken?: string) {
   return client;
 }
 
+// ── Error code helper ────────────────────────────────────────────────────────
+
+function getHttpCode(err: unknown): number | undefined {
+  const e = err as { code?: number; status?: number };
+  return e.code ?? e.status;
+}
+
 // ── Token lifecycle ──────────────────────────────────────────────────────────
 
 async function handleTokenExpired(uid: string) {
@@ -93,8 +100,7 @@ async function createAndStoreTask(
       await event.data?.after?.ref.update({ googleTaskId: created.data.id });
     }
   } catch (err: unknown) {
-    const e = err as { code?: number; status?: number };
-    if (e.code === 401 || e.status === 401) {
+    if (getHttpCode(err) === 401) {
       await handleTokenExpired(event.params.uid);
     } else {
       console.error(`Failed to create Google Task for item ${itemId}:`, err);
@@ -110,10 +116,10 @@ async function deleteGoogleTask(
   try {
     await tasks.tasks.delete({ tasklist: "@default", task: taskId });
   } catch (err: unknown) {
-    const e = err as { code?: number; status?: number };
-    if (e.code === 404 || e.status === 404) {
+    const code = getHttpCode(err);
+    if (code === 404) {
       console.warn(`Google Task ${taskId} already deleted`);
-    } else if (e.code === 401 || e.status === 401) {
+    } else if (code === 401) {
       await handleTokenExpired(uid);
     } else {
       console.error(`Failed to delete Google Task ${taskId}:`, err);
@@ -138,8 +144,8 @@ async function createAndStoreCalendarEvent(
       await event.data?.after?.ref.update({ calendarEventId: created.data.id });
     }
   } catch (err: unknown) {
-    const e = err as { code?: number; status?: number };
-    if (e.code === 401 || e.status === 401 || e.code === 403 || e.status === 403) {
+    const code = getHttpCode(err);
+    if (code === 401 || code === 403) {
       console.warn(`Calendar scope not available for user ${event.params.uid}, skipping calendar event creation`);
     } else {
       console.error(`Failed to create Calendar event for item ${itemId}:`, err);
@@ -155,14 +161,100 @@ async function deleteCalendarEvent(
   try {
     await calendar.events.delete({ calendarId: "primary", eventId });
   } catch (err: unknown) {
-    const e = err as { code?: number; status?: number };
-    if (e.code === 404 || e.status === 404) {
+    const code = getHttpCode(err);
+    if (code === 404) {
       console.warn(`Calendar event ${eventId} already deleted`);
-    } else if (e.code === 401 || e.status === 401 || e.code === 403 || e.status === 403) {
+    } else if (code === 401 || code === 403) {
       console.warn(`Calendar scope not available for user ${uid}, cannot delete calendar event`);
     } else {
       console.error(`Failed to delete Calendar event ${eventId}:`, err);
     }
+  }
+}
+
+// ── syncActionItemToGoogleTasks sub-helpers ──────────────────────────────────
+
+async function handleSoftDelete(
+  tasks: ReturnType<typeof google.tasks>,
+  calendar: ReturnType<typeof google.calendar>,
+  event: Parameters<Parameters<typeof onDocumentWritten>[1]>[0],
+  taskId: string | undefined,
+  calEventId: string | undefined,
+  uid: string
+) {
+  if (taskId) await deleteGoogleTask(tasks, taskId, uid);
+  if (calEventId) await deleteCalendarEvent(calendar, calEventId, uid);
+  const removals: Record<string, unknown> = {};
+  if (taskId) removals.googleTaskId = admin.firestore.FieldValue.delete();
+  if (calEventId) removals.calendarEventId = admin.firestore.FieldValue.delete();
+  if (Object.keys(removals).length > 0) {
+    await event.data?.after?.ref.update(removals);
+  }
+}
+
+async function syncTaskToGoogle(
+  tasks: ReturnType<typeof google.tasks>,
+  event: Parameters<Parameters<typeof onDocumentWritten>[1]>[0],
+  taskBody: Record<string, unknown>,
+  taskId: string | undefined,
+  itemId: string,
+  uid: string
+) {
+  if (taskId) {
+    try {
+      await tasks.tasks.update({ tasklist: "@default", task: taskId, requestBody: taskBody });
+    } catch (err: unknown) {
+      const code = getHttpCode(err);
+      if (code === 404) {
+        console.warn(`Google Task ${taskId} not found, creating new one`);
+        await createAndStoreTask(tasks, taskBody, event, itemId);
+      } else if (code === 401) {
+        await handleTokenExpired(uid);
+      } else {
+        console.error("Google Task update failed:", err);
+      }
+    }
+  } else {
+    await createAndStoreTask(tasks, taskBody, event, itemId);
+  }
+}
+
+async function syncCalendarEvent(
+  calendar: ReturnType<typeof google.calendar>,
+  event: Parameters<Parameters<typeof onDocumentWritten>[1]>[0],
+  title: string,
+  dueDate: admin.firestore.Timestamp | undefined,
+  notes: string | undefined,
+  calEventId: string | undefined,
+  itemId: string,
+  uid: string
+) {
+  if (dueDate) {
+    const eventBody = buildCalendarEvent(title, dueDate, notes);
+    if (calEventId) {
+      try {
+        await calendar.events.update({
+          calendarId: "primary",
+          eventId: calEventId,
+          requestBody: eventBody,
+        });
+      } catch (err: unknown) {
+        const code = getHttpCode(err);
+        if (code === 404) {
+          await createAndStoreCalendarEvent(calendar, eventBody, event, itemId);
+        } else if (code === 401 || code === 403) {
+          console.warn(`Calendar scope not available for user ${uid}, skipping calendar sync`);
+        } else {
+          console.error("Calendar event update failed:", err);
+        }
+      }
+    } else {
+      await createAndStoreCalendarEvent(calendar, eventBody, event, itemId);
+    }
+  } else if (calEventId) {
+    // dueDate cleared but calendar event remains — delete it
+    await deleteCalendarEvent(calendar, calEventId, uid);
+    await event.data?.after?.ref.update({ calendarEventId: admin.firestore.FieldValue.delete() });
   }
 }
 
@@ -290,14 +382,7 @@ export const syncActionItemToGoogleTasks = onDocumentWritten(
 
     // Soft delete — remove linked Google Tasks/Calendar events and stop
     if (after && after.isDeleted === true && (!before || before.isDeleted !== true)) {
-      if (taskId) await deleteGoogleTask(tasks, taskId, uid);
-      if (calEventId) await deleteCalendarEvent(calendar, calEventId, uid);
-      const removals: Record<string, unknown> = {};
-      if (taskId) removals.googleTaskId = admin.firestore.FieldValue.delete();
-      if (calEventId) removals.calendarEventId = admin.firestore.FieldValue.delete();
-      if (Object.keys(removals).length > 0) {
-        await event.data?.after?.ref.update(removals);
-      }
+      await handleSoftDelete(tasks, calendar, event, taskId, calEventId, uid);
       return;
     }
 
@@ -341,52 +426,9 @@ export const syncActionItemToGoogleTasks = onDocumentWritten(
 
     // ── Sync to Google Tasks ──────────────────────────────────────────────────
     const taskBody = buildGoogleTask(title, dueDate, deadline, notes, completed);
-
-    if (taskId) {
-      try {
-        await tasks.tasks.update({ tasklist: "@default", task: taskId, requestBody: taskBody });
-      } catch (err: unknown) {
-        const e = err as { code?: number; status?: number };
-        if (e.code === 404 || e.status === 404) {
-          console.warn(`Google Task ${taskId} not found, creating new one`);
-          await createAndStoreTask(tasks, taskBody, event, itemId);
-        } else if (e.code === 401 || e.status === 401) {
-          await handleTokenExpired(uid);
-        } else {
-          console.error("Google Task update failed:", err);
-        }
-      }
-    } else {
-      await createAndStoreTask(tasks, taskBody, event, itemId);
-    }
+    await syncTaskToGoogle(tasks, event, taskBody, taskId, itemId, uid);
 
     // ── Sync to Google Calendar (only for dueDate items — preserves time) ────
-    if (dueDate) {
-      const eventBody = buildCalendarEvent(title, dueDate, notes);
-      if (calEventId) {
-        try {
-          await calendar.events.update({
-            calendarId: "primary",
-            eventId: calEventId,
-            requestBody: eventBody,
-          });
-        } catch (err: unknown) {
-          const e = err as { code?: number; status?: number };
-          if (e.code === 404 || e.status === 404) {
-            await createAndStoreCalendarEvent(calendar, eventBody, event, itemId);
-          } else if (e.code === 401 || e.status === 401 || e.code === 403 || e.status === 403) {
-            console.warn(`Calendar scope not available for user ${uid}, skipping calendar sync`);
-          } else {
-            console.error("Calendar event update failed:", err);
-          }
-        }
-      } else {
-        await createAndStoreCalendarEvent(calendar, eventBody, event, itemId);
-      }
-    } else if (calEventId) {
-      // dueDate cleared but calendar event remains — delete it
-      await deleteCalendarEvent(calendar, calEventId, uid);
-      await event.data?.after?.ref.update({ calendarEventId: admin.firestore.FieldValue.delete() });
-    }
+    await syncCalendarEvent(calendar, event, title, dueDate, notes, calEventId, itemId, uid);
   }
 );

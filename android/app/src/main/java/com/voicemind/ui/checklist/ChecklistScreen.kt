@@ -124,7 +124,7 @@ fun ChecklistScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = VmDimens.ScreenHorizontalPadding)
                     .verticalScroll(rememberScrollState())
             ) {
                 Text(
@@ -138,13 +138,13 @@ fun ChecklistScreen(
                     modifier = Modifier.fillMaxWidth(),
                     innerPadding = 0.dp,
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(VmDimens.SpaceLg)) {
                         if (state.todoItems.isEmpty()) {
                             Text(
                                 text = "No pending items",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                                modifier = Modifier.padding(vertical = VmDimens.SpaceSm)
                             )
                         }
 
@@ -164,7 +164,7 @@ fun ChecklistScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(VmDimens.SpaceLg))
 
                 Text(
                     text = "DONE",
@@ -177,13 +177,13 @@ fun ChecklistScreen(
                     modifier = Modifier.fillMaxWidth(),
                     innerPadding = 0.dp,
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(VmDimens.SpaceLg)) {
                         if (state.doneItems.isEmpty()) {
                             Text(
                                 text = "Completed items appear here",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                                modifier = Modifier.padding(vertical = VmDimens.SpaceSm)
                             )
                         }
 
@@ -284,7 +284,7 @@ private fun ActionItemRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (isSelectionMode) {
-            IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
+            IconButton(onClick = onClick, modifier = Modifier.size(VmDimens.TouchTarget)) {
                 Icon(
                     if (isSelected) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
                     contentDescription = if (isSelected) "Deselect" else "Select",
@@ -292,7 +292,7 @@ private fun ActionItemRow(
                 )
             }
         } else {
-            IconButton(onClick = onToggle, modifier = Modifier.size(48.dp)) {
+            IconButton(onClick = onToggle, modifier = Modifier.size(VmDimens.TouchTarget)) {
                 Icon(
                     if (item.completed) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                     contentDescription = if (item.completed) "Mark incomplete" else "Mark complete",
@@ -361,7 +361,7 @@ private fun DateLabels(item: ActionItem) {
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = 2.dp),
+            modifier = Modifier.padding(top = VmDimens.SpaceXxs),
         ) {
             Icon(
                 Icons.Default.Schedule,
@@ -369,7 +369,7 @@ private fun DateLabels(item: ActionItem) {
                 modifier = Modifier.size(12.dp),
                 tint = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(VmDimens.SpaceXs))
             Text(
                 text = formatted,
                 style = MaterialTheme.typography.labelSmall,
@@ -388,7 +388,7 @@ private fun DateLabels(item: ActionItem) {
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = 2.dp),
+            modifier = Modifier.padding(top = VmDimens.SpaceXxs),
         ) {
             Icon(
                 Icons.Default.Flag,
@@ -396,7 +396,7 @@ private fun DateLabels(item: ActionItem) {
                 modifier = Modifier.size(12.dp),
                 tint = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(VmDimens.SpaceXs))
             Text(
                 text = "Deadline: $formatted",
                 style = MaterialTheme.typography.labelSmall,

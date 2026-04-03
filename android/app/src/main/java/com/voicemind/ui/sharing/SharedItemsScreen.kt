@@ -143,7 +143,7 @@ private fun SharedRecordingRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = VmDimens.ScreenHorizontalPadding, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -170,7 +170,7 @@ private fun SharedTaskItemRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = VmDimens.ScreenHorizontalPadding, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -180,7 +180,7 @@ private fun SharedTaskItemRow(
                        else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp),
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(VmDimens.SpaceMd))
             Column(modifier = Modifier.weight(1f)) {
                 Text(task.title, style = MaterialTheme.typography.bodyLarge)
                 if (task.sharedFromName.isNotEmpty()) {

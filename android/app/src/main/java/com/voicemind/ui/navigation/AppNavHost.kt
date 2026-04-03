@@ -90,6 +90,13 @@ fun AppNavHost(
 
     val onSettings: () -> Unit = { navigateTo(Routes.Settings) }
 
+    LaunchedEffect(openSharedItemsOnStart) {
+        if (openSharedItemsOnStart) {
+            navController.navigate(SHARED_ITEMS_ROUTE)
+            onSharedItemsOpened()
+        }
+    }
+
     if (useSidebar) {
         // ── Sidebar / Drawer mode — unchanged from original ─────────────
 
@@ -98,17 +105,12 @@ fun AppNavHost(
             navigateTo(destination)
         }
 
+        // Recordings deep-link differs between navigation modes (navigateTo here vs. pagerState.scrollToPage
+        // in bottom-bar) — cannot be hoisted above the if/else branch.
         LaunchedEffect(openRecordingsOnStart) {
             if (openRecordingsOnStart) {
                 navigateTo(Routes.Recordings)
                 onRecordingsOpened()
-            }
-        }
-
-        LaunchedEffect(openSharedItemsOnStart) {
-            if (openSharedItemsOnStart) {
-                navController.navigate(SHARED_ITEMS_ROUTE)
-                onSharedItemsOpened()
             }
         }
 
@@ -170,18 +172,13 @@ fun AppNavHost(
             derivedStateOf { orderedNavItems[pagerState.currentPage].route }
         }
 
+        // Recordings deep-link differs between navigation modes (pagerState.scrollToPage here vs.
+        // navigateTo in sidebar) — cannot be hoisted above the if/else branch.
         LaunchedEffect(openRecordingsOnStart) {
             if (openRecordingsOnStart) {
                 val recIndex = orderedNavItems.indexOfFirst { it is Routes.Recordings }
                 if (recIndex >= 0) pagerState.scrollToPage(recIndex)
                 onRecordingsOpened()
-            }
-        }
-
-        LaunchedEffect(openSharedItemsOnStart) {
-            if (openSharedItemsOnStart) {
-                navController.navigate(SHARED_ITEMS_ROUTE)
-                onSharedItemsOpened()
             }
         }
 

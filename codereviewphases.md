@@ -73,11 +73,11 @@ Line 320 uses `\u2728` (sparkle emoji) in instructional text inside the `Summari
 
 **Connected files (read-only check):** `SharedRecordingDetailScreen.kt` consumes this ViewModel via `hiltViewModel()`. No changes needed there.
 
-- [ ] Create a `private fun buildAndPreparePlayer(url: String, onError: (what: Int, extra: Int) -> Boolean): MediaPlayer` that encapsulates: `setDataSource(url)`, common `setOnPreparedListener` (start playback, update state), common `setOnCompletionListener` (cancel polling, reset state), the passed-in `onError` lambda, and `prepareAsync()`
-- [ ] Refactor `playOrResume()` to call `buildAndPreparePlayer(url) { what, extra -> /* retry logic with urlRetryCount */ }`
-- [ ] Refactor `retryWithFreshUrl()` to call `buildAndPreparePlayer(url) { what, extra -> /* no retry, just set error state */ }`
-- [ ] Remove the duplicated `MediaPlayer().apply { ... }` blocks from both methods
-- [ ] Verify `releaseMediaPlayer()` is still called before each `buildAndPreparePlayer` call (existing behavior preserved)
+- [x] Create a `private fun buildAndPreparePlayer(url: String, onError: (what: Int, extra: Int) -> Boolean): MediaPlayer` that encapsulates: `setDataSource(url)`, common `setOnPreparedListener` (start playback, update state), common `setOnCompletionListener` (cancel polling, reset state), the passed-in `onError` lambda, and `prepareAsync()`
+- [x] Refactor `playOrResume()` to call `buildAndPreparePlayer(url) { what, extra -> /* retry logic with urlRetryCount */ }`
+- [x] Refactor `retryWithFreshUrl()` to call `buildAndPreparePlayer(url) { what, extra -> /* no retry, just set error state */ }`
+- [x] Remove the duplicated `MediaPlayer().apply { ... }` blocks from both methods
+- [x] Verify `releaseMediaPlayer()` is still called before each `buildAndPreparePlayer` call (existing behavior preserved)
 
 **File:** `android/app/src/main/java/com/voicemind/ui/sharing/SharedRecordingDetailViewModel.kt`
 
@@ -91,10 +91,10 @@ Line 320 uses `\u2728` (sparkle emoji) in instructional text inside the `Summari
 
 **Connected files (read-only check):** `SettingsScreen.kt` is the sole consumer. No changes needed there.
 
-- [ ] Create a `private fun executeReauthAndDelete(reauthBlock: suspend () -> Result<Unit>)` that encapsulates: setting `_deleteState.value = DeleteAccountState.Deleting`, launching on `Dispatchers.IO`, calling `reauthBlock()`, chaining `.onSuccess { authRepository.deleteAccount().onSuccess/onFailure }` and `.onFailure { set Error state }`
-- [ ] Refactor `reauthAndDeleteWithGoogle(idToken)` to: `executeReauthAndDelete { authRepository.reauthenticateWithGoogle(idToken) }`
-- [ ] Refactor `reauthAndDelete(email, password)` to: `executeReauthAndDelete { authRepository.reauthenticateWithEmail(email, password) }`
-- [ ] Verify both public method signatures remain unchanged: `fun reauthAndDeleteWithGoogle(idToken: String)` and `fun reauthAndDelete(email: String, password: String)`
+- [x] Create a `private fun executeReauthAndDelete(reauthBlock: suspend () -> Result<Unit>)` that encapsulates: setting `_deleteState.value = DeleteAccountState.Deleting`, launching on `Dispatchers.IO`, calling `reauthBlock()`, chaining `.onSuccess { authRepository.deleteAccount().onSuccess/onFailure }` and `.onFailure { set Error state }`
+- [x] Refactor `reauthAndDeleteWithGoogle(idToken)` to: `executeReauthAndDelete { authRepository.reauthenticateWithGoogle(idToken) }`
+- [x] Refactor `reauthAndDelete(email, password)` to: `executeReauthAndDelete { authRepository.reauthenticateWithEmail(email, password) }`
+- [x] Verify both public method signatures remain unchanged: `fun reauthAndDeleteWithGoogle(idToken: String)` and `fun reauthAndDelete(email: String, password: String)`
 
 **File:** `android/app/src/main/java/com/voicemind/ui/settings/SettingsViewModel.kt`
 
@@ -121,9 +121,9 @@ The `LaunchedEffect(openSharedItemsOnStart)` block is copy-pasted identically in
 
 **Downstream impact:** `MainActivity.kt` is the sole caller of `AppNavHost`. Its signature does not change. Behavior is preserved.
 
-- [ ] Move the `LaunchedEffect(openSharedItemsOnStart) { ... }` block above the `if (useSidebar) { ... } else { ... }` branch (both branches use `navController.navigate(SHARED_ITEMS_ROUTE)` identically)
-- [ ] Remove the duplicate `LaunchedEffect(openSharedItemsOnStart)` from both the sidebar and bottom-bar branches
-- [ ] Add a brief comment above the recordings deep-link LaunchedEffects in each branch explaining they differ by implementation (navigateTo vs scrollToPage) and cannot be hoisted
+- [x] Move the `LaunchedEffect(openSharedItemsOnStart) { ... }` block above the `if (useSidebar) { ... } else { ... }` branch (both branches use `navController.navigate(SHARED_ITEMS_ROUTE)` identically)
+- [x] Remove the duplicate `LaunchedEffect(openSharedItemsOnStart)` from both the sidebar and bottom-bar branches
+- [x] Add a brief comment above the recordings deep-link LaunchedEffects in each branch explaining they differ by implementation (navigateTo vs scrollToPage) and cannot be hoisted
 
 **File:** `android/app/src/main/java/com/voicemind/ui/navigation/AppNavHost.kt`
 
@@ -142,16 +142,16 @@ The Google Sign-In `onClick` handler (lines 212-236 of `SignInScreen.kt`) is 25 
 
 #### AuthViewModel.kt changes
 
-- [ ] Add `import android.app.Activity` and credential manager imports (`CredentialManager`, `GetCredentialRequest`, `GetGoogleIdOption`, `GoogleIdTokenCredential`, `GetCredentialCancellationException`, `NoCredentialException`)
-- [ ] Add new public method `fun signInWithGoogleCredential(activity: Activity)` that: creates `CredentialManager`, builds `GetGoogleIdOption` with `filterByAuthorizedAccounts(false)` and `serverClientId(WEB_CLIENT_ID)`, calls `credentialManager.getCredential(activity, request)`, extracts `idToken`, calls existing `signInWithGoogle(idToken)`. Catches `GetCredentialCancellationException` (no-op), `NoCredentialException` (calls `setError("No Google accounts found...")`), and generic `Exception` (calls `setError("Google Sign-In failed: ${e.message}")`)
-- [ ] Verify existing `signInWithGoogle(idToken: String)` method is unchanged
+- [x] Add `import android.app.Activity` and credential manager imports (`CredentialManager`, `GetCredentialRequest`, `GetGoogleIdOption`, `GoogleIdTokenCredential`, `GetCredentialCancellationException`, `NoCredentialException`)
+- [x] Add new public method `fun signInWithGoogleCredential(activity: Activity)` that: creates `CredentialManager`, builds `GetGoogleIdOption` with `filterByAuthorizedAccounts(false)` and `serverClientId(WEB_CLIENT_ID)`, calls `credentialManager.getCredential(activity, request)`, extracts `idToken`, calls existing `signInWithGoogle(idToken)`. Catches `GetCredentialCancellationException` (no-op), `NoCredentialException` (calls `setError("No Google accounts found...")`), and generic `Exception` (calls `setError("Google Sign-In failed: ${e.message}")`)
+- [x] Verify existing `signInWithGoogle(idToken: String)` method is unchanged
 
 #### SignInScreen.kt changes
 
-- [ ] Replace the 25-line inline `scope.launch { try { ... } }` Google Sign-In lambda with a single call: `viewModel.signInWithGoogleCredential(context as Activity)`
-- [ ] Remove unused imports that were only needed by the inline credential flow: `CredentialManager`, `GetCredentialRequest`, `GetGoogleIdOption`, `GoogleIdTokenCredential`, `GetCredentialCancellationException`, `NoCredentialException`, `rememberCoroutineScope`, `kotlinx.coroutines.launch`, `AuthRepository` (if no longer used)
-- [ ] Remove the `val scope = rememberCoroutineScope()` line if it's no longer used elsewhere in the composable
-- [ ] Verify the `OutlinedButton(onClick = { viewModel.signInWithGoogleCredential(context as Activity) }, ...)` compiles and the button remains enabled/disabled based on `!uiState.isLoading`
+- [x] Replace the 25-line inline `scope.launch { try { ... } }` Google Sign-In lambda with a single call: `viewModel.signInWithGoogleCredential(context as Activity)`
+- [x] Remove unused imports that were only needed by the inline credential flow: `CredentialManager`, `GetCredentialRequest`, `GetGoogleIdOption`, `GoogleIdTokenCredential`, `GetCredentialCancellationException`, `NoCredentialException`, `rememberCoroutineScope`, `kotlinx.coroutines.launch`, `AuthRepository` (if no longer used)
+- [x] Remove the `val scope = rememberCoroutineScope()` line if it's no longer used elsewhere in the composable
+- [x] Verify the `OutlinedButton(onClick = { viewModel.signInWithGoogleCredential(context as Activity) }, ...)` compiles and the button remains enabled/disabled based on `!uiState.isLoading`
 
 **Files:**
 - `android/app/src/main/java/com/voicemind/ui/auth/AuthViewModel.kt`
@@ -178,8 +178,8 @@ The error-casting pattern `const e = err as { code?: number; status?: number }; 
 
 **Guideline violated:** DRY — repeated boilerplate that should be a shared utility.
 
-- [ ] Add a `function getHttpCode(err: unknown): number | undefined` helper near the top of the file (below imports, above OAuth helper) that casts `err` to `{ code?: number; status?: number }` and returns `e.code ?? e.status`
-- [ ] Replace all 7 inline error-cast-and-check patterns with `getHttpCode(err)`:
+- [x] Add a `function getHttpCode(err: unknown): number | undefined` helper near the top of the file (below imports, above OAuth helper) that casts `err` to `{ code?: number; status?: number }` and returns `e.code ?? e.status`
+- [x] Replace all 7 inline error-cast-and-check patterns with `getHttpCode(err)`:
   - `createAndStoreTask` catch block (line ~95)
   - `deleteGoogleTask` catch block (line ~113)
   - `createAndStoreCalendarEvent` catch block (line ~142)
@@ -194,12 +194,12 @@ The error-casting pattern `const e = err as { code?: number; status?: number }; 
 
 **Guideline violated:** Functions should be single-responsibility. 141 lines with multiple concerns makes the logic harder to follow and maintain.
 
-- [ ] Extract `handleSoftDelete(tasks, calendar, event, taskId, calEventId, uid)` — handles the soft-delete branch (lines ~292-302): deletes Google Task and Calendar event, clears IDs from Firestore document
-- [ ] Extract `syncTaskToGoogle(tasks, event, taskBody, taskId, itemId, uid)` — handles the Google Tasks create-or-update logic (lines ~343-361): attempts update, falls back to create on 404, handles token expiry on 401
-- [ ] Extract `syncCalendarEvent(calendar, event, title, dueDate, notes, calEventId, itemId, uid)` — handles the Google Calendar create-or-update-or-delete logic (lines ~364-390): creates/updates event for dueDate items, deletes event when dueDate is cleared
-- [ ] Verify the main `syncActionItemToGoogleTasks` body now reads as a clear decision tree: guard → get token → soft delete? → hard delete? → date removed? → sync task → sync calendar
-- [ ] Verify all three exported functions remain unchanged: `exchangeTasksAuthCode`, `disconnectTasks`, `syncActionItemToGoogleTasks`
-- [ ] Verify `functions/src/index.ts` re-export (`export * from "./googleTasks.js"`) needs no changes
+- [x] Extract `handleSoftDelete(tasks, calendar, event, taskId, calEventId, uid)` — handles the soft-delete branch (lines ~292-302): deletes Google Task and Calendar event, clears IDs from Firestore document
+- [x] Extract `syncTaskToGoogle(tasks, event, taskBody, taskId, itemId, uid)` — handles the Google Tasks create-or-update logic (lines ~343-361): attempts update, falls back to create on 404, handles token expiry on 401
+- [x] Extract `syncCalendarEvent(calendar, event, title, dueDate, notes, calEventId, itemId, uid)` — handles the Google Calendar create-or-update-or-delete logic (lines ~364-390): creates/updates event for dueDate items, deletes event when dueDate is cleared
+- [x] Verify the main `syncActionItemToGoogleTasks` body now reads as a clear decision tree: guard → get token → soft delete? → hard delete? → date removed? → sync task → sync calendar
+- [x] Verify all three exported functions remain unchanged: `exchangeTasksAuthCode`, `disconnectTasks`, `syncActionItemToGoogleTasks`
+- [x] Verify `functions/src/index.ts` re-export (`export * from "./googleTasks.js"`) needs no changes
 
 ### Verification
 

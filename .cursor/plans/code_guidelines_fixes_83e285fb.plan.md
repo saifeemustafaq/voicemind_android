@@ -25,7 +25,7 @@ todos:
     status: pending
   - id: phase4a
     content: googleTasks.ts — Extract getHttpCode helper, replace 7 inline casts, split syncActionItemToGoogleTasks into focused helpers
-    status: pending
+    status: done
 isProject: false
 ---
 

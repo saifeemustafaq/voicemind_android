@@ -348,11 +348,9 @@ class SettingsViewModel @Inject constructor(
                 val idToken = GoogleIdTokenCredential.createFrom(result.credential.data).idToken
                 reauthAndDeleteWithGoogle(idToken)
             } catch (e: GetCredentialCancellationException) {
-                _deleteError.value = "Account deletion cancelled."
-                _deleteState.value = DeleteAccountState.Idle
+                onDeleteError("Account deletion cancelled.")
             } catch (e: Exception) {
-                _deleteError.value = "Google re-authentication failed: ${e.message}"
-                _deleteState.value = DeleteAccountState.Idle
+                onDeleteError("Google re-authentication failed: ${e.message}")
             }
         }
     }
@@ -360,26 +358,17 @@ class SettingsViewModel @Inject constructor(
     val isGoogleUser: Boolean get() = authRepository.isGoogleUser
 
     fun reauthAndDeleteWithGoogle(idToken: String) {
-        _deleteState.value = DeleteAccountState.Deleting
-        viewModelScope.launch(Dispatchers.IO) {
-            authRepository.reauthenticateWithGoogle(idToken)
-                .onSuccess {
-                    authRepository.deleteAccount()
-                        .onSuccess { _deleteState.value = DeleteAccountState.Success }
-                        .onFailure { e ->
-                            _deleteState.value = DeleteAccountState.Error(e.message ?: "Failed to delete account")
-                        }
-                }
-                .onFailure { e ->
-                    _deleteState.value = DeleteAccountState.Error(e.message ?: "Google re-authentication failed")
-                }
-        }
+        executeReauthAndDelete { authRepository.reauthenticateWithGoogle(idToken) }
     }
 
     fun reauthAndDelete(email: String, password: String) {
+        executeReauthAndDelete { authRepository.reauthenticateWithEmail(email, password) }
+    }
+
+    private fun executeReauthAndDelete(reauthBlock: suspend () -> Result<Unit>) {
         _deleteState.value = DeleteAccountState.Deleting
         viewModelScope.launch(Dispatchers.IO) {
-            authRepository.reauthenticateWithEmail(email, password)
+            reauthBlock()
                 .onSuccess {
                     authRepository.deleteAccount()
                         .onSuccess { _deleteState.value = DeleteAccountState.Success }

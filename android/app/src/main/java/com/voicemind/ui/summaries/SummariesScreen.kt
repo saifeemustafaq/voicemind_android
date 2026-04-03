@@ -77,7 +77,7 @@ fun SummariesScreen(
             onInfoClick = { viewModel.showInfoSheet() },
         )
 
-        Box(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
+        Box(modifier = Modifier.weight(1f).padding(horizontal = VmDimens.ScreenHorizontalPadding)) {
             when {
                 state.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -93,8 +93,8 @@ fun SummariesScreen(
                     }
                 }
                 else -> {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        item { Spacer(modifier = Modifier.height(4.dp)) }
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(VmDimens.SpaceSm)) {
+                        item { Spacer(modifier = Modifier.height(VmDimens.SpaceXs)) }
                         items(state.summaries, key = { it.id }) { summary ->
                             SummaryRow(
                                 summary = summary,
@@ -224,7 +224,7 @@ private fun SummaryDetailSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
 
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 RichText {
@@ -232,25 +232,25 @@ private fun SummaryDetailSheet(
                 }
 
                 if (summary.recordingTitles.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceLg))
                     Text(
                         text = "Sources",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceXs))
                     summary.recordingTitles.forEach { title ->
                         Text(
                             text = "• $title",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 2.dp),
+                            modifier = Modifier.padding(vertical = VmDimens.SpaceXxs),
                         )
                     }
                 }
 
                 summary.createdAt?.toDate()?.let { date ->
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
                     Text(
                         text = date.toShortDateString(LocalAppTimeZone.current),
                         style = MaterialTheme.typography.bodySmall,
@@ -296,8 +296,8 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(horizontal = VmDimens.SpaceXl)
+                .padding(bottom = VmDimens.SpaceXxl),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -306,11 +306,11 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
                     modifier = Modifier.size(24.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.size(8.dp))
+                Spacer(modifier = Modifier.size(VmDimens.SpaceSm))
                 Text("How Summaries Work", style = MaterialTheme.typography.titleMedium)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceLg))
 
             val steps = listOf(
                 "Go to the Recordings screen.",
@@ -327,7 +327,7 @@ private fun SummariesInfoSheet(onDismiss: () -> Unit) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceMd))
 
             Text(
                 text = "Summaries are generated from the transcripts of your selected recordings.",

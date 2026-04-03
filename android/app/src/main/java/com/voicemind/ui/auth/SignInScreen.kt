@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -39,7 +38,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,19 +48,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import androidx.credentials.CredentialManager
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialCancellationException
-import androidx.credentials.exceptions.NoCredentialException
-import com.voicemind.data.repository.AuthRepository
 import com.voicemind.ui.components.GlassCard
 import com.voicemind.ui.components.PrimaryButton
 import com.voicemind.ui.components.voiceMindTextFieldColors
 import com.voicemind.ui.theme.VmDimens
-import kotlinx.coroutines.launch
-import timber.log.Timber
 
 @Composable
 fun SignInScreen(viewModel: AuthViewModel) {
@@ -71,12 +60,11 @@ fun SignInScreen(viewModel: AuthViewModel) {
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(VmDimens.SpaceXl)
             .imePadding()
     ) {
         Column(
@@ -94,7 +82,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                 tint = MaterialTheme.colorScheme.primary
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceLg))
 
             Text(
                 text = "VoiceMind AI",
@@ -109,13 +97,13 @@ fun SignInScreen(viewModel: AuthViewModel) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceXxxl))
 
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
                 innerPadding = VmDimens.SpaceXl,
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(VmDimens.SpaceMd)) {
                     Text(
                         text = if (uiState.isCreateAccount) "Create Account" else "Sign In",
                         style = MaterialTheme.typography.titleMedium,
@@ -161,7 +149,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
                         colors = voiceMindTextFieldColors()
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(VmDimens.SpaceXs))
 
                     PrimaryButton(
                         text = if (uiState.isCreateAccount) "Create Account" else "Sign In",
@@ -193,7 +181,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(VmDimens.SpaceMd)
             ) {
                 HorizontalDivider(
                     modifier = Modifier.weight(1f),
@@ -209,31 +197,7 @@ fun SignInScreen(viewModel: AuthViewModel) {
             Spacer(modifier = Modifier.height(20.dp))
 
             OutlinedButton(
-                onClick = {
-                    scope.launch {
-                        try {
-                            val credentialManager = CredentialManager.create(context)
-                            val googleIdOption = GetGoogleIdOption.Builder()
-                                .setFilterByAuthorizedAccounts(false)
-                                .setServerClientId(AuthRepository.WEB_CLIENT_ID)
-                                .build()
-                            val request = GetCredentialRequest.Builder()
-                                .addCredentialOption(googleIdOption)
-                                .build()
-                            val result = credentialManager.getCredential(context as Activity, request)
-                            val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
-                            viewModel.signInWithGoogle(googleIdTokenCredential.idToken)
-                        } catch (e: GetCredentialCancellationException) {
-                            Timber.d("Google Sign-In cancelled by user")
-                        } catch (e: NoCredentialException) {
-                            Timber.e(e, "Google Sign-In: no credentials available")
-                            viewModel.setError("No Google accounts found. Please add a Google account to your device and try again.")
-                        } catch (e: Exception) {
-                            Timber.e(e, "Google Sign-In failed: ${e.message}")
-                            viewModel.setError("Google Sign-In failed: ${e.message}")
-                        }
-                    }
-                },
+                onClick = { viewModel.signInWithGoogleCredential(context as Activity) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -251,11 +215,11 @@ fun SignInScreen(viewModel: AuthViewModel) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(VmDimens.SpaceXxl))
 
             if (uiState.isLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(VmDimens.IconLg),
                     color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 3.dp
                 )

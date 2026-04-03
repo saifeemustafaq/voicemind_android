@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.voicemind.ui.theme.VmDimens
 import java.util.TimeZone
 
 data class TimeZoneEntry(
@@ -109,10 +110,10 @@ fun TimeZonePickerDialog(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = VmDimens.SpaceSm),
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(VmDimens.SpaceXs))
 
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     // "Use device timezone" option at the top
@@ -129,7 +130,7 @@ fun TimeZonePickerDialog(
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(VmDimens.SpaceLg))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Device timezone (auto)",
@@ -163,8 +164,8 @@ fun TimeZonePickerDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(
                                     start = 20.dp,
-                                    top = 16.dp,
-                                    bottom = 4.dp,
+                                    top = VmDimens.SpaceLg,
+                                    bottom = VmDimens.SpaceXs,
                                 ),
                             )
                         }
@@ -174,7 +175,7 @@ fun TimeZonePickerDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { onSelect(entry.id) }
-                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                                    .padding(horizontal = 20.dp, vertical = VmDimens.SpaceMd),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
