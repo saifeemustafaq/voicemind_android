@@ -39,7 +39,9 @@ object BrandColors {
     val InverseOnSurface     = Color(0xFFF1F0F4)
     val InversePrimary       = Color(0xFF9ECAFF)
     val SurfaceTint          = Color(0xFF0061A4)
-    val Warning              = Color(0xFFE6A817)
+    val Warning                  = Color(0xFFE6A817)
+    val SurfaceContainerLowest   = Color(0xFFFFFFFF)
+    val SurfaceContainerHigh     = Color(0xFFDDE3E8)
 }
 
 // ── Fallback M3 light color scheme ────────────────────────────────────────────

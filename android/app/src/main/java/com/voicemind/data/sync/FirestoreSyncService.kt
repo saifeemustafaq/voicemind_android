@@ -138,8 +138,8 @@ class FirestoreSyncService @Inject constructor(
                     return
                 }
                 val existing = recordingDao.getById(cloud.id)
+                if (pendingDeleteDao.exists("recording", cloud.id)) return
                 val entity = if (existing == null) {
-                    if (pendingDeleteDao.exists("recording", cloud.id)) return
                     cloud.toRoomEntity(localAudioPath = null, syncStatus = SyncStatus.SYNCED)
                 } else {
                     val keepLocalEdits = existing.syncStatus != SyncStatus.SYNCED
