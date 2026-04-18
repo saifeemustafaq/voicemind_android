@@ -57,7 +57,6 @@ private sealed interface WidgetSizeClass {
     data object Wide4x2 : WidgetSizeClass
 }
 
-// Minimal2x1 must be checked first: it satisfies both height < 80 AND width < 180.
 private fun DpSize.toSizeClass(): WidgetSizeClass = when {
     height < 80.dp && width < 180.dp -> WidgetSizeClass.Minimal2x1
     height < 80.dp && width >= 250.dp -> WidgetSizeClass.Row4x1
@@ -96,10 +95,10 @@ class RecordingWidget : GlanceAppWidget() {
     }
 }
 
-// ── Island button ─────────────────────────────────────────────────────────────
+// ── M3 filled icon button ────────────────────────────────────────────────────
 
 @Composable
-private fun IslandButton(
+private fun WidgetIconButton(
     icon: Int,
     iconTint: ColorProvider,
     background: ColorProvider,
@@ -125,18 +124,12 @@ private fun IslandButton(
     }
 }
 
-// ── Status island pill ────────────────────────────────────────────────────────
+// ── Inline status indicator ──────────────────────────────────────────────────
 
 @Composable
-private fun StatusIsland(isPaused: Boolean, fontSizeSp: Float = 11f) {
+private fun StatusLabel(isPaused: Boolean, fontSize: Float = 11f) {
     val statusColor = if (isPaused) WidgetColors.Warning else WidgetColors.Destructive
-    Row(
-        modifier = GlanceModifier
-            .background(WidgetColors.IslandSurface)
-            .cornerRadius(20.dp)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Image(
             provider = ImageProvider(R.drawable.ic_rec_dot),
             contentDescription = null,
@@ -145,53 +138,11 @@ private fun StatusIsland(isPaused: Boolean, fontSizeSp: Float = 11f) {
         )
         Spacer(modifier = GlanceModifier.width(5.dp))
         Text(
-            text = if (isPaused) "PAUSED" else "RECORDING",
+            text = if (isPaused) "PAUSED" else "REC",
             style = TextStyle(
                 color = statusColor,
                 fontWeight = FontWeight.Medium,
-                fontSize = fontSizeSp.sp,
-            ),
-        )
-    }
-}
-
-// ── Timer island ──────────────────────────────────────────────────────────────
-// label: if set, shown above the timer in labelColor (e.g. "RECORDING"/"PAUSED").
-
-@Composable
-private fun TimerIsland(
-    timerText: String,
-    fontSizeSp: Float,
-    label: String? = null,
-    labelColor: ColorProvider? = null,
-) {
-    Column(
-        modifier = GlanceModifier
-            .fillMaxWidth()
-            .background(WidgetColors.IslandSurface)
-            .cornerRadius(12.dp)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (label != null) {
-            Text(
-                text = label,
-                style = TextStyle(
-                    color = labelColor ?: WidgetColors.SecondaryLabel,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 10.sp,
-                ),
-            )
-            Spacer(modifier = GlanceModifier.height(2.dp))
-        }
-        Text(
-            text = timerText,
-            style = TextStyle(
-                color = WidgetColors.Label,
-                fontWeight = FontWeight.Bold,
-                fontSize = fontSizeSp.sp,
-                fontFamily = FontFamily.Monospace,
+                fontSize = fontSize.sp,
             ),
         )
     }
@@ -211,10 +162,12 @@ private fun WidgetRoot(
     val isRowSize = sizeClass == WidgetSizeClass.Minimal2x1
         || sizeClass == WidgetSizeClass.Row3x1
         || sizeClass == WidgetSizeClass.Row4x1
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .padding(if (isRowSize) 0.dp else 4.dp),
+            .background(ImageProvider(R.drawable.widget_background))
+            .padding(if (isRowSize) 8.dp else 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -268,53 +221,40 @@ private fun IdleContent(sizeClass: WidgetSizeClass) {
         isForegroundService = true,
     )
     when (sizeClass) {
-        // Single mic button island, centered.
-        WidgetSizeClass.Minimal2x1 -> IslandButton(
+        WidgetSizeClass.Minimal2x1 -> WidgetIconButton(
             icon = R.drawable.ic_mic_24,
             iconTint = WidgetColors.White,
             background = WidgetColors.Accent,
-            size = 52.dp,
-            iconSize = 30.dp,
+            size = 44.dp,
+            iconSize = 26.dp,
             contentDescription = "Start recording",
             action = micAction,
         )
-        // Title pill + mic button island, side by side.
+
         WidgetSizeClass.Row3x1, WidgetSizeClass.Row4x1 -> Row(
+            modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = GlanceModifier
-                    .background(WidgetColors.IslandSurface)
-                    .cornerRadius(20.dp)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                WidgetTitle()
-            }
-            Spacer(modifier = GlanceModifier.width(10.dp))
-            IslandButton(
+            WidgetTitle()
+            Spacer(modifier = GlanceModifier.defaultWeight())
+            WidgetIconButton(
                 icon = R.drawable.ic_mic_24,
                 iconTint = WidgetColors.White,
                 background = WidgetColors.Accent,
-                size = 50.dp,
-                iconSize = 29.dp,
+                size = 44.dp,
+                iconSize = 26.dp,
                 contentDescription = "Start recording",
                 action = micAction,
             )
         }
-        // Title + mic button stacked, 2x2.
-        WidgetSizeClass.Compact2x2 -> {
-            Row(
-                modifier = GlanceModifier
-                    .background(WidgetColors.IslandSurface)
-                    .cornerRadius(20.dp)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                WidgetTitle()
-            }
-            Spacer(modifier = GlanceModifier.height(10.dp))
-            IslandButton(
+
+        WidgetSizeClass.Compact2x2 -> Column(
+            modifier = GlanceModifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            WidgetTitle()
+            Spacer(modifier = GlanceModifier.defaultWeight())
+            WidgetIconButton(
                 icon = R.drawable.ic_mic_24,
                 iconTint = WidgetColors.White,
                 background = WidgetColors.Accent,
@@ -323,28 +263,33 @@ private fun IdleContent(sizeClass: WidgetSizeClass) {
                 contentDescription = "Start recording",
                 action = micAction,
             )
+            Spacer(modifier = GlanceModifier.defaultWeight())
         }
-        // Title + mic button stacked, 3x2/4x2.
-        WidgetSizeClass.Default3x2, WidgetSizeClass.Wide4x2 -> {
-            Row(
-                modifier = GlanceModifier
-                    .background(WidgetColors.IslandSurface)
-                    .cornerRadius(20.dp)
-                    .padding(horizontal = 14.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                WidgetTitle()
-            }
-            Spacer(modifier = GlanceModifier.height(12.dp))
-            IslandButton(
+
+        WidgetSizeClass.Default3x2, WidgetSizeClass.Wide4x2 -> Column(
+            modifier = GlanceModifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            WidgetTitle()
+            Spacer(modifier = GlanceModifier.height(2.dp))
+            Text(
+                text = "Tap to start recording",
+                style = TextStyle(
+                    color = WidgetColors.SecondaryLabel,
+                    fontSize = 12.sp,
+                ),
+            )
+            Spacer(modifier = GlanceModifier.defaultWeight())
+            WidgetIconButton(
                 icon = R.drawable.ic_mic_24,
                 iconTint = WidgetColors.White,
                 background = WidgetColors.Accent,
-                size = 56.dp,
-                iconSize = 30.dp,
+                size = 52.dp,
+                iconSize = 28.dp,
                 contentDescription = "Start recording",
                 action = micAction,
             )
+            Spacer(modifier = GlanceModifier.defaultWeight())
         }
     }
 }
@@ -373,295 +318,194 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long, sizeClass: Wi
 
     when (sizeClass) {
 
-        // ── 2x1: 3 bare buttons, no padding, edge-to-edge ────────────────────
+        // ── 2x1: three control buttons centered ────────────────────────
         WidgetSizeClass.Minimal2x1 -> Row(
-            modifier = GlanceModifier.fillMaxSize(),
+            modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Spacer(modifier = GlanceModifier.defaultWeight())
-            IslandButton(
+            WidgetIconButton(
                 icon = R.drawable.ic_delete_24,
-                iconTint = WidgetColors.Label,
+                iconTint = WidgetColors.SecondaryLabel,
                 background = WidgetColors.ButtonNeutral,
-                size = 52.dp, iconSize = 30.dp,
+                size = 40.dp, iconSize = 22.dp,
                 contentDescription = "Discard",
                 action = discardAction,
             )
             Spacer(modifier = GlanceModifier.width(8.dp))
-            IslandButton(
+            WidgetIconButton(
                 icon = if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
                 iconTint = WidgetColors.White,
                 background = WidgetColors.Accent,
-                size = 52.dp, iconSize = 30.dp,
+                size = 40.dp, iconSize = 22.dp,
                 contentDescription = if (isPaused) "Resume" else "Pause",
                 action = pauseResumeAction,
             )
             Spacer(modifier = GlanceModifier.width(8.dp))
-            IslandButton(
+            WidgetIconButton(
                 icon = R.drawable.ic_stop_24,
                 iconTint = WidgetColors.White,
                 background = WidgetColors.Destructive,
-                size = 52.dp, iconSize = 30.dp,
+                size = 40.dp, iconSize = 22.dp,
                 contentDescription = "Stop and save",
                 action = stopAction,
             )
             Spacer(modifier = GlanceModifier.defaultWeight())
         }
 
-        // ── 3x1: [dot + label | divider | timer] pill  |  3 buttons ─────────
-        WidgetSizeClass.Row3x1 -> Row(
+        // ── 3x1: status+timer left, buttons right, centered ─────────────
+        WidgetSizeClass.Row3x1 -> Box(
             modifier = GlanceModifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
+            contentAlignment = Alignment.Center,
         ) {
-            val statusColor = if (isPaused) WidgetColors.Warning else WidgetColors.Destructive
-            // Combined pill: dot + label + vertical divider + timer
-            Row(
-                modifier = GlanceModifier
-                    .background(WidgetColors.IslandSurface)
-                    .cornerRadius(20.dp)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Image(
-                    provider = ImageProvider(R.drawable.ic_rec_dot),
-                    contentDescription = null,
-                    modifier = GlanceModifier.size(7.dp),
-                    colorFilter = ColorFilter.tint(statusColor),
-                )
-                Spacer(modifier = GlanceModifier.width(5.dp))
-                Text(
-                    text = if (isPaused) "PAUSED" else "REC",
-                    style = TextStyle(
-                        color = statusColor,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 10.sp,
-                    ),
-                )
-                Spacer(modifier = GlanceModifier.width(8.dp))
-                // Vertical divider
-                Box(
-                    modifier = GlanceModifier
-                        .width(1.dp)
-                        .height(14.dp)
-                        .background(WidgetColors.SecondaryLabel),
-                ) {}
-                Spacer(modifier = GlanceModifier.width(8.dp))
-                Text(
-                    text = timerText,
-                    style = TextStyle(
-                        color = WidgetColors.Label,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        fontFamily = FontFamily.Monospace,
-                    ),
-                )
-            }
-            Spacer(modifier = GlanceModifier.defaultWeight())
-            IslandButton(
-                icon = R.drawable.ic_delete_24,
-                iconTint = WidgetColors.Label,
-                background = WidgetColors.ButtonNeutral,
-                size = 44.dp, iconSize = 26.dp,
-                contentDescription = "Discard",
-                action = discardAction,
-            )
-            Spacer(modifier = GlanceModifier.width(6.dp))
-            IslandButton(
-                icon = if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
-                iconTint = WidgetColors.White,
-                background = WidgetColors.Accent,
-                size = 44.dp, iconSize = 26.dp,
-                contentDescription = if (isPaused) "Resume" else "Pause",
-                action = pauseResumeAction,
-            )
-            Spacer(modifier = GlanceModifier.width(6.dp))
-            IslandButton(
-                icon = R.drawable.ic_stop_24,
-                iconTint = WidgetColors.White,
-                background = WidgetColors.Destructive,
-                size = 44.dp, iconSize = 26.dp,
-                contentDescription = "Stop and save",
-                action = stopAction,
-            )
-        }
-
-        // ── 4x1: [status pill]  [timer text]  bare buttons ───────────────────
-        WidgetSizeClass.Row4x1 -> Row(
-            modifier = GlanceModifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            StatusIsland(isPaused = isPaused, fontSizeSp = 10f)
-            Spacer(modifier = GlanceModifier.width(10.dp))
-            Text(
-                text = timerText,
-                style = TextStyle(
-                    color = WidgetColors.Label,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    fontFamily = FontFamily.Monospace,
-                ),
-            )
-            Spacer(modifier = GlanceModifier.defaultWeight())
-            IslandButton(
-                icon = R.drawable.ic_delete_24,
-                iconTint = WidgetColors.Label,
-                background = WidgetColors.ButtonNeutral,
-                size = 54.dp, iconSize = 31.dp,
-                contentDescription = "Discard",
-                action = discardAction,
-            )
-            Spacer(modifier = GlanceModifier.width(8.dp))
-            IslandButton(
-                icon = if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
-                iconTint = WidgetColors.White,
-                background = WidgetColors.Accent,
-                size = 54.dp, iconSize = 31.dp,
-                contentDescription = if (isPaused) "Resume" else "Pause",
-                action = pauseResumeAction,
-            )
-            Spacer(modifier = GlanceModifier.width(8.dp))
-            IslandButton(
-                icon = R.drawable.ic_stop_24,
-                iconTint = WidgetColors.White,
-                background = WidgetColors.Destructive,
-                size = 54.dp, iconSize = 31.dp,
-                contentDescription = "Stop and save",
-                action = stopAction,
-            )
-        }
-
-        // ── 2x2: status + timer + bare buttons spread edge-to-edge ───────────
-        WidgetSizeClass.Compact2x2 -> Column(
-            modifier = GlanceModifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            StatusIsland(isPaused = isPaused, fontSizeSp = 11f)
-            Spacer(modifier = GlanceModifier.height(6.dp))
-            TimerIsland(timerText = timerText, fontSizeSp = 24f)
-            Spacer(modifier = GlanceModifier.defaultWeight())
-            Row(
-                modifier = GlanceModifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Spacer(modifier = GlanceModifier.defaultWeight())
-                IslandButton(
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    StatusLabel(isPaused = isPaused, fontSize = 10f)
+                    Spacer(modifier = GlanceModifier.height(2.dp))
+                    Text(
+                        text = timerText,
+                        style = TextStyle(
+                            color = WidgetColors.Label,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily.Monospace,
+                        ),
+                    )
+                }
+                Spacer(modifier = GlanceModifier.width(16.dp))
+                WidgetIconButton(
                     icon = R.drawable.ic_delete_24,
-                    iconTint = WidgetColors.Label,
+                    iconTint = WidgetColors.SecondaryLabel,
                     background = WidgetColors.ButtonNeutral,
-                    size = 44.dp, iconSize = 24.dp,
+                    size = 36.dp, iconSize = 20.dp,
                     contentDescription = "Discard",
                     action = discardAction,
                 )
-                Spacer(modifier = GlanceModifier.defaultWeight())
-                IslandButton(
+                Spacer(modifier = GlanceModifier.width(6.dp))
+                WidgetIconButton(
                     icon = if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
                     iconTint = WidgetColors.White,
                     background = WidgetColors.Accent,
-                    size = 44.dp, iconSize = 24.dp,
+                    size = 36.dp, iconSize = 20.dp,
                     contentDescription = if (isPaused) "Resume" else "Pause",
                     action = pauseResumeAction,
                 )
-                Spacer(modifier = GlanceModifier.defaultWeight())
-                IslandButton(
+                Spacer(modifier = GlanceModifier.width(6.dp))
+                WidgetIconButton(
                     icon = R.drawable.ic_stop_24,
                     iconTint = WidgetColors.White,
                     background = WidgetColors.Destructive,
-                    size = 44.dp, iconSize = 24.dp,
-                    contentDescription = "Stop and save",
-                    action = stopAction,
-                )
-                Spacer(modifier = GlanceModifier.defaultWeight())
-            }
-        }
-
-        // ── 3x2: left = label+timer pill, right = 3 buttons stacked ─────────
-        WidgetSizeClass.Default3x2 -> Row(
-            modifier = GlanceModifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val statusColor = if (isPaused) WidgetColors.Warning else WidgetColors.Destructive
-            // Left pill: label stacked above timer
-            Column(
-                modifier = GlanceModifier
-                    .defaultWeight()
-                    .background(WidgetColors.IslandSurface)
-                    .cornerRadius(12.dp)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = if (isPaused) "PAUSED" else "RECORDING",
-                    style = TextStyle(
-                        color = statusColor,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 10.sp,
-                    ),
-                )
-                Spacer(modifier = GlanceModifier.height(2.dp))
-                Text(
-                    text = timerText,
-                    style = TextStyle(
-                        color = WidgetColors.Label,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
-                        fontFamily = FontFamily.Monospace,
-                    ),
-                )
-            }
-            Spacer(modifier = GlanceModifier.width(8.dp))
-            // Right: 3 buttons stacked vertically
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IslandButton(
-                    icon = R.drawable.ic_delete_24,
-                    iconTint = WidgetColors.Label,
-                    background = WidgetColors.ButtonNeutral,
-                    size = 30.dp, iconSize = 18.dp,
-                    contentDescription = "Discard",
-                    action = discardAction,
-                )
-                Spacer(modifier = GlanceModifier.height(6.dp))
-                IslandButton(
-                    icon = if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
-                    iconTint = WidgetColors.White,
-                    background = WidgetColors.Accent,
-                    size = 30.dp, iconSize = 18.dp,
-                    contentDescription = if (isPaused) "Resume" else "Pause",
-                    action = pauseResumeAction,
-                )
-                Spacer(modifier = GlanceModifier.height(6.dp))
-                IslandButton(
-                    icon = R.drawable.ic_stop_24,
-                    iconTint = WidgetColors.White,
-                    background = WidgetColors.Destructive,
-                    size = 30.dp, iconSize = 18.dp,
+                    size = 36.dp, iconSize = 20.dp,
                     contentDescription = "Stop and save",
                     action = stopAction,
                 )
             }
         }
 
-        // ── 4x2: [label pill] [timer pill, expanded] [3 buttons stacked] ──────
-        WidgetSizeClass.Wide4x2 -> Row(
+        // ── 4x1: status + timer + buttons, centered ────────────────────
+        WidgetSizeClass.Row4x1 -> Box(
             modifier = GlanceModifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
+            contentAlignment = Alignment.Center,
         ) {
-            // Left: status label pill
-            StatusIsland(isPaused = isPaused)
-            Spacer(modifier = GlanceModifier.width(8.dp))
-            // Center: timer pill, takes remaining width
-            Column(
-                modifier = GlanceModifier
-                    .defaultWeight()
-                    .background(WidgetColors.IslandSurface)
-                    .cornerRadius(12.dp)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                StatusLabel(isPaused = isPaused, fontSize = 11f)
+                Spacer(modifier = GlanceModifier.width(12.dp))
+                Text(
+                    text = timerText,
+                    style = TextStyle(
+                        color = WidgetColors.Label,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        fontFamily = FontFamily.Monospace,
+                    ),
+                )
+                Spacer(modifier = GlanceModifier.width(16.dp))
+                WidgetIconButton(
+                    icon = R.drawable.ic_delete_24,
+                    iconTint = WidgetColors.SecondaryLabel,
+                    background = WidgetColors.ButtonNeutral,
+                    size = 40.dp, iconSize = 22.dp,
+                    contentDescription = "Discard",
+                    action = discardAction,
+                )
+                Spacer(modifier = GlanceModifier.width(8.dp))
+                WidgetIconButton(
+                    icon = if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
+                    iconTint = WidgetColors.White,
+                    background = WidgetColors.Accent,
+                    size = 40.dp, iconSize = 22.dp,
+                    contentDescription = if (isPaused) "Resume" else "Pause",
+                    action = pauseResumeAction,
+                )
+                Spacer(modifier = GlanceModifier.width(8.dp))
+                WidgetIconButton(
+                    icon = R.drawable.ic_stop_24,
+                    iconTint = WidgetColors.White,
+                    background = WidgetColors.Destructive,
+                    size = 40.dp, iconSize = 22.dp,
+                    contentDescription = "Stop and save",
+                    action = stopAction,
+                )
+            }
+        }
+
+        // ── 2x2: stacked — status, timer, buttons ──────────────────────
+        WidgetSizeClass.Compact2x2 -> Box(
+            modifier = GlanceModifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                StatusLabel(isPaused = isPaused, fontSize = 14f)
+                Spacer(modifier = GlanceModifier.height(4.dp))
+                Text(
+                    text = timerText,
+                    style = TextStyle(
+                        color = WidgetColors.Label,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp,
+                        fontFamily = FontFamily.Monospace,
+                    ),
+                )
+                Spacer(modifier = GlanceModifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    WidgetIconButton(
+                        icon = R.drawable.ic_delete_24,
+                        iconTint = WidgetColors.SecondaryLabel,
+                        background = WidgetColors.ButtonNeutral,
+                        size = 36.dp, iconSize = 20.dp,
+                        contentDescription = "Discard",
+                        action = discardAction,
+                    )
+                    Spacer(modifier = GlanceModifier.width(10.dp))
+                    WidgetIconButton(
+                        icon = if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
+                        iconTint = WidgetColors.White,
+                        background = WidgetColors.Accent,
+                        size = 36.dp, iconSize = 20.dp,
+                        contentDescription = if (isPaused) "Resume" else "Pause",
+                        action = pauseResumeAction,
+                    )
+                    Spacer(modifier = GlanceModifier.width(10.dp))
+                    WidgetIconButton(
+                        icon = R.drawable.ic_stop_24,
+                        iconTint = WidgetColors.White,
+                        background = WidgetColors.Destructive,
+                        size = 36.dp, iconSize = 20.dp,
+                        contentDescription = "Stop and save",
+                        action = stopAction,
+                    )
+                }
+            }
+        }
+
+        // ── 3x2: stacked — status, timer, buttons ──────────────────────
+        WidgetSizeClass.Default3x2 -> Box(
+            modifier = GlanceModifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                StatusLabel(isPaused = isPaused)
+                Spacer(modifier = GlanceModifier.height(4.dp))
                 Text(
                     text = timerText,
                     style = TextStyle(
@@ -671,39 +515,84 @@ private fun ActiveContent(isPaused: Boolean, elapsedSeconds: Long, sizeClass: Wi
                         fontFamily = FontFamily.Monospace,
                     ),
                 )
+                Spacer(modifier = GlanceModifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    WidgetIconButton(
+                        icon = R.drawable.ic_delete_24,
+                        iconTint = WidgetColors.SecondaryLabel,
+                        background = WidgetColors.ButtonNeutral,
+                        size = 48.dp, iconSize = 26.dp,
+                        contentDescription = "Discard",
+                        action = discardAction,
+                    )
+                    Spacer(modifier = GlanceModifier.width(14.dp))
+                    WidgetIconButton(
+                        icon = if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
+                        iconTint = WidgetColors.White,
+                        background = WidgetColors.Accent,
+                        size = 48.dp, iconSize = 26.dp,
+                        contentDescription = if (isPaused) "Resume" else "Pause",
+                        action = pauseResumeAction,
+                    )
+                    Spacer(modifier = GlanceModifier.width(14.dp))
+                    WidgetIconButton(
+                        icon = R.drawable.ic_stop_24,
+                        iconTint = WidgetColors.White,
+                        background = WidgetColors.Destructive,
+                        size = 48.dp, iconSize = 26.dp,
+                        contentDescription = "Stop and save",
+                        action = stopAction,
+                    )
+                }
             }
-            Spacer(modifier = GlanceModifier.width(8.dp))
-            // Right: 3 buttons stacked vertically
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IslandButton(
-                    icon = R.drawable.ic_delete_24,
-                    iconTint = WidgetColors.Label,
-                    background = WidgetColors.ButtonNeutral,
-                    size = 34.dp, iconSize = 20.dp,
-                    contentDescription = "Discard",
-                    action = discardAction,
+        }
+
+        // ── 4x2: stacked — status, timer, buttons (larger) ─────────────
+        WidgetSizeClass.Wide4x2 -> Box(
+            modifier = GlanceModifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                StatusLabel(isPaused = isPaused)
+                Spacer(modifier = GlanceModifier.height(4.dp))
+                Text(
+                    text = timerText,
+                    style = TextStyle(
+                        color = WidgetColors.Label,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 28.sp,
+                        fontFamily = FontFamily.Monospace,
+                    ),
                 )
-                Spacer(modifier = GlanceModifier.height(6.dp))
-                IslandButton(
-                    icon = if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
-                    iconTint = WidgetColors.White,
-                    background = WidgetColors.Accent,
-                    size = 34.dp, iconSize = 20.dp,
-                    contentDescription = if (isPaused) "Resume" else "Pause",
-                    action = pauseResumeAction,
-                )
-                Spacer(modifier = GlanceModifier.height(6.dp))
-                IslandButton(
-                    icon = R.drawable.ic_stop_24,
-                    iconTint = WidgetColors.White,
-                    background = WidgetColors.Destructive,
-                    size = 34.dp, iconSize = 20.dp,
-                    contentDescription = "Stop and save",
-                    action = stopAction,
-                )
+                Spacer(modifier = GlanceModifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    WidgetIconButton(
+                        icon = R.drawable.ic_delete_24,
+                        iconTint = WidgetColors.SecondaryLabel,
+                        background = WidgetColors.ButtonNeutral,
+                        size = 48.dp, iconSize = 26.dp,
+                        contentDescription = "Discard",
+                        action = discardAction,
+                    )
+                    Spacer(modifier = GlanceModifier.width(18.dp))
+                    WidgetIconButton(
+                        icon = if (isPaused) R.drawable.ic_play_24 else R.drawable.ic_pause_24,
+                        iconTint = WidgetColors.White,
+                        background = WidgetColors.Accent,
+                        size = 48.dp, iconSize = 26.dp,
+                        contentDescription = if (isPaused) "Resume" else "Pause",
+                        action = pauseResumeAction,
+                    )
+                    Spacer(modifier = GlanceModifier.width(18.dp))
+                    WidgetIconButton(
+                        icon = R.drawable.ic_stop_24,
+                        iconTint = WidgetColors.White,
+                        background = WidgetColors.Destructive,
+                        size = 48.dp, iconSize = 26.dp,
+                        contentDescription = "Stop and save",
+                        action = stopAction,
+                    )
+                }
             }
         }
     }

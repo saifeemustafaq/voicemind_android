@@ -15,7 +15,6 @@ object WidgetColors {
     val OnSurface            = ColorProvider(BrandColors.OnSurface)
     val White                = ColorProvider(BrandColors.OnPrimary)
     val Warning              = ColorProvider(BrandColors.Warning)
-    val IslandSurface        = ColorProvider(BrandColors.SurfaceContainerLowest)
     val ButtonNeutral        = ColorProvider(BrandColors.SurfaceContainerHigh)
     val ButtonDark           = ColorProvider(BrandColors.OnSurface)
 }
