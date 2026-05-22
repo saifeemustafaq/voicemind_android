@@ -3,24 +3,62 @@ package com.voicemind.ui.folders
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voicemind.data.model.Folder
+import com.voicemind.data.model.Recording
+import com.voicemind.data.repository.ActionItemRepository
 import com.voicemind.data.repository.FolderRepository
+import com.voicemind.data.repository.NavPreferenceRepository
 import com.voicemind.data.repository.RecordingRepository
+import com.voicemind.data.repository.SharingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.voicemind.util.countByFolder
 import javax.inject.Inject
+
+enum class FolderSort(val key: String) {
+    Recency("recency"),
+    Count("count");
+
+    companion object {
+        fun fromKey(key: String) = values().find { it.key == key } ?: Recency
+    }
+}
+
+data class PersonStat(
+    val name: String,
+    val count: Int,
+)
+
+data class SharingOverview(
+    val recordingCount: Int = 0,
+    val taskCount: Int = 0,
+    val summaryCount: Int = 0,
+    val total: Int = 0,
+    val perPerson: List<PersonStat> = emptyList(),
+)
 
 data class FoldersUiState(
     val folders: List<Folder> = emptyList(),
+    val folderRecordingCounts: Map<String, Int> = emptyMap(),
     val isLoading: Boolean = true,
+    val sort: FolderSort = FolderSort.Recency,
+    val sharedItemsUnreadCount: Int = 0,
+    val sharedByMeCount: Int = 0,
+    val sharedWithMeOverview: SharingOverview = SharingOverview(),
+    val sharedByMeOverview: SharingOverview = SharingOverview(),
 )
 
 @HiltViewModel
 class FoldersViewModel @Inject constructor(
     private val folderRepository: FolderRepository,
     private val recordingRepository: RecordingRepository,
+    private val navPreferenceRepository: NavPreferenceRepository,
+    private val sharingRepository: SharingRepository,
+    private val actionItemRepository: ActionItemRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FoldersUiState())
@@ -28,9 +66,102 @@ class FoldersViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            folderRepository.observeFolders().collect { folders ->
-                _uiState.value = FoldersUiState(folders = folders, isLoading = false)
+            combine(
+                folderRepository.observeFolders(),
+                recordingRepository.observeRecordings(),
+                navPreferenceRepository.folderSort,
+            ) { folders, recordings, sortKey ->
+                Triple(folders, recordings, FolderSort.fromKey(sortKey))
+            }.collect { (folders, recordings, sort) ->
+                val counts = recordings.countByFolder()
+                _uiState.update { current ->
+                    current.copy(
+                        folders = sortFolders(folders, recordings, counts, sort),
+                        folderRecordingCounts = counts,
+                        isLoading = false,
+                        sort = sort,
+                    )
+                }
             }
+        }
+        viewModelScope.launch {
+            sharingRepository.getUnreadCount().collect { count ->
+                _uiState.update { it.copy(sharedItemsUnreadCount = count) }
+            }
+        }
+        viewModelScope.launch {
+            sharingRepository.observeAllMyShares().collect { shares ->
+                val distinctItems = shares.distinctBy { s -> s.itemId }
+                val byType = distinctItems.groupBy { it.itemType }
+                val recCount = byType["recording"]?.size ?: 0
+                val taskCount = byType["task"]?.size ?: 0
+                val sumCount = byType["collectiveSummary"]?.size ?: 0
+                val perRecipient = shares
+                    .groupBy { it.recipientName.ifEmpty { it.recipientEmail } }
+                    .map { (name, items) -> PersonStat(name, items.distinctBy { it.itemId }.size) }
+                    .sortedByDescending { it.count }
+                _uiState.update {
+                    it.copy(
+                        sharedByMeCount = distinctItems.size,
+                        sharedByMeOverview = SharingOverview(
+                            recordingCount = recCount,
+                            taskCount = taskCount,
+                            summaryCount = sumCount,
+                            total = distinctItems.size,
+                            perPerson = perRecipient,
+                        ),
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            combine(
+                sharingRepository.observeSharedWithMe(),
+                actionItemRepository.observeSharedTasks(),
+            ) { sharedItems, sharedTasks ->
+                Pair(sharedItems, sharedTasks)
+            }.collect { (sharedItems, sharedTasks) ->
+                val recCount = sharedItems.count { it.itemType == "recording" }
+                val sumCount = sharedItems.count { it.itemType == "collectiveSummary" }
+                val taskCount = sharedTasks.size
+                val unreadByPerson = sharedItems
+                    .filter { !it.isRead }
+                    .groupBy { it.ownerName.ifEmpty { it.ownerEmail } }
+                    .map { (name, items) -> PersonStat(name, items.size) }
+                    .sortedByDescending { it.count }
+                _uiState.update {
+                    it.copy(
+                        sharedWithMeOverview = SharingOverview(
+                            recordingCount = recCount,
+                            taskCount = taskCount,
+                            summaryCount = sumCount,
+                            total = recCount + taskCount + sumCount,
+                            perPerson = unreadByPerson,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun sortFolders(
+        folders: List<Folder>,
+        recordings: List<Recording>,
+        counts: Map<String, Int>,
+        sort: FolderSort,
+    ): List<Folder> = when (sort) {
+        FolderSort.Recency -> {
+            val latestByFolder = recordings
+                .groupBy { it.folderId }
+                .mapValues { (_, recs) -> recs.maxOfOrNull { it.createdAt?.seconds ?: 0L } ?: 0L }
+            folders.sortedByDescending { latestByFolder[it.id] ?: 0L }
+        }
+        FolderSort.Count -> folders.sortedByDescending { counts[it.id] ?: 0 }
+    }
+
+    fun setSortOrder(sort: FolderSort) {
+        viewModelScope.launch {
+            navPreferenceRepository.setFolderSort(sort.key)
         }
     }
 

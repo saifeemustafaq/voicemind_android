@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,7 +7,11 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.firebase.appdistribution)
 }
+
+val versionPropsFile = rootProject.file("version.properties")
+val versionProps = Properties().apply { load(versionPropsFile.inputStream()) }
 
 android {
     namespace = "com.voicemind"
@@ -15,8 +21,8 @@ android {
         applicationId = "com.voicemind"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = versionProps["VERSION_CODE"].toString().toInt()
+        versionName = versionProps["VERSION_NAME"].toString()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -30,6 +36,10 @@ android {
         }
     }
 
+    lint {
+        disable += "NullSafeMutableLiveData"
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -38,6 +48,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            firebaseAppDistribution {
+                releaseNotes = "Latest build of VoiceMind"
+                testers = "saifeesaifuddinq@gmail.com, saifeestudy@gmail.com, studykalyani@gmail.com, kkalyanipawar@gmail.com"
+            }
         }
     }
     compileOptions {
@@ -50,6 +64,22 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+tasks.register("bumpVersionCode") {
+    doLast {
+        val props = Properties().apply { load(versionPropsFile.inputStream()) }
+        val code = props["VERSION_CODE"].toString().toInt() + 1
+        props["VERSION_CODE"] = code.toString()
+        versionPropsFile.outputStream().use { props.store(it, null) }
+        println("Version code bumped to $code")
+    }
+}
+
+tasks.configureEach {
+    if (name == "assembleRelease") {
+        dependsOn("bumpVersionCode")
     }
 }
 
@@ -74,6 +104,11 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Firebase
     implementation(platform(libs.firebase.bom))
@@ -81,11 +116,13 @@ dependencies {
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.storage.ktx)
     implementation(libs.firebase.functions.ktx)
+    implementation(libs.firebase.messaging.ktx)
 
     // Google Sign-In (Credential Manager)
     implementation(libs.credentials)
     implementation(libs.credentials.play.services)
     implementation(libs.google.id.identity)
+    implementation(libs.play.services.auth)
 
     // Networking
     implementation(libs.retrofit)
@@ -97,8 +134,24 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
 
+    // Glance (App Widgets)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
+
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Markdown rendering
+    implementation("com.halilibo.compose-richtext:richtext-ui-material3:0.20.0")
+    implementation("com.halilibo.compose-richtext:richtext-commonmark:0.20.0")
+
+    // Room
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
 
     // Logging
     implementation(libs.timber)

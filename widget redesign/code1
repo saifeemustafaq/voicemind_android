@@ -1,0 +1,237 @@
+<html class="light" lang="en"><head></head><body class="bg-surface text-on-surface min-h-screen p-8 flex flex-col items-center gap-16">```html
+
+
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-low": "#ecf1f6",
+                    "outline-variant": "#a9aeb1",
+                    "secondary": "#984200",
+                    "on-tertiary-fixed-variant": "#003a6e",
+                    "inverse-surface": "#0a0f12",
+                    "error-dim": "#a70138",
+                    "secondary-dim": "#853900",
+                    "secondary-container": "#ffc5a7",
+                    "primary-fixed": "#ff766d",
+                    "on-primary-fixed-variant": "#600007",
+                    "tertiary-container": "#7db3ff",
+                    "secondary-fixed-dim": "#ffb288",
+                    "on-background": "#2a2f32",
+                    "secondary-fixed": "#ffc5a7",
+                    "on-error": "#ffefef",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-dim": "#a40113",
+                    "surface-container-highest": "#d7dee3",
+                    "on-error-container": "#510017",
+                    "error": "#b41340",
+                    "on-tertiary": "#eef3ff",
+                    "on-tertiary-fixed": "#001834",
+                    "on-primary": "#ffefed",
+                    "primary-container": "#ff766d",
+                    "on-primary-fixed": "#000000",
+                    "on-primary-container": "#4f0004",
+                    "on-secondary-fixed": "#5a2400",
+                    "on-surface-variant": "#575c60",
+                    "tertiary-fixed": "#7db3ff",
+                    "surface-container": "#e3e9ee",
+                    "outline": "#73777b",
+                    "surface-bright": "#f3f7fb",
+                    "primary-fixed-dim": "#ff5a53",
+                    "tertiary-fixed-dim": "#60a5ff",
+                    "on-secondary": "#fff0e9",
+                    "on-secondary-fixed-variant": "#873a00",
+                    "tertiary-dim": "#005095",
+                    "inverse-primary": "#ff544e",
+                    "background": "#f3f7fb",
+                    "error-container": "#f74b6d",
+                    "surface": "#f3f7fb",
+                    "surface-container-high": "#dde3e8",
+                    "surface-variant": "#d7dee3",
+                    "surface-dim": "#ced5db",
+                    "surface-tint": "#b5161e",
+                    "on-surface": "#2a2f32",
+                    "inverse-on-surface": "#999da1",
+                    "tertiary": "#005caa",
+                    "primary": "#b5161e",
+                    "on-tertiary-container": "#00315f",
+                    "on-secondary-container": "#783300"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .headline { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .island-blur {
+            backdrop-filter: blur(24px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<!-- Top App Bar (Shared Component Strategy) -->
+<header class="flex items-center justify-between px-6 h-16 w-full max-w-4xl rounded-xl bg-[#f3f7fb] dark:bg-slate-950">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#b5161e] dark:text-[#ff766d]" data-icon="mic_external_on">mic_external_on</span>
+<h1 class="text-xl font-black text-[#2a2f32] dark:text-slate-100 font-headline tracking-tight">Voice Island</h1>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-[#b5161e] dark:text-[#ff766d] font-semibold transition-colors" href="#">Recorder</a>
+<a class="text-[#2a2f32]/60 dark:text-slate-400 font-semibold hover:bg-[#e3e9ee] dark:hover:bg-slate-800 px-3 py-1 rounded-full transition-colors" href="#">Library</a>
+<a class="text-[#2a2f32]/60 dark:text-slate-400 font-semibold hover:bg-[#e3e9ee] dark:hover:bg-slate-800 px-3 py-1 rounded-full transition-colors" href="#">Settings</a>
+</nav>
+</header>
+<main class="w-full max-w-5xl space-y-24 flex flex-col items-center">
+<!-- 4x1 WIDGET (The Full Experience) -->
+<section class="flex flex-col items-center gap-6 w-full">
+<span class="font-label text-xs font-bold tracking-widest text-on-surface-variant uppercase">4x1 Wide Widget</span>
+<div class="flex items-center gap-3">
+<!-- Label Island -->
+<div class="bg-surface-container-lowest/90 island-blur shadow-sm border border-white/40 rounded-full px-6 py-4 flex items-center gap-3">
+<span class="w-2.5 h-2.5 bg-primary rounded-full animate-pulse"></span>
+<span class="font-label text-sm font-bold text-on-surface tracking-tight">Interview_042.wav</span>
+</div>
+<!-- Timer Island -->
+<div class="bg-surface-container-lowest/90 island-blur shadow-sm border border-white/40 rounded-full px-8 py-4 min-w-[120px] flex justify-center">
+<span class="font-headline text-2xl font-extrabold text-on-surface tabular-nums">12:45</span>
+</div>
+<!-- Controls Cluster -->
+<div class="flex items-center gap-2 bg-surface-container-lowest/90 island-blur shadow-sm border border-white/40 p-2 rounded-full">
+<button class="w-12 h-12 flex items-center justify-center bg-surface-container-highest text-on-surface rounded-full hover:scale-95 transition-transform active:bg-surface-dim">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+<button class="w-14 h-14 flex items-center justify-center bg-primary text-on-primary rounded-full hover:scale-95 transition-transform active:bg-primary-dim shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined" data-icon="pause" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center bg-on-surface text-surface rounded-full hover:scale-95 transition-transform active:opacity-90">
+<span class="material-symbols-outlined" data-icon="stop" style="font-variation-settings: 'FILL' 1;">stop</span>
+</button>
+</div>
+</div>
+</section>
+<!-- 3x1 WIDGET (The Balanced Version) -->
+<section class="flex flex-col items-center gap-6 w-full">
+<span class="font-label text-xs font-bold tracking-widest text-on-surface-variant uppercase">3x1 Compact Widget</span>
+<div class="flex items-center gap-2">
+<!-- Merged Label & Timer Island -->
+<div class="bg-surface-container-lowest/90 island-blur shadow-sm border border-white/40 rounded-full px-5 py-3 flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 bg-secondary rounded-full"></span>
+<span class="font-label text-xs font-bold text-secondary tracking-tight uppercase">Paused</span>
+</div>
+<div class="w-px h-4 bg-outline-variant/30"></div>
+<span class="font-headline text-lg font-bold text-on-surface tabular-nums">04:12</span>
+</div>
+<!-- Controls -->
+<div class="flex items-center gap-2 bg-surface-container-lowest/90 island-blur shadow-sm border border-white/40 p-1.5 rounded-full">
+<button class="w-11 h-11 flex items-center justify-center bg-surface-container-highest text-on-surface rounded-full hover:scale-95 transition-transform">
+<span class="material-symbols-outlined text-xl" data-icon="delete">delete</span>
+</button>
+<button class="w-11 h-11 flex items-center justify-center bg-primary text-on-primary rounded-full hover:scale-95 transition-transform">
+<span class="material-symbols-outlined text-xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button class="w-11 h-11 flex items-center justify-center bg-on-surface text-surface rounded-full hover:scale-95 transition-transform">
+<span class="material-symbols-outlined text-xl" data-icon="stop" style="font-variation-settings: 'FILL' 1;">stop</span>
+</button>
+</div>
+</div>
+</section>
+<!-- 2x1 WIDGET (Minimal Controls) -->
+<section class="flex flex-col items-center gap-6 w-full">
+<span class="font-label text-xs font-bold tracking-widest text-on-surface-variant uppercase">2x1 Button Widget</span>
+<div class="inline-flex items-center gap-3 p-3 bg-surface-container-lowest/90 island-blur shadow-sm border border-white/40 rounded-full">
+<!-- Action Islands -->
+<button class="w-14 h-14 flex items-center justify-center bg-surface-container-highest text-on-surface rounded-full hover:scale-95 transition-transform">
+<span class="material-symbols-outlined text-2xl" data-icon="delete">delete</span>
+</button>
+<button class="w-14 h-14 flex items-center justify-center bg-primary text-on-primary rounded-full hover:scale-95 transition-transform shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button class="w-14 h-14 flex items-center justify-center bg-on-surface text-surface rounded-full hover:scale-95 transition-transform">
+<span class="material-symbols-outlined text-2xl" data-icon="stop" style="font-variation-settings: 'FILL' 1;">stop</span>
+</button>
+</div>
+</section>
+</main>
+<!-- Contextual Information Card (High-end UI Pattern) -->
+<aside class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6 pb-32">
+<div class="bg-surface-container-lowest rounded-lg p-8 space-y-4">
+<div class="w-12 h-12 rounded-2xl bg-tertiary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="analytics">analytics</span>
+</div>
+<h3 class="font-headline text-xl font-bold">Voice Analytics</h3>
+<p class="text-on-surface-variant leading-relaxed">Each recording island utilizes tonal layering to distinguish metadata from controls, ensuring zero cognitive load while navigating.</p>
+<div class="h-24 w-full bg-surface-container-low rounded-xl relative overflow-hidden">
+<div class="absolute inset-0 flex items-center justify-center gap-1 px-4">
+<div class="h-4 w-2 bg-primary-fixed rounded-full"></div>
+<div class="h-8 w-2 bg-primary rounded-full"></div>
+<div class="h-12 w-2 bg-primary-dim rounded-full"></div>
+<div class="h-6 w-2 bg-primary-fixed rounded-full"></div>
+<div class="h-14 w-2 bg-primary rounded-full"></div>
+<div class="h-10 w-2 bg-primary-fixed rounded-full"></div>
+<div class="h-4 w-2 bg-primary-fixed rounded-full"></div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container rounded-lg p-8 flex flex-col justify-between">
+<div>
+<h3 class="font-headline text-xl font-bold mb-2">Architectural Philosophy</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">By rejecting standard grid containers, these widgets feel like physical tokens floating on your desktop background.</p>
+</div>
+<div class="flex -space-x-4 mt-6">
+<div class="w-12 h-12 rounded-full border-4 border-surface-container bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-xs" data-icon="mic_none">mic_none</span>
+</div>
+<div class="w-12 h-12 rounded-full border-4 border-surface-container bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-xs text-white" data-icon="settings">settings</span>
+</div>
+<div class="w-12 h-12 rounded-full border-4 border-surface-container bg-on-surface flex items-center justify-center">
+<span class="material-symbols-outlined text-xs text-white" data-icon="list_alt">list_alt</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Bottom Nav Bar (Shared Component Strategy) -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-6 pb-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl md:hidden">
+<div class="fixed bottom-4 left-4 right-4 rounded-full h-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex justify-around items-center px-6 shadow-[0_8px_32px_rgba(42,47,50,0.06)]">
+<div class="flex items-center justify-center bg-[#b5161e] text-white rounded-full w-12 h-12 scale-90 duration-200 ease-out">
+<span class="material-symbols-outlined" data-icon="mic_none">mic_none</span>
+</div>
+<div class="flex items-center justify-center text-[#2a2f32] dark:text-slate-400 w-12 h-12 hover:bg-[#e3e9ee] dark:hover:bg-slate-800 rounded-full transition-colors scale-90 duration-200 ease-out">
+<span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+</div>
+<div class="flex items-center justify-center text-[#2a2f32] dark:text-slate-400 w-12 h-12 hover:bg-[#e3e9ee] dark:hover:bg-slate-800 rounded-full transition-colors scale-90 duration-200 ease-out">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+</div>
+<div class="flex items-center justify-center text-[#2a2f32] dark:text-slate-400 w-12 h-12 hover:bg-[#e3e9ee] dark:hover:bg-slate-800 rounded-full transition-colors scale-90 duration-200 ease-out">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</div>
+</div>
+</nav>
+```</body></html>

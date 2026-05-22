@@ -46,7 +46,7 @@ class AudioRecorder @Inject constructor(
         }
 
         state = RecorderState.Recording
-        Timber.d("Recording started: ${file.absolutePath}")
+        Timber.d("Recording started")
         return file
     }
 
@@ -82,7 +82,7 @@ class AudioRecorder @Inject constructor(
     fun release() {
         try {
             recorder?.release()
-        } catch (_: Exception) { }
+        } catch (_: Exception) { /* may throw if already released */ }
         recorder = null
         state = RecorderState.Idle
     }

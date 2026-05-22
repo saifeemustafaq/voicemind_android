@@ -1,0 +1,287 @@
+<html class="light" lang="en"><head></head><body class="bg-surface min-h-screen text-on-surface p-8 md:p-12">```html
+
+
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Voice Island Recorder</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+          tailwind.config = {
+            darkMode: "class",
+            theme: {
+              extend: {
+                "colors": {
+                        "surface-container-low": "#ecf1f6",
+                        "outline-variant": "#a9aeb1",
+                        "secondary": "#984200",
+                        "on-tertiary-fixed-variant": "#003a6e",
+                        "inverse-surface": "#0a0f12",
+                        "error-dim": "#a70138",
+                        "secondary-dim": "#853900",
+                        "secondary-container": "#ffc5a7",
+                        "primary-fixed": "#ff766d",
+                        "on-primary-fixed-variant": "#600007",
+                        "tertiary-container": "#7db3ff",
+                        "secondary-fixed-dim": "#ffb288",
+                        "on-background": "#2a2f32",
+                        "secondary-fixed": "#ffc5a7",
+                        "on-error": "#ffefef",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-dim": "#a40113",
+                        "surface-container-highest": "#d7dee3",
+                        "on-error-container": "#510017",
+                        "error": "#b41340",
+                        "on-tertiary": "#eef3ff",
+                        "on-tertiary-fixed": "#001834",
+                        "on-primary": "#ffefed",
+                        "primary-container": "#ff766d",
+                        "on-primary-fixed": "#000000",
+                        "on-primary-container": "#4f0004",
+                        "on-secondary-fixed": "#5a2400",
+                        "on-surface-variant": "#575c60",
+                        "tertiary-fixed": "#7db3ff",
+                        "surface-container": "#e3e9ee",
+                        "outline": "#73777b",
+                        "surface-bright": "#f3f7fb",
+                        "primary-fixed-dim": "#ff5a53",
+                        "tertiary-fixed-dim": "#60a5ff",
+                        "on-secondary": "#fff0e9",
+                        "on-secondary-fixed-variant": "#873a00",
+                        "tertiary-dim": "#005095",
+                        "inverse-primary": "#ff544e",
+                        "background": "#f3f7fb",
+                        "error-container": "#f74b6d",
+                        "surface": "#f3f7fb",
+                        "surface-container-high": "#dde3e8",
+                        "surface-variant": "#d7dee3",
+                        "surface-dim": "#ced5db",
+                        "surface-tint": "#b5161e",
+                        "on-surface": "#2a2f32",
+                        "inverse-on-surface": "#999da1",
+                        "tertiary": "#005caa",
+                        "primary": "#b5161e",
+                        "on-tertiary-container": "#00315f",
+                        "on-secondary-container": "#783300"
+                },
+                "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                },
+                "fontFamily": {
+                        "headline": ["Plus Jakarta Sans"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                }
+              },
+            },
+          }
+        </script>
+    <style>
+            body { font-family: 'Inter', sans-serif; }
+            .headline { font-family: 'Plus Jakarta Sans', sans-serif; }
+            .glass-island {
+                background: rgba(255, 255, 255, 0.8);
+                backdrop-filter: blur(24px);
+            }
+            .recording-pulse {
+                animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            @keyframes pulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: .5; transform: scale(0.8); }
+            }
+        </style>
+    <style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+      </style>
+    <!-- Top AppBar -->
+    <header class="flex items-center justify-between px-6 h-16 w-full bg-[#f3f7fb] dark:bg-slate-950 transition-all rounded-lg mb-12">
+    <div class="flex items-center gap-3">
+    <span class="material-symbols-outlined text-[#b5161e] dark:text-[#ff766d]" data-icon="mic_external_on">mic_external_on</span>
+    <span class="text-xl font-black text-[#2a2f32] dark:text-slate-100 font-headline tracking-tight">Voice Island</span>
+    </div>
+    <nav class="hidden md:flex gap-8">
+    <a class="text-[#b5161e] dark:text-[#ff766d] font-bold text-sm" href="#">Record</a>
+    <a class="text-[#2a2f32]/60 dark:text-slate-400 hover:bg-[#e3e9ee] px-3 py-1 rounded-full transition-colors text-sm" href="#">Library</a>
+    <a class="text-[#2a2f32]/60 dark:text-slate-400 hover:bg-[#e3e9ee] px-3 py-1 rounded-full transition-colors text-sm" href="#">Stats</a>
+    <a class="text-[#2a2f32]/60 dark:text-slate-400 hover:bg-[#e3e9ee] px-3 py-1 rounded-full transition-colors text-sm" href="#">Settings</a>
+    </nav>
+    </header>
+    <main class="max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-12 items-start">
+    <!-- 2x2 Widget Column -->
+    <div class="flex flex-col gap-4 items-center">
+    <span class="text-on-surface-variant font-label text-xs tracking-widest uppercase mb-2">2x2 Widget</span>
+    <div class="w-64 flex flex-col gap-3">
+    <!-- Status Island -->
+    <div class="glass-island rounded-full px-4 py-3 flex items-center gap-3 shadow-[0_8px_32px_rgba(42,47,50,0.06)]">
+    <div class="w-2 h-2 rounded-full bg-primary recording-pulse"></div>
+    <span class="text-on-surface font-label text-[10px] font-bold uppercase tracking-widest">RECORDING</span>
+    </div>
+    <!-- Timer Island -->
+    <div class="glass-island rounded-lg flex flex-col items-center justify-center p-8 shadow-[0_8px_32px_rgba(42,47,50,0.06)]">
+    <span class="font-headline text-4xl font-extrabold tracking-tighter text-on-surface">04:12</span>
+    <span class="font-label text-[10px] text-on-surface-variant mt-1 uppercase tracking-tighter">Current Session</span>
+    </div>
+    <!-- Controls Island -->
+    <div class="flex justify-between items-center gap-2">
+    <button class="w-12 h-12 rounded-full bg-surface-container-highest flex items-center justify-center hover:scale-95 transition-transform">
+    <span class="material-symbols-outlined text-on-surface" data-icon="delete">delete</span>
+    </button>
+    <button class="flex-grow h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:scale-95 transition-transform shadow-lg">
+    <span class="material-symbols-outlined text-2xl" data-icon="pause" data-weight="fill" style="font-variation-settings: 'FILL' 1;">pause</span>
+    </button>
+    <button class="w-12 h-12 rounded-full bg-primary flex items-center justify-center hover:scale-95 transition-transform">
+    <span class="material-symbols-outlined text-on-primary" data-icon="stop" data-weight="fill" style="font-variation-settings: 'FILL' 1;">stop</span>
+    </button>
+    </div>
+    </div>
+    </div>
+    <!-- 3x2 Widget Column -->
+    <div class="flex flex-col gap-4 items-center">
+    <span class="text-on-surface-variant font-label text-xs tracking-widest uppercase mb-2">3x2 Vertical</span>
+    <div class="w-64 flex flex-col gap-4">
+    <!-- Status Island -->
+    <div class="glass-island rounded-full px-5 py-4 flex items-center justify-between shadow-[0_8px_32px_rgba(42,47,50,0.06)]">
+    <div class="flex items-center gap-3">
+    <div class="w-3 h-3 rounded-full bg-secondary"></div>
+    <span class="text-on-surface font-label text-xs font-bold uppercase tracking-widest">PAUSED</span>
+    </div>
+    <span class="text-[10px] text-on-surface-variant font-medium">12.4 MB</span>
+    </div>
+    <!-- Main Body Content -->
+    <div class="glass-island rounded-lg flex flex-col items-center justify-between p-6 shadow-[0_8px_32px_rgba(42,47,50,0.06)]">
+    <div class="w-full flex justify-center py-4">
+    <!-- Decorative Audio Wave Visualizer -->
+    <div class="flex items-center gap-1.5 h-16">
+    <div class="w-1.5 h-6 bg-primary-container rounded-full opacity-40"></div>
+    <div class="w-1.5 h-10 bg-primary-container rounded-full opacity-60"></div>
+    <div class="w-1.5 h-16 bg-primary rounded-full"></div>
+    <div class="w-1.5 h-12 bg-primary rounded-full"></div>
+    <div class="w-1.5 h-8 bg-primary-container rounded-full opacity-60"></div>
+    <div class="w-1.5 h-4 bg-primary-container rounded-full opacity-40"></div>
+    </div>
+    </div>
+    <div class="text-center">
+    <span class="font-headline text-5xl font-black tracking-tight text-on-surface">12:45</span>
+    <p class="text-xs text-on-surface-variant font-medium mt-2">Interview_Session_04.wav</p>
+    </div>
+    <div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden mt-6">
+    <div class="w-2/3 h-full bg-primary rounded-full"></div>
+    </div>
+    </div>
+    <!-- Actions -->
+    <div class="grid grid-cols-3 gap-3 h-16">
+    <button class="rounded-full bg-surface-container-highest flex items-center justify-center hover:scale-95 transition-transform active:bg-surface-container-high">
+    <span class="material-symbols-outlined" data-icon="delete">delete</span>
+    </button>
+    <button class="rounded-full bg-primary flex items-center justify-center hover:scale-95 transition-transform shadow-xl">
+    <span class="material-symbols-outlined text-on-primary text-3xl" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+    </button>
+    <button class="rounded-full bg-surface-container-highest flex items-center justify-center hover:scale-95 transition-transform active:bg-surface-container-high">
+    <span class="material-symbols-outlined" data-icon="done_all">done_all</span>
+    </button>
+    </div>
+    </div>
+    </div>
+    <!-- 4x2 Widget Column -->
+    <div class="flex flex-col gap-4 items-center">
+    <span class="text-on-surface-variant font-label text-xs tracking-widest uppercase mb-2">4x2 Full Expanded</span>
+    <div class="w-72 flex flex-col gap-4 relative">
+    <!-- Label Pill -->
+    <div class="glass-island rounded-full px-6 py-4 flex items-center gap-4 z-10 shadow-[0_8px_32px_rgba(42,47,50,0.06)]">
+    <div class="w-2 h-2 rounded-full bg-primary recording-pulse"></div>
+    <div class="flex flex-col">
+    <span class="text-on-surface font-label text-[10px] font-bold uppercase tracking-widest">RECORDING LIVE</span>
+    <span class="text-[9px] text-on-surface-variant">STEREO • 48KHZ</span>
+    </div>
+    </div>
+    <!-- Timer Hero Island -->
+    <div class="glass-island rounded-lg p-8 flex flex-col items-center justify-center z-10 shadow-[0_8px_32px_rgba(42,47,50,0.06)]">
+    <span class="font-headline text-6xl font-black tracking-tighter text-on-surface">00:48</span>
+    <div class="flex gap-1 mt-4">
+    <div class="w-2 h-2 rounded-full bg-primary"></div>
+    <div class="w-2 h-2 rounded-full bg-surface-container-highest"></div>
+    <div class="w-2 h-2 rounded-full bg-surface-container-highest"></div>
+    </div>
+    </div>
+    <!-- Transcript/Notes Mini Island -->
+    <div class="glass-island rounded-lg p-6 z-10 flex flex-col gap-3 shadow-[0_8px_32px_rgba(42,47,50,0.06)]">
+    <div class="flex justify-between items-center">
+    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Real-time Transcript</span>
+    <span class="material-symbols-outlined text-xs text-primary" data-icon="auto_awesome">auto_awesome</span>
+    </div>
+    <p class="text-xs text-on-surface leading-relaxed opacity-70">"The modular island aesthetic leverages tonal contrast to create a hierarchy of depth without..."</p>
+    </div>
+    <!-- Control Bar -->
+    <div class="glass-island rounded-full p-2 flex items-center justify-between z-10 shadow-[0_8px_32px_rgba(42,47,50,0.06)]">
+    <button class="w-12 h-12 rounded-full bg-transparent flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors">
+    <span class="material-symbols-outlined" data-icon="close">close</span>
+    </button>
+    <button class="h-14 w-14 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-lg hover:scale-95 transition-transform">
+    <span class="material-symbols-outlined text-3xl" data-icon="stop" data-weight="fill" style="font-variation-settings: 'FILL' 1;">stop</span>
+    </button>
+    <button class="w-12 h-12 rounded-full bg-transparent flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors">
+    <span class="material-symbols-outlined" data-icon="bookmark">bookmark</span>
+    </button>
+    </div>
+    </div>
+    </div>
+    </div>
+    <!-- Design Philosophy Section -->
+    <section class="mt-24">
+    <h2 class="font-headline text-3xl font-extrabold text-on-surface mb-8">Design Philosophy</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <!-- Island Note 1 -->
+    <div class="bg-surface-container-lowest rounded-lg p-8 shadow-[0_4px_12px_rgba(42,47,50,0.03)] border border-outline-variant/10">
+    <div class="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center mb-6">
+    <span class="material-symbols-outlined text-on-primary-container" data-icon="layers">layers</span>
+    </div>
+    <h3 class="font-headline text-lg font-bold mb-3">Tonal Layering</h3>
+    <p class="text-sm text-on-surface-variant leading-relaxed">Instead of shadows, we stack objects with varying background tones to create depth and structure.</p>
+    </div>
+    <!-- Island Note 2 -->
+    <div class="bg-surface-container-lowest rounded-lg p-8 shadow-[0_4px_12px_rgba(42,47,50,0.03)] border border-outline-variant/10">
+    <div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center mb-6">
+    <span class="material-symbols-outlined text-on-secondary-container" data-icon="rounded_corner">rounded_corner</span>
+    </div>
+    <h3 class="font-headline text-lg font-bold mb-3">Pill-First UI</h3>
+    <p class="text-sm text-on-surface-variant leading-relaxed">Interactive elements follow a strict 9999px rounding rule, making every action feel tactile and physical.</p>
+    </div>
+    <!-- Image Card Island -->
+    <div class="md:col-span-2 relative h-full min-h-[200px] rounded-lg overflow-hidden group">
+    <img class="w-full h-full object-cover" data-alt="Abstract smooth flowing liquid silk in shades of crimson and soft blue, elegant architectural lighting, high-end tech aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGn_oyl9Z0duvGrFsiloLXRFyVSt3Ujpx6mw26uhPBlpnKjS1B6ORH_xRGDnqL2bcvMydY1gs4-sDkWNvtq9v8hybb073_Wgc56au64-0LfmKy4o6ZzINipS_6gk2-BGm467XzRVk_CNGucdfVck1TmBS2INfT7FPSeCldgcWyOw-lV2Fj-2MjUsiMLQV3yeYCLxL9YOG-kIU-E_yPjZddh9pRZLofxMxKMd6naxf9NulK4UtFGAXXc4ZNi6o16bn8GdWj27D9FFY"/>
+    <div class="absolute inset-0 bg-gradient-to-t from-on-background/80 to-transparent flex items-end p-8">
+    <div>
+    <span class="text-white/60 text-[10px] font-bold uppercase tracking-widest">Aesthetic Focus</span>
+    <h3 class="text-white font-headline text-xl font-bold">The Fluid Architect</h3>
+    </div>
+    </div>
+    </div>
+    </div>
+    </section>
+    </main>
+    <!-- Navigation Shell (BottomNavBar for Mobile) -->
+    <div class="md:hidden">
+    <nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-6 pb-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
+    <div class="flex items-center justify-center bg-[#b5161e] text-white rounded-full w-12 h-12 shadow-lg">
+    <span class="material-symbols-outlined" data-icon="mic_none" data-weight="fill" style="font-variation-settings: 'FILL' 1;">mic_none</span>
+    </div>
+    <div class="flex items-center justify-center text-[#2a2f32] dark:text-slate-400 w-12 h-12 hover:bg-[#e3e9ee] rounded-full transition-colors">
+    <span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+    </div>
+    <div class="flex items-center justify-center text-[#2a2f32] dark:text-slate-400 w-12 h-12 hover:bg-[#e3e9ee] rounded-full transition-colors">
+    <span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+    </div>
+    <div class="flex items-center justify-center text-[#2a2f32] dark:text-slate-400 w-12 h-12 hover:bg-[#e3e9ee] rounded-full transition-colors">
+    <span class="material-symbols-outlined" data-icon="settings">settings</span>
+    </div>
+    </nav>
+    </div>
+    ```</body></html>

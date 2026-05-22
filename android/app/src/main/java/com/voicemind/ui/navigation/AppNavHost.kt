@@ -1,53 +1,84 @@
 package com.voicemind.ui.navigation
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.voicemind.data.repository.NavPreferenceRepository
+import com.voicemind.ui.common.OfflineBanner
+import com.voicemind.util.ConnectivityObserver
 import com.voicemind.ui.checklist.ChecklistScreen
+import com.voicemind.ui.checklist.TaskDetailScreen
 import com.voicemind.ui.folders.FolderDetailScreen
 import com.voicemind.ui.folders.FoldersScreen
-import com.voicemind.ui.home.HomeScreen
+import com.voicemind.ui.recording.RecordingDetailScreen
 import com.voicemind.ui.recording.RecordingsScreen
 import com.voicemind.ui.settings.SettingsScreen
-import com.voicemind.ui.theme.VmSoftPeriwinkleMist
+import com.voicemind.ui.sharing.SharedByMeScreen
+import com.voicemind.ui.sharing.SharedItemsScreen
+import com.voicemind.ui.sharing.SharedRecordingDetailScreen
+import com.voicemind.ui.sharing.SharedSummaryDetailScreen
+import com.voicemind.ui.summaries.SummariesScreen
 import kotlinx.coroutines.launch
+
+private const val TABS_ROUTE = "tabs"
 
 @Composable
 fun AppNavHost(
     onSignOut: () -> Unit,
     navPreferenceRepository: NavPreferenceRepository,
+    connectivityObserver: ConnectivityObserver,
+    openRecordingsOnStart: Boolean = false,
+    onRecordingsOpened: () -> Unit = {},
+    openSharedItemsOnStart: Boolean = false,
+    onSharedItemsOpened: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val useSidebar by navPreferenceRepository.useSidebar.collectAsState(initial = true)
-
-    val drawerRoutes = remember { Routes.drawerItems.map { it.route }.toSet() }
-    val showBottomBar = !useSidebar && (currentRoute == null || currentRoute in drawerRoutes)
+    val useSidebarOrNull by navPreferenceRepository.useSidebar.collectAsStateWithLifecycle(initialValue = null)
+    val defaultLandingPageOrNull by navPreferenceRepository.defaultLandingPage.collectAsStateWithLifecycle(initialValue = null)
+    val navOrderOrNull by navPreferenceRepository.navOrder.collectAsStateWithLifecycle(initialValue = null)
+    val useSidebar = useSidebarOrNull ?: return
+    val startDestination = defaultLandingPageOrNull ?: return
+    val orderedNavItems = navOrderOrNull?.let { Routes.orderedItems(it) } ?: Routes.drawerItems
+    val isOnline by connectivityObserver.isOnline.collectAsStateWithLifecycle()
 
     val navigateTo: (Routes) -> Unit = { destination ->
-        navController.navigate(destination.route) {
-            popUpTo(navController.graph.findStartDestination().id) {
-                saveState = true
+        val popped = navController.popBackStack(destination.route, inclusive = false)
+        if (!popped) {
+            navController.navigate(destination.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
             }
-            launchSingleTop = true
-            restoreState = true
+            if (navController.currentBackStackEntry?.destination?.route != destination.route) {
+                navController.popBackStack(destination.route, inclusive = false)
+            }
         }
     }
 
@@ -57,85 +88,214 @@ fun AppNavHost(
         null
     }
 
-    val sidebarNavigate: (Routes) -> Unit = { destination ->
-        scope.launch { drawerState.close() }
-        navigateTo(destination)
-    }
+    val onSettings: () -> Unit = { navigateTo(Routes.Settings) }
 
-    val content: @Composable (Modifier) -> Unit = { modifier ->
-        NavHost(
-            navController = navController,
-            startDestination = Routes.Home.route,
-            modifier = modifier
-        ) {
-            composable(Routes.Home.route) {
-                HomeScreen(
-                    onFolderClick = { folderId ->
-                        navController.navigate(folderDetailRoute(folderId))
-                    },
-                    onRecordingClick = {
-                        navigateTo(Routes.Recordings)
-                    },
-                    onOpenDrawer = onOpenDrawer,
-                )
-            }
-            composable(Routes.Recordings.route) {
-                RecordingsScreen(onOpenDrawer = onOpenDrawer)
-            }
-            composable(Routes.Checklist.route) {
-                ChecklistScreen(onOpenDrawer = onOpenDrawer)
-            }
-            composable(Routes.Folders.route) {
-                FoldersScreen(
-                    onFolderClick = { folderId ->
-                        navController.navigate(folderDetailRoute(folderId))
-                    },
-                    onOpenDrawer = onOpenDrawer,
-                )
-            }
-            composable(Routes.Settings.route) {
-                SettingsScreen(
-                    onSignOut = onSignOut,
-                    onOpenDrawer = onOpenDrawer,
-                )
-            }
-            composable(FOLDER_DETAIL_ROUTE) { backStackEntry ->
-                val folderId = backStackEntry.arguments?.getString("folderId") ?: return@composable
-                FolderDetailScreen(
-                    folderId = folderId,
-                    onBack = { navController.popBackStack() }
-                )
-            }
+    LaunchedEffect(openSharedItemsOnStart) {
+        if (openSharedItemsOnStart) {
+            navController.navigate(SHARED_ITEMS_ROUTE)
+            onSharedItemsOpened()
         }
     }
 
     if (useSidebar) {
+        // ── Sidebar / Drawer mode — unchanged from original ─────────────
+
+        val sidebarNavigate: (Routes) -> Unit = { destination ->
+            scope.launch { drawerState.close() }
+            navigateTo(destination)
+        }
+
+        // Recordings deep-link differs between navigation modes (navigateTo here vs. pagerState.scrollToPage
+        // in bottom-bar) — cannot be hoisted above the if/else branch.
+        LaunchedEffect(openRecordingsOnStart) {
+            if (openRecordingsOnStart) {
+                navigateTo(Routes.Recordings)
+                onRecordingsOpened()
+            }
+        }
+
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
                 SidebarDrawer(
-                    currentRoute = currentRoute ?: Routes.Home.route,
+                    currentRoute = currentRoute ?: startDestination,
                     onNavigate = sidebarNavigate,
+                    items = orderedNavItems,
                 )
             },
         ) {
-            Scaffold(containerColor = VmSoftPeriwinkleMist) { innerPadding ->
-                content(Modifier.padding(innerPadding))
+            Scaffold { innerPadding ->
+                Column(modifier = Modifier.padding(innerPadding)) {
+                    OfflineBanner(isOnline = isOnline, currentRoute = currentRoute)
+                    NavHost(
+                        navController = navController,
+                        startDestination = startDestination,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                    composable(Routes.Recordings.route) {
+                        RecordingsScreen(onOpenDrawer = onOpenDrawer, navController = navController, onSettings = onSettings)
+                    }
+                    composable(Routes.Checklist.route) {
+                        ChecklistScreen(
+                            onOpenDrawer = onOpenDrawer,
+                            onTaskClick = { itemId -> navController.navigate(taskDetailRoute(itemId)) },
+                            onSettings = onSettings,
+                        )
+                    }
+                    composable(Routes.Summaries.route) {
+                        SummariesScreen(onOpenDrawer = onOpenDrawer, onSettings = onSettings)
+                    }
+                    composable(Routes.Folders.route) {
+                        FoldersScreen(
+                            onFolderClick = { folderId -> navController.navigate(folderDetailRoute(folderId)) },
+                            onSharedItemsClick = { navController.navigate(SHARED_ITEMS_ROUTE) },
+                            onSharedByMeClick = { navController.navigate(SHARED_BY_ME_ROUTE) },
+                            onOpenDrawer = onOpenDrawer,
+                            onSettings = onSettings,
+                        )
+                    }
+                    detailRoutes(navController, onSignOut, onOpenDrawer)
+                }
+                } // Column
             }
         }
     } else {
+        // ── Bottom bar mode — HorizontalPager for tab swiping ───────────
+
+        val startIndex = orderedNavItems
+            .indexOfFirst { it.route == startDestination }
+            .coerceAtLeast(0)
+
+        val pagerState = rememberPagerState(initialPage = startIndex) { orderedNavItems.size }
+
+        val pagerCurrentRoute by remember {
+            derivedStateOf { orderedNavItems[pagerState.currentPage].route }
+        }
+
+        // Recordings deep-link differs between navigation modes (pagerState.scrollToPage here vs.
+        // navigateTo in sidebar) — cannot be hoisted above the if/else branch.
+        LaunchedEffect(openRecordingsOnStart) {
+            if (openRecordingsOnStart) {
+                val recIndex = orderedNavItems.indexOfFirst { it is Routes.Recordings }
+                if (recIndex >= 0) pagerState.scrollToPage(recIndex)
+                onRecordingsOpened()
+            }
+        }
+
         Scaffold(
-            containerColor = VmSoftPeriwinkleMist,
             bottomBar = {
-                if (showBottomBar) {
-                    BottomNavBar(
-                        currentRoute = currentRoute ?: Routes.Home.route,
-                        onNavigate = navigateTo,
-                    )
-                }
+                BottomNavBar(
+                    currentRoute = if (currentRoute == TABS_ROUTE || currentRoute == null)
+                        pagerCurrentRoute else currentRoute,
+                    onNavigate = { destination ->
+                        val index = orderedNavItems.indexOf(destination)
+                        if (index >= 0) {
+                            if (currentRoute != TABS_ROUTE) {
+                                navController.popBackStack(TABS_ROUTE, inclusive = false)
+                            }
+                            scope.launch { pagerState.animateScrollToPage(index) }
+                        }
+                    },
+                    items = orderedNavItems,
+                )
             }
         ) { innerPadding ->
-            content(Modifier.padding(innerPadding))
+            Column(modifier = Modifier.padding(innerPadding)) {
+                OfflineBanner(isOnline = isOnline, currentRoute = currentRoute)
+                NavHost(
+                    navController = navController,
+                    startDestination = TABS_ROUTE,
+                    modifier = Modifier.weight(1f),
+                ) {
+                composable(TABS_ROUTE) {
+                    HorizontalPager(
+                        state = pagerState,
+                        beyondViewportPageCount = orderedNavItems.size - 1,
+                        modifier = Modifier.fillMaxSize(),
+                    ) { page ->
+                        when (orderedNavItems[page]) {
+                            Routes.Recordings -> RecordingsScreen(
+                                navController = navController,
+                                onSettings = onSettings,
+                            )
+                            Routes.Checklist -> ChecklistScreen(
+                                onTaskClick = { itemId -> navController.navigate(taskDetailRoute(itemId)) },
+                                onSettings = onSettings,
+                            )
+                            Routes.Summaries -> SummariesScreen(
+                                onSettings = onSettings,
+                            )
+                            Routes.Folders -> FoldersScreen(
+                                onFolderClick = { folderId -> navController.navigate(folderDetailRoute(folderId)) },
+                                onSharedItemsClick = { navController.navigate(SHARED_ITEMS_ROUTE) },
+                                onSharedByMeClick = { navController.navigate(SHARED_BY_ME_ROUTE) },
+                                onSettings = onSettings,
+                            )
+                            else -> {}
+                        }
+                    }
+                }
+                detailRoutes(navController, onSignOut, onOpenDrawer = null)
+            }
+            } // Column
         }
+    }
+}
+
+private fun NavGraphBuilder.detailRoutes(
+    navController: NavController,
+    onSignOut: () -> Unit,
+    onOpenDrawer: (() -> Unit)?,
+) {
+    composable(TASK_DETAIL_ROUTE) {
+        TaskDetailScreen(onBack = { navController.popBackStack() })
+    }
+    composable(Routes.Settings.route) {
+        SettingsScreen(onSignOut = onSignOut, onOpenDrawer = onOpenDrawer)
+    }
+    composable(FOLDER_DETAIL_ROUTE) { backStackEntry ->
+        val folderId = backStackEntry.arguments?.getString("folderId") ?: return@composable
+        FolderDetailScreen(folderId = folderId, onBack = { navController.popBackStack() })
+    }
+    composable(RECORDING_DETAIL_ROUTE) { backStackEntry ->
+        val recordingId = backStackEntry.arguments?.getString("recordingId") ?: return@composable
+        RecordingDetailScreen(
+            recordingId = recordingId,
+            navController = navController,
+            onBack = { navController.popBackStack() },
+        )
+    }
+    composable(SHARED_BY_ME_ROUTE) {
+        SharedByMeScreen(onBack = { navController.popBackStack() })
+    }
+    composable(SHARED_ITEMS_ROUTE) {
+        SharedItemsScreen(
+            onBack = { navController.popBackStack() },
+            onRecordingClick = { ownerUid, recordingId ->
+                navController.navigate(sharedRecordingDetailRoute(ownerUid, recordingId))
+            },
+            onTaskClick = { taskId -> navController.navigate(taskDetailRoute(taskId)) },
+            onSummaryClick = { ownerUid, summaryId ->
+                navController.navigate(sharedSummaryDetailRoute(ownerUid, summaryId))
+            },
+        )
+    }
+    composable(SHARED_SUMMARY_DETAIL_ROUTE) { backStackEntry ->
+        val ownerUid = backStackEntry.arguments?.getString("ownerUid") ?: return@composable
+        val summaryId = backStackEntry.arguments?.getString("summaryId") ?: return@composable
+        SharedSummaryDetailScreen(
+            ownerUid = ownerUid,
+            summaryId = summaryId,
+            onBack = { navController.popBackStack() },
+        )
+    }
+    composable(SHARED_RECORDING_DETAIL_ROUTE) { backStackEntry ->
+        val ownerUid = backStackEntry.arguments?.getString("ownerUid") ?: return@composable
+        val recordingId = backStackEntry.arguments?.getString("recordingId") ?: return@composable
+        SharedRecordingDetailScreen(
+            ownerUid = ownerUid,
+            recordingId = recordingId,
+            onBack = { navController.popBackStack() },
+        )
     }
 }

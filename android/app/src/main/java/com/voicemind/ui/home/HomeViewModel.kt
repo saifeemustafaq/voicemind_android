@@ -11,11 +11,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import com.voicemind.util.countByFolder
 import javax.inject.Inject
 
 data class HomeUiState(
     val folders: List<Folder> = emptyList(),
     val recentRecordings: List<Recording> = emptyList(),
+    val folderRecordingCounts: Map<String, Int> = emptyMap(),
     val isLoading: Boolean = true,
 )
 
@@ -34,14 +36,25 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             folderRepository.observeFolders().collect { folders ->
-                _uiState.value = _uiState.value.copy(folders = folders, isLoading = false)
+                val latestByFolder = _uiState.value.recentRecordings
+                    .groupBy { it.folderId }
+                    .mapValues { (_, recs) -> recs.mapNotNull { it.createdAt?.seconds }.maxOrNull() ?: 0L }
+                val sortedFolders = folders.sortedByDescending { latestByFolder[it.id] ?: 0L }
+                _uiState.value = _uiState.value.copy(folders = sortedFolders, isLoading = false)
             }
         }
         viewModelScope.launch {
             recordingRepository.observeRecordings().collect { recordings ->
+                val latestByFolder = recordings
+                    .groupBy { it.folderId }
+                    .mapValues { (_, recs) -> recs.mapNotNull { it.createdAt?.seconds }.maxOrNull() ?: 0L }
+                val sortedFolders = _uiState.value.folders
+                    .sortedByDescending { latestByFolder[it.id] ?: 0L }
                 _uiState.value = _uiState.value.copy(
-                    recentRecordings = recordings.take(10),
-                    isLoading = false
+                    folders = sortedFolders,
+                    recentRecordings = recordings.take(4),
+                    folderRecordingCounts = recordings.countByFolder(),
+                    isLoading = false,
                 )
             }
         }
